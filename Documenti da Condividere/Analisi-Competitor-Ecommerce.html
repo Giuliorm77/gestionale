@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analisi competitor & strategia e-commerce — Creatio</title>
+<style>
+  :root{
+    --bg:#EAEEF0; --surface:#FFFFFF; --surface-2:#F3F6F7; --ink:#132029; --ink-soft:#51646F;
+    --ink-faint:#8698A2; --accent:#0B7A91; --accent-2:#0E93AE; --accent-wash:#E2F0F3; --line:#D6DEE2;
+    --ok:#2C7A54; --ok-wash:#E4F1EA; --warn:#9A6712; --warn-wash:#F6ECD8; --crit:#AC3A3A; --crit-wash:#F7E7E7;
+    --shadow:0 1px 2px rgba(19,32,41,.05), 0 8px 28px rgba(19,32,41,.06);
+    --mono:"Cascadia Code","Consolas",ui-monospace,"SFMono-Regular",Menlo,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0D171E; --surface:#15242D; --surface-2:#1A2E38; --ink:#E8EFF2; --ink-soft:#9CB0BB;
+    --ink-faint:#63808C; --accent:#37B9D4; --accent-2:#54CBE4; --accent-wash:#123039; --line:#263A45;
+    --ok:#52B486; --ok-wash:#152B22; --warn:#D2A455; --warn-wash:#2A2415; --crit:#E07373; --crit-wash:#2C1717;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);}}
+  :root[data-theme="light"]{
+    --bg:#EAEEF0; --surface:#FFFFFF; --surface-2:#F3F6F7; --ink:#132029; --ink-soft:#51646F;
+    --ink-faint:#8698A2; --accent:#0B7A91; --accent-2:#0E93AE; --accent-wash:#E2F0F3; --line:#D6DEE2;
+    --ok:#2C7A54; --ok-wash:#E4F1EA; --warn:#9A6712; --warn-wash:#F6ECD8; --crit:#AC3A3A; --crit-wash:#F7E7E7;
+    --shadow:0 1px 2px rgba(19,32,41,.05), 0 8px 28px rgba(19,32,41,.06);}
+  :root[data-theme="dark"]{
+    --bg:#0D171E; --surface:#15242D; --surface-2:#1A2E38; --ink:#E8EFF2; --ink-soft:#9CB0BB;
+    --ink-faint:#63808C; --accent:#37B9D4; --accent-2:#54CBE4; --accent-wash:#123039; --line:#263A45;
+    --ok:#52B486; --ok-wash:#152B22; --warn:#D2A455; --warn-wash:#2A2415; --crit:#E07373; --crit-wash:#2C1717;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);}
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;margin:0;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1400px;margin:0 auto;padding:32px 34px 80px;}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:600;}
+  h2.sec{font-size:21px;font-weight:800;letter-spacing:-.01em;margin:36px 2px 4px;}
+  .sec-sub{font-size:14px;color:var(--ink-soft);margin:0 2px 16px;}
+  .hero{position:relative;padding:34px 30px 28px;margin-bottom:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
+  .hero h1{font-size:clamp(27px,4.6vw,40px);line-height:1.05;font-weight:800;letter-spacing:-.02em;margin:12px 0 10px;text-wrap:balance;}
+  .hero p.lead{font-size:16.5px;color:var(--ink-soft);margin:0;max-width:64ch;}
+  .crop{position:absolute;width:14px;height:14px;pointer-events:none;opacity:.5;}
+  .crop::before,.crop::after{content:"";position:absolute;background:var(--ink-faint);}
+  .crop::before{width:100%;height:1.5px;top:0;} .crop::after{width:1.5px;height:100%;left:0;}
+  .crop.tl{top:9px;left:9px;} .crop.tr{top:9px;right:9px;transform:scaleX(-1);}
+  .crop.bl{bottom:9px;left:9px;transform:scaleY(-1);} .crop.br{bottom:9px;right:9px;transform:scale(-1,-1);}
+  .thesis{background:var(--accent-wash);border:1px solid var(--accent);border-radius:11px;padding:15px 17px;font-size:15px;margin-top:16px;}
+  .thesis b{color:var(--ink);}
+
+  .tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);}
+  table{border-collapse:collapse;width:100%;min-width:760px;font-size:13px;}
+  th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top;}
+  thead th{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);background:var(--surface-2);position:sticky;top:0;}
+  tbody th{font-weight:800;font-size:13.5px;white-space:nowrap;background:var(--surface-2);}
+  tr:last-child td,tr:last-child th{border-bottom:none;}
+  td .y{color:var(--ok);font-weight:700;} td .n{color:var(--crit);font-weight:700;}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  @media(max-width:720px){.cards{grid-template-columns:1fr;}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow);border-top:3px solid var(--accent);}
+  .card h4{margin:0 0 6px;font-size:14.5px;} .card ul{margin:0;padding-left:17px;font-size:13px;color:var(--ink-soft);} .card li{margin:5px 0;}
+
+  .moat{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);margin-bottom:10px;}
+  .moat h4{margin:0 0 3px;font-size:15px;} .moat p{margin:0;font-size:13.5px;color:var(--ink-soft);}
+
+  .layers{display:flex;flex-direction:column;gap:11px;}
+  .layer{display:grid;grid-template-columns:auto 1fr;gap:15px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 17px;box-shadow:var(--shadow);}
+  .lnum{font-family:var(--mono);font-weight:700;color:#fff;background:var(--accent);border-radius:9px;padding:6px 11px;line-height:1;height:fit-content;font-size:13px;}
+  .layer h4{margin:0 0 3px;font-size:16px;} .layer p{margin:0;font-size:14px;color:var(--ink-soft);}
+  .layer .why{font-size:12.5px;color:var(--accent);font-weight:700;margin-top:6px;}
+
+  .warn{background:var(--warn-wash);border:1px solid var(--warn);border-radius:12px;padding:15px 17px;font-size:14px;margin-top:16px;}
+  .warn b{color:var(--warn);}
+  .foot{margin-top:34px;padding-top:20px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--ink-soft);}
+  .foot a{color:var(--accent);word-break:break-all;} .foot .sig{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:10px;}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="crop tl"></span><span class="crop tr"></span><span class="crop bl"></span><span class="crop br"></span>
+    <span class="eyebrow">Gestionale Creatio · Analisi competitor</span>
+    <h1>Non un altro Pixartprinting</h1>
+    <p class="lead">I quattro siti che mi hai segnalato sono giganti che vincono su <b>prezzo, scala e automazione</b>. Creatio non deve inseguirli su quel terreno — lo perderebbe. Deve vincere <b>dove loro non arrivano</b>.</p>
+    <div class="thesis">🎯 <b>La tesi in una riga:</b> loro spediscono una scatola; tu monti l'insegna, allestisci il negozio, fai il sopralluogo. L'e-commerce di Creatio deve usare il meglio del loro <b>modo di vendere</b>, ma puntato sui <b>lavori che loro non sanno fare</b>.</p>
+  </header>
+
+  <h2 class="sec">I quattro a confronto</h2>
+  <p class="sec-sub">Cosa vendono e, soprattutto, come vendono.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Competitor</th><th>Prodotti</th><th>Configuratore</th><th>Prezzi</th><th>File/grafica</th><th>Area B2B</th></tr></thead>
+    <tbody>
+      <tr><th>Pixartprinting</th><td>Enorme (3M+): print, grande formato, packaging, gadget, espositori</td><td><span class="y">Sì</span> parametrico, misure su misura, preview 2D/3D</td><td>Preventivo istantaneo <b>dopo</b> la configurazione</td><td>Upload + fix automatici + preview</td><td><span class="y">Sì</span> "Large Accounts" retail/franchising + fedeltà</td></tr>
+      <tr><th>Flyeralarm</th><td>Enorme (7M+ config): print, gadget, abbigliamento, espositori</td><td><span class="y">Sì</span> completa online, express/overnight</td><td>Prezzo online <b>per quantità</b></td><td>Upload + controllo file</td><td><span class="y">Fortissimo</span> rivenditori a prezzi trade + <b>white label</b> + consegna neutra</td></tr>
+      <tr><th>Stampasi</th><td>Gadget e abbigliamento (1000+), verticali (medicale, chef, sport)</td><td><span class="n">No</span> visibile; personalizzazione via contatto</td><td>Non trasparenti a monte</td><td>Gestito offline (telefono/WhatsApp)</td><td><span class="n">No</span> portale; relazione diretta</td></tr>
+      <tr><th>Gadget365</th><td>Gadget/promo (5000+), forte "eco"</td><td>Personalizzazione trasparente: scegli → carica logo → <b>bozza gratis 24h</b> → approva</td><td><span class="y">Fasce per quantità VISIBILI</span> + calcolatore</td><td>Upload multi-canale + bozza gratuita</td><td><span class="n">No</span> dedicata (direct-to-business)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 class="sec">Cosa rubare (le mosse migliori)</h2>
+  <p class="sec-sub">Non reinventare: prendi ciò che già funziona da chi lo fa bene.</p>
+  <div class="cards">
+    <div class="card"><h4>Da Gadget365 — la fiducia</h4><ul>
+      <li><b>Bozza grafica gratuita in 24h</b> prima di produrre</li>
+      <li>Prezzi <b>per quantità visibili</b> + calcolatore</li>
+      <li>Campioni ordinabili prima</li>
+      <li>Recensioni + loghi clienti + "come funziona in 4 step"</li>
+    </ul></div>
+    <div class="card"><h4>Da Pixart — la macchina</h4><ul>
+      <li>Configuratore <b>parametrico</b> + misure su misura</li>
+      <li><b>Controllo file automatico</b> (per i prodotti standard)</li>
+      <li>Preventivo istantaneo</li>
+      <li>Programma fedeltà + area "grandi account" retail</li>
+    </ul></div>
+    <div class="card"><h4>Da Flyeralarm — i canali</h4><ul>
+      <li><b>Area rivenditori</b> a prezzi trade</li>
+      <li><b>White label</b> / consegna neutra per le agenzie</li>
+      <li>Stampa express/overnight per le urgenze</li>
+      <li>Portale "configura e ordina" per il cliente-canale</li>
+    </ul></div>
+  </div>
+
+  <h2 class="sec">Dove Creatio vince (il fossato)</h2>
+  <p class="sec-sub">Il loro punto cieco è enorme. È tutto il vostro terreno.</p>
+  <div class="moat"><h4>🏗️ Allestimenti, insegne, grande formato INSTALLATO</h4><p>Loro spediscono un roll-up in una scatola. Non fanno sopralluoghi, non montano un'insegna luminosa, non allestiscono un negozio o una fiera. Qui non vi seguono nemmeno.</p></div>
+  <div class="moat"><h4>🤝 Locale, relazione, consulenza</h4><p>Una persona vera, un sopralluogo, un consiglio, un'urgenza risolta di persona. I clienti da 10-100k l'anno vogliono un <b>partner</b>, non un portale anonimo.</p></div>
+  <div class="moat"><h4>🎨 Lavori complessi e chiavi-in-mano</h4><p>Cartotecnica e packaging su misura, scenografie, progetti su richiesta: cose che nessun configuratore standard sa gestire.</p></div>
+  <div class="moat"><h4>📸 Il portfolio dei lavori installati</h4><p>Persino Pixart, tra i suoi punti deboli, non ha una gallery clienti. Le vostre <b>foto dei lavori reali</b> sono la cosa che loro non possono mostrare. È la vostra arma di vendita.</p></div>
+
+  <h2 class="sec">La strategia in 3 strati</h2>
+  <p class="sec-sub">Non "un e-shop come loro", ma un sistema costruito sui vostri punti di forza.</p>
+  <div class="layers">
+    <div class="layer"><span class="lnum">1</span><div><h4>Portale clienti B2B + area rivenditori</h4><p>I clienti fissi riordinano con i <b>loro prezzi</b> e seguono le commesse. Le agenzie ottengono <b>prezzi trade / white-label</b> (l'idea vincente di Flyeralarm). Riusa clienti e listini del gestionale.</p><div class="why">→ È il motore per agganciare e trattenere i clienti da 10-100k l'anno.</div></div></div>
+    <div class="layer"><span class="lnum">2</span><div><h4>Shop curato + configuratore</h4><p>Online solo ciò che ha davvero senso (gadget standard, formati standard), col <b>flusso trasparente stile Gadget365</b>: scegli → carica logo → bozza gratis → approva. Comodità per i vostri clienti, non guerra di prezzo.</p><div class="why">→ Convenienza e primi contatti, non commodity a basso margine.</div></div></div>
+    <div class="layer"><span class="lnum">3</span><div><h4>Vetrina allestimenti/insegne → sopralluogo</h4><p>Homepage col <b>portfolio dei lavori installati</b> e un pulsante chiaro "richiedi sopralluogo / preventivo". Il sito <b>genera i clienti grossi</b>, non vende scatole.</p><div class="why">→ Lead-generation ad alto valore: è qui che nasce il fatturato vero.</div></div></div>
+  </div>
+
+  <div class="warn">⚠️ <b>La cosa da NON fare:</b> competere sul prezzo del volantino o del gadget "commodity". Su volume e automazione loro vincono sempre. Per quei prodotti standard, potete persino <b>rivendere</b> (come fa chi usa il programma rivenditori di Flyeralarm) e concentrare la vostra produzione sui lavori a margine: <b>allestimenti, insegne, custom</b>. Vendete il <b>servizio e l'installazione</b>, non la scatola.</div>
+
+  <div class="foot">
+    <p><b>Fonti analizzate:</b> <a href="https://www.pixartprinting.it/">pixartprinting.it</a> · <a href="https://www.flyeralarm.com/it/">flyeralarm.com/it</a> (+ <a href="https://flyeralarm.pro/?lang=it">programma rivenditori FLYERALARM Pro</a>) · <a href="https://www.stampasi.it/">stampasi.it</a> · <a href="https://www.gadget365.it/">gadget365.it</a></p>
+    <p class="sig">Creatio Group · Stampa &amp; Allestimenti — analisi competitor e strategia e-commerce</p>
+  </div>
+</div>
+</body></html>

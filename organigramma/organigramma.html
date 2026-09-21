@@ -1,0 +1,856 @@
+<title>Organigramma Creatio Group</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* ============================================================ tokens */
+:root {
+  --paper:      #F2F4F0;
+  --sheet:      #FBFCFA;
+  --ink:        #16191B;
+  --ink-soft:   #5C6564;
+  --ink-faint:  #8C9491;
+  --rule:       #D2D6CF;
+  --rule-soft:  #E3E6E0;
+  --accent:     #1B6B47;
+  --accent-bg:  #E4EDE7;
+  --warn:       #9A5B10;
+  --warn-bg:    #F5EAD9;
+
+  --r-direzione:      #3A4247;
+  --r-amministrazione:#0B7FAE;
+  --r-commerciale:    #B4007A;
+  --r-produzione:     #1B6B47;
+  --r-grafico:        #6244A8;
+  --r-serigrafia:     #C4551B;
+  --r-stampa:         #2C5C93;
+  --r-allestimento:   #0D7A82;
+  --r-magazzino:      #8A6A1F;
+  --r-nessuno:        #9AA09C;
+
+  --sp:   1rem;
+  --maxw: 50rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #131719;
+    --sheet:      #1A1F21;
+    --ink:        #E9EBE6;
+    --ink-soft:   #9AA29F;
+    --ink-faint:  #6E7674;
+    --rule:       #2C3335;
+    --rule-soft:  #23292B;
+    --accent:     #57B183;
+    --accent-bg:  #1B2C24;
+    --warn:       #D9A75C;
+    --warn-bg:    #2C2317;
+
+    --r-direzione:      #9AA5AB;
+    --r-amministrazione:#4FB6DE;
+    --r-commerciale:    #E85BAE;
+    --r-produzione:     #57B183;
+    --r-grafico:        #A38BE0;
+    --r-serigrafia:     #E68A4F;
+    --r-stampa:         #6D9DD4;
+    --r-allestimento:   #45B3BA;
+    --r-magazzino:      #C6A44A;
+    --r-nessuno:        #7C837F;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper:      #131719;
+  --sheet:      #1A1F21;
+  --ink:        #E9EBE6;
+  --ink-soft:   #9AA29F;
+  --ink-faint:  #6E7674;
+  --rule:       #2C3335;
+  --rule-soft:  #23292B;
+  --accent:     #57B183;
+  --accent-bg:  #1B2C24;
+  --warn:       #D9A75C;
+  --warn-bg:    #2C2317;
+
+  --r-direzione:      #9AA5AB;
+  --r-amministrazione:#4FB6DE;
+  --r-commerciale:    #E85BAE;
+  --r-produzione:     #57B183;
+  --r-grafico:        #A38BE0;
+  --r-serigrafia:     #E68A4F;
+  --r-stampa:         #6D9DD4;
+  --r-allestimento:   #45B3BA;
+  --r-magazzino:      #C6A44A;
+  --r-nessuno:        #7C837F;
+}
+
+/* ============================================================ base */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+h1, h2, h3, .ui { font-family: Archivo, "Helvetica Neue", Arial, sans-serif; }
+
+.mono {
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* ============================================================ intestazione: scheda commessa */
+.head { position: relative; padding-top: 1.25rem; }
+
+/* crocini di registro, come su un foglio macchina */
+.head::before, .head::after {
+  content: "";
+  position: absolute; top: 0;
+  width: 13px; height: 13px;
+  border: 1px solid var(--rule);
+}
+.head::before { left: 0;  border-right: 0; border-bottom: 0; }
+.head::after  { right: 0; border-left: 0;  border-bottom: 0; }
+
+.eyebrow {
+  font-family: Archivo, sans-serif;
+  font-size: 0.688rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 0.5rem;
+}
+
+h1 {
+  font-size: clamp(2rem, 7vw, 3.1rem);
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1.02;
+  text-wrap: balance;
+  margin: 0 0 0.75rem;
+}
+h1 .sub {
+  display: block;
+  font-size: 0.34em;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  margin-top: 0.7rem;
+}
+
+.standfirst {
+  font-size: 1.075rem;
+  color: var(--ink-soft);
+  max-width: 34em;
+  margin: 0 0 1.75rem;
+}
+
+/* riga dati, come la testata di una commessa */
+.ticket {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+}
+.ticket div {
+  padding: 0.7rem 0.9rem 0.75rem 0;
+  border-right: 1px solid var(--rule-soft);
+}
+.ticket div:last-child { border-right: 0; }
+.ticket dt {
+  font-family: Archivo, sans-serif;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 0.2rem;
+}
+.ticket dd {
+  margin: 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.35rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.ticket dd small {
+  display: block;
+  font-family: "Source Serif 4", serif;
+  font-size: 0.75rem;
+  letter-spacing: 0;
+  color: var(--ink-soft);
+  margin-top: 0.25rem;
+}
+
+/* ============================================================ sezioni */
+section { margin-top: 3.25rem; }
+
+h2 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin: 0 0 0.35rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--ink);
+}
+.h2note {
+  font-size: 0.925rem;
+  color: var(--ink-soft);
+  margin: 0.85rem 0 1.5rem;
+  max-width: 38em;
+}
+
+/* ============================================================ barra colori = legenda reparti */
+.inkbar { display: grid; gap: 1px; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); }
+.inkbar .chipline {
+  display: flex; align-items: baseline; gap: 0.5rem;
+  padding: 0.5rem 0.6rem 0.55rem 0;
+}
+.swatch {
+  flex: 0 0 auto;
+  width: 0.7rem; height: 0.7rem;
+  border-radius: 1px;
+  background: var(--c);
+  transform: translateY(1px);
+}
+.chipline .nm {
+  font-family: Archivo, sans-serif;
+  font-size: 0.813rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+.chipline .ct {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.688rem;
+  color: var(--ink-faint);
+  margin-left: auto;
+  padding-left: 0.4rem;
+}
+
+/* ============================================================ albero */
+.tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+.tree { margin-top: 0.5rem; }
+
+.tree ul { margin-left: 0.35rem; }
+
+.tree li { position: relative; }
+.tree ul > li { padding-left: 1.4rem; }
+.tree ul > li::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 1px; background: var(--rule);
+}
+.tree ul > li:last-child::before { bottom: auto; height: 1.55rem; }
+.tree ul > li::after {
+  content: "";
+  position: absolute; left: 0; top: 1.55rem;
+  width: 0.85rem; height: 1px; background: var(--rule);
+}
+
+/* la persona: non una card, solo una banda d'inchiostro sul bordo */
+.p {
+  --c: var(--r-nessuno);
+  padding: 0.85rem 0 1rem 0.9rem;
+  border-left: 3px solid var(--c);
+  margin: 0.35rem 0 0.55rem;
+}
+.p.is-top {
+  background: var(--sheet);
+  padding: 1.05rem 1rem 1.15rem 1.1rem;
+  border-left-width: 4px;
+}
+
+.pname {
+  font-family: Archivo, sans-serif;
+  font-size: 1.075rem;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+  display: inline;
+}
+.is-top .pname { font-size: 1.3rem; font-weight: 700; }
+
+.prole {
+  font-family: Archivo, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--c);
+  margin: 0.15rem 0 0;
+  line-height: 1.3;
+}
+
+.tags {
+  display: flex; flex-wrap: wrap; gap: 0.3rem 0.4rem;
+  margin: 0.5rem 0 0;
+}
+.tag {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.656rem;
+  letter-spacing: 0.03em;
+  padding: 0.16rem 0.42rem;
+  border: 1px solid var(--rule);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.tag.rep { border-color: var(--c); color: var(--c); }
+.tag.ext { border-color: var(--ink-faint); color: var(--ink); background: var(--rule-soft); }
+.tag.dbl { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.tag.qq  { border-color: var(--warn); color: var(--warn); background: var(--warn-bg); }
+
+.does {
+  margin: 0.6rem 0 0;
+  font-size: 0.938rem;
+  color: var(--ink);
+  max-width: 46em;
+}
+.does b {
+  font-family: Archivo, sans-serif;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: 0.1rem;
+}
+.cover {
+  margin: 0.5rem 0 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.719rem;
+  color: var(--ink-soft);
+}
+.cover .none { color: var(--warn); }
+
+/* ============================================================ tabella coperture */
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 30rem; font-size: 0.938rem; }
+caption { text-align: left; font-size: 0.875rem; color: var(--ink-soft); margin-bottom: 0.75rem; }
+th, td { text-align: left; padding: 0.5rem 0.9rem 0.5rem 0; border-bottom: 1px solid var(--rule-soft); vertical-align: baseline; }
+thead th {
+  font-family: Archivo, sans-serif;
+  font-size: 0.625rem; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-faint);
+  border-bottom: 1px solid var(--ink);
+}
+tbody th { font-family: Archivo, sans-serif; font-size: 0.938rem; font-weight: 500; }
+td.n { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+.gap { color: var(--warn); }
+
+/* ============================================================ da chiarire */
+h3 {
+  font-size: 0.688rem; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 2.25rem 0 0.25rem;
+}
+.qs { list-style: none; margin: 0; padding: 0; }
+.qs li {
+  display: grid;
+  grid-template-columns: 2.1rem 1fr;
+  gap: 0 0.4rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.qs .num {
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.813rem;
+  color: var(--warn);
+  padding-top: 0.15rem;
+}
+.qs .qt {
+  font-family: Archivo, sans-serif;
+  font-size: 0.988rem; font-weight: 600;
+  letter-spacing: -0.008em;
+  margin: 0 0 0.15rem;
+}
+.qs .qd { margin: 0; font-size: 0.938rem; color: var(--ink-soft); }
+
+/* ============================================================ colophon */
+footer {
+  margin-top: 3.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--ink);
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+}
+footer p { margin: 0 0 0.6rem; max-width: 40em; }
+footer .mono { font-size: 0.719rem; color: var(--ink-faint); }
+
+/* ============================================================ responsive */
+@media (max-width: 34rem) {
+  .wrap { padding: 1.75rem 1.1rem 3rem; }
+  .tree ul { margin-left: 0.1rem; }
+  .tree ul > li { padding-left: 0.95rem; }
+  .tree ul > li::after { width: 0.55rem; }
+  .ticket div { padding-right: 0.6rem; }
+  .ticket dd { font-size: 1.15rem; }
+  .does { font-size: 0.906rem; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .p { transition: border-left-color 0.15s ease; }
+}
+
+/* ============================================================ stampa / PDF */
+@media print {
+  :root {
+    --paper: #fff; --sheet: #fff; --ink: #000;
+    --ink-soft: #333; --ink-faint: #555;
+    --rule: #999; --rule-soft: #ccc;
+  }
+  body { font-size: 10.5pt; }
+  .wrap { max-width: none; padding: 0; }
+  .head::before, .head::after { display: none; }
+  section { margin-top: 1.6rem; break-inside: avoid; }
+  .p, .qs li, tr { break-inside: avoid; }
+  h1 { font-size: 24pt; }
+}
+</style>
+
+<div class="wrap">
+
+  <header class="head">
+    <p class="eyebrow">Creatio Group &middot; documento interno &middot; revisione 01</p>
+    <h1>
+      Chi fa cosa
+      <span class="sub">Organigramma, responsabilità e coperture &mdash; 9 settembre 2026</span>
+    </h1>
+    <p class="standfirst">
+      Quindici persone, otto reparti. Questa è la struttura come risulta oggi: a chi si risponde,
+      di cosa risponde ciascuno e chi copre quando qualcuno non c&rsquo;è. In fondo ci sono i nove
+      punti ancora aperti, da chiudere prima di considerarlo definitivo.
+    </p>
+
+    <dl class="ticket">
+      <div>
+        <dt>Persone</dt>
+        <dd>15<small>12 interni, 3 esterni</small></dd>
+      </div>
+      <div>
+        <dt>Reparti</dt>
+        <dd>8<small>+ Stampa, condivisa</small></dd>
+      </div>
+      <div>
+        <dt>Livelli</dt>
+        <dd>3<small>CEO, responsabili, operativi</small></dd>
+      </div>
+      <div>
+        <dt>Da chiarire</dt>
+        <dd>9<small>4 dati, 5 scelte</small></dd>
+      </div>
+    </dl>
+  </header>
+
+  <!-- ======================================================== reparti -->
+  <section>
+    <h2>I reparti</h2>
+    <p class="h2note">
+      Ogni reparto ha il suo colore: lo ritrovi sul bordo di ogni persona nell&rsquo;albero qui sotto.
+      Il numero è quello delle persone assegnate in via principale.
+    </p>
+    <div class="inkbar">
+      <div class="chipline" style="--c: var(--r-direzione)">
+        <span class="swatch"></span><span class="nm">Direzione</span><span class="ct">1</span>
+      </div>
+      <div class="chipline" style="--c: var(--r-amministrazione)">
+        <span class="swatch"></span><span class="nm">Amministrazione</span><span class="ct">1</span>
+      </div>
+      <div class="chipline" style="--c: var(--r-commerciale)">
+        <span class="swatch"></span><span class="nm">Commerciale</span><span class="ct">3</span>
+      </div>
+      <div class="chipline" style="--c: var(--r-produzione)">
+        <span class="swatch"></span><span class="nm">Progettazione e Produzione</span><span class="ct">1</span>
+      </div>
+      <div class="chipline" style="--c: var(--r-grafico)">
+        <span class="swatch"></span><span class="nm">Reparto Grafico</span><span class="ct">3</span>
+      </div>
+      <div class="chipline" style="--c: var(--r-serigrafia)">
+        <span class="swatch"></span><span class="nm">Serigrafia</span><span class="ct">1</span>
+      </div>
+      <div class="chipline" style="--c: var(--r-stampa)">
+        <span class="swatch"></span><span class="nm">Stampa</span><span class="ct">2 cond.</span>
+      </div>
+      <div class="chipline" style="--c: var(--r-allestimento)">
+        <span class="swatch"></span><span class="nm">Allestimento / Finitura</span><span class="ct">3</span>
+      </div>
+      <div class="chipline" style="--c: var(--r-magazzino)">
+        <span class="swatch"></span><span class="nm">Magazzino / Logistica</span><span class="ct">1</span>
+      </div>
+      <div class="chipline" style="--c: var(--r-nessuno)">
+        <span class="swatch"></span><span class="nm">Da assegnare</span><span class="ct">1</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================== albero -->
+  <section>
+    <h2>La struttura</h2>
+    <p class="h2note">
+      Ogni rientro è un livello di riporto: chi sta più a destra risponde alla persona
+      immediatamente sopra a sinistra.
+    </p>
+
+    <ul class="tree">
+      <li>
+        <div class="p is-top" style="--c: var(--r-direzione)">
+          <span class="pname">Kledi Dell&rsquo;Omo</span>
+          <p class="prole">CEO</p>
+          <div class="tags">
+            <span class="tag rep">Direzione</span>
+            <span class="tag qq">reparto assegnato da noi</span>
+          </div>
+          <p class="does"><b>Si occupa di</b>Amministrare l&rsquo;attività.</p>
+          <p class="cover">Sostituto: Giulio Dell&rsquo;Omo &middot; a sua volta copre 3 persone</p>
+        </div>
+
+        <ul>
+          <!-- Amministrazione -->
+          <li>
+            <div class="p" style="--c: var(--r-amministrazione)">
+              <span class="pname">Monica Domogos</span>
+              <p class="prole">Responsabile Amministrazione</p>
+              <div class="tags"><span class="tag rep">Amministrazione</span></div>
+              <p class="does"><b>Si occupa di</b>Fatturazione &middot; pagamenti fornitori &middot;
+                pagamento stipendi &middot; incassi e solleciti &middot; gestione documentazione.</p>
+              <p class="cover">Sostituto: Kledi Dell&rsquo;Omo</p>
+            </div>
+          </li>
+
+          <!-- Giulio -->
+          <li>
+            <div class="p" style="--c: var(--r-commerciale)">
+              <span class="pname">Giulio Dell&rsquo;Omo</span>
+              <p class="prole">Account Direct</p>
+              <div class="tags">
+                <span class="tag rep">Commerciale</span>
+                <span class="tag ext">agente esterno</span>
+              </div>
+              <p class="does"><b>Si occupa di</b>Rapporto con i grandi clienti.</p>
+              <p class="cover">Sostituto: Kledi Dell&rsquo;Omo &middot; è il vice del CEO</p>
+            </div>
+          </li>
+
+          <!-- Cristina + sottoposti -->
+          <li>
+            <div class="p" style="--c: var(--r-commerciale)">
+              <span class="pname">Cristina Mammetti</span>
+              <p class="prole">Account Senior</p>
+              <div class="tags">
+                <span class="tag rep">Commerciale</span>
+                <span class="tag ext">agente esterno</span>
+                <span class="tag dbl">doppio riporto: Giulio + Kledi</span>
+              </div>
+              <p class="does"><b>Si occupa di</b>Gestione e inserimento ordini clienti e fornitori
+                &middot; ricerca materiali.</p>
+              <p class="cover">Sostituto: Vito Barbara</p>
+            </div>
+
+            <ul>
+              <li>
+                <div class="p" style="--c: var(--r-commerciale)">
+                  <span class="pname">Vito Barbara</span>
+                  <p class="prole">Account Junior</p>
+                  <div class="tags"><span class="tag rep">Commerciale</span></div>
+                  <p class="does"><b>Si occupa di</b>Gestione e inserimento ordini clienti e fornitori
+                    &middot; ricerca materiali.</p>
+                  <p class="cover">Sostituto: Cristina Mammetti</p>
+                </div>
+              </li>
+              <li>
+                <div class="p" style="--c: var(--r-nessuno)">
+                  <span class="pname">Lica Popa</span>
+                  <p class="prole">Autista / Allestitore</p>
+                  <div class="tags">
+                    <span class="tag qq">reparto da assegnare</span>
+                    <span class="tag qq">vedi punto 3</span>
+                  </div>
+                  <p class="does"><b>Si occupa di</b>Ritiri e consegne &middot; allestimento interno
+                    ed esterno &middot; manutenzione dello stabile, dentro e fuori.</p>
+                  <p class="cover"><span class="none">Nessun sostituto indicato</span></p>
+                </div>
+              </li>
+            </ul>
+          </li>
+
+          <!-- Andrea + reparto produttivo -->
+          <li>
+            <div class="p" style="--c: var(--r-produzione)">
+              <span class="pname">Andrea Bonanni</span>
+              <p class="prole">Responsabile Produzione e Progettazione</p>
+              <div class="tags">
+                <span class="tag rep">Progettazione e Produzione</span>
+                <span class="tag dbl">doppio riporto: Giulio + Kledi</span>
+                <span class="tag qq">7 riporti diretti</span>
+              </div>
+              <p class="does"><b>Si occupa di</b>Sviluppo e progettazione &middot; responsabile di
+                produzione.</p>
+              <p class="cover">Sostituto: Kledi Dell&rsquo;Omo &middot; a sua volta copre 2 persone</p>
+            </div>
+
+            <ul>
+              <li>
+                <div class="p" style="--c: var(--r-grafico)">
+                  <span class="pname">Marco Laurenzi</span>
+                  <p class="prole">Grafico Stampatore</p>
+                  <div class="tags">
+                    <span class="tag rep">Reparto Grafico</span>
+                    <span class="tag" style="border-color: var(--r-stampa); color: var(--r-stampa)">anche Stampa</span>
+                  </div>
+                  <p class="does"><b>Si occupa di</b>Stampa digitale piccolo e grande formato
+                    &middot; applicazioni &middot; sviluppo grafiche.</p>
+                  <p class="cover">Sostituti: Rebecca Bertilone, Julio Landaverde</p>
+                </div>
+              </li>
+              <li>
+                <div class="p" style="--c: var(--r-grafico)">
+                  <span class="pname">Rebecca Bertilone</span>
+                  <p class="prole">Designer</p>
+                  <div class="tags"><span class="tag rep">Reparto Grafico</span></div>
+                  <p class="does"><b>Si occupa di</b>Modellazione 3D &middot; progettazione strutture
+                    e stand &middot; sviluppo grafiche &middot; rendering.</p>
+                  <p class="cover">Sostituto: Fatima D&rsquo;Ammando</p>
+                </div>
+              </li>
+              <li>
+                <div class="p" style="--c: var(--r-grafico)">
+                  <span class="pname">Fatima D&rsquo;Ammando</span>
+                  <p class="prole">Designer</p>
+                  <div class="tags">
+                    <span class="tag rep">Reparto Grafico</span>
+                    <span class="tag ext">agente esterno</span>
+                    <span class="tag qq">vedi punto 2</span>
+                  </div>
+                  <p class="does"><b>Si occupa di</b>Modellazione 3D &middot; progettazione strutture
+                    e stand &middot; sviluppo grafiche &middot; rendering.</p>
+                  <p class="cover"><span class="none">Sostituto da definire</span></p>
+                </div>
+              </li>
+              <li>
+                <div class="p" style="--c: var(--r-serigrafia)">
+                  <span class="pname">Flavia Nicolini</span>
+                  <p class="prole">Serigrafa</p>
+                  <div class="tags">
+                    <span class="tag rep">Serigrafia</span>
+                    <span class="tag">unica nel reparto</span>
+                  </div>
+                  <p class="does"><b>Si occupa di</b>Incisione telai &middot; recupero e sviluppo telai
+                    &middot; stampa serigrafica &middot; stampa digitale &middot; allestimenti interni
+                    &middot; lavorazioni con la pressa &middot; supporto ai reparti che ne hanno bisogno.</p>
+                  <p class="cover">Sostituto: Andrea Bonanni</p>
+                </div>
+              </li>
+              <li>
+                <div class="p" style="--c: var(--r-allestimento)">
+                  <span class="pname">Fabio Locatelli</span>
+                  <p class="prole">Allestitore interno</p>
+                  <div class="tags"><span class="tag rep">Allestimento / Finitura</span></div>
+                  <p class="does"><b>Si occupa di</b>Allestimento cartotecnica, tipografia e digitale
+                    &middot; supporto ai reparti che ne hanno bisogno.</p>
+                  <p class="cover">Sostituto: Andrea Bonanni</p>
+                </div>
+              </li>
+              <li>
+                <div class="p" style="--c: var(--r-allestimento)">
+                  <span class="pname">Julio Landaverde</span>
+                  <p class="prole">Stampatore Allestitore</p>
+                  <div class="tags">
+                    <span class="tag rep">Allestimento / Finitura</span>
+                    <span class="tag" style="border-color: var(--r-stampa); color: var(--r-stampa)">anche Stampa</span>
+                  </div>
+                  <p class="does"><b>Si occupa di</b>Stampa digitale grande formato &middot;
+                    applicazioni &middot; allestimento interno ed esterno.</p>
+                  <p class="cover">Sostituto: Marco Laurenzi</p>
+                </div>
+              </li>
+              <li>
+                <div class="p" style="--c: var(--r-magazzino)">
+                  <span class="pname">Alessandro Munarin</span>
+                  <p class="prole">Magazziniere</p>
+                  <div class="tags">
+                    <span class="tag rep">Magazzino / Logistica</span>
+                    <span class="tag qq">riporto da confermare &mdash; punti 1 e 4</span>
+                  </div>
+                  <p class="does"><b>Si occupa di</b>Carico e scarico merci &middot; preparazione ordini
+                    &middot; sistemazione materiale eventi &middot; gestione materiali interni di consumo.</p>
+                  <p class="cover"><span class="none">Nessun sostituto: il magazzino resta scoperto</span></p>
+                </div>
+              </li>
+            </ul>
+          </li>
+
+          <!-- Simone -->
+          <li>
+            <div class="p" style="--c: var(--r-allestimento)">
+              <span class="pname">Simone La Commarre</span>
+              <p class="prole">Allestitore / Fresatore</p>
+              <div class="tags">
+                <span class="tag rep">Allestimento / Finitura</span>
+                <span class="tag qq">riporta al CEO &mdash; vedi punto 6</span>
+              </div>
+              <p class="does"><b>Si occupa di</b>Lavorazioni CNC &middot; allestimento interno ed esterno.</p>
+              <p class="cover">Sostituto: Julio Landaverde</p>
+            </div>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ======================================================== coperture -->
+  <section>
+    <h2>Chi copre chi</h2>
+    <p class="h2note">
+      Le sostituzioni durante le ferie, come le avete indicate. Tre persone concentrano
+      quasi tutte le coperture, e tre caselle sono vuote.
+    </p>
+    <div class="tablewrap">
+      <table>
+        <caption>Ordinato per numero di coperture a carico.</caption>
+        <thead>
+          <tr><th scope="col">Copre</th><th scope="col">Persone coperte</th><th scope="col" class="n">N.</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Kledi Dell&rsquo;Omo</th><td>Monica Domogos, Giulio Dell&rsquo;Omo, Andrea Bonanni</td><td class="n">3</td></tr>
+          <tr><th scope="row">Andrea Bonanni</th><td>Flavia Nicolini, Fabio Locatelli</td><td class="n">2</td></tr>
+          <tr><th scope="row">Julio Landaverde</th><td>Marco Laurenzi (con Rebecca), Simone La Commarre</td><td class="n">2</td></tr>
+          <tr><th scope="row">Cristina Mammetti</th><td>Vito Barbara</td><td class="n">1</td></tr>
+          <tr><th scope="row">Vito Barbara</th><td>Cristina Mammetti</td><td class="n">1</td></tr>
+          <tr><th scope="row">Giulio Dell&rsquo;Omo</th><td>Kledi Dell&rsquo;Omo</td><td class="n">1</td></tr>
+          <tr><th scope="row">Rebecca Bertilone</th><td>Marco Laurenzi (con Julio)</td><td class="n">1</td></tr>
+          <tr><th scope="row">Fatima D&rsquo;Ammando</th><td>Rebecca Bertilone</td><td class="n">1</td></tr>
+          <tr><th scope="row">Marco Laurenzi</th><td>Julio Landaverde</td><td class="n">1</td></tr>
+          <tr><th scope="row" class="gap">Da definire</th><td class="gap">Fatima D&rsquo;Ammando, Alessandro Munarin, Lica Popa</td><td class="n gap">3</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ======================================================== da chiarire -->
+  <section>
+    <h2>Da chiarire prima di diffonderlo</h2>
+    <p class="h2note">
+      Nove punti emersi dalla compilazione. I primi quattro sono dati mancanti o ambigui;
+      gli altri cinque sono scelte organizzative che solo tu puoi confermare.
+      Rispondimi anche solo col numero.
+    </p>
+
+    <h3>Dati da completare</h3>
+    <ol class="qs">
+      <li>
+        <span class="num">01</span>
+        <div>
+          <p class="qt">&ldquo;Riporta a: Bo&rdquo; di Alessandro è troncato</p>
+          <p class="qd">Ho ipotizzato Andrea Bonanni e l&rsquo;ho messo nel suo reparto.
+            Se il magazzino risponde a qualcun altro, l&rsquo;albero cambia.</p>
+        </div>
+      </li>
+      <li>
+        <span class="num">02</span>
+        <div>
+          <p class="qt">Fatima risulta sostituta di se stessa</p>
+          <p class="qd">Probabile copia&#8209;incolla dalla riga di Rebecca. Chi la copre davvero?
+            Per ora è a &ldquo;da definire&rdquo;.</p>
+        </div>
+      </li>
+      <li>
+        <span class="num">03</span>
+        <div>
+          <p class="qt">Lica Popa non ha né reparto né sostituto</p>
+          <p class="qd">Fa ritiri e consegne, allestimenti e manutenzione dello stabile: tre aree diverse.
+            E risponde al Commerciale, non alla Produzione come gli altri allestitori.</p>
+        </div>
+      </li>
+      <li>
+        <span class="num">04</span>
+        <div>
+          <p class="qt">Il magazzino non ha copertura ferie</p>
+          <p class="qd">Il campo sostituto è compilato con &ldquo;non lo so&rdquo;: quando Alessandro
+            è via, carico&#8209;scarico e preparazione ordini restano senza nessuno.</p>
+        </div>
+      </li>
+    </ol>
+
+    <h3>Scelte organizzative da confermare</h3>
+    <ol class="qs" start="5">
+      <li>
+        <span class="num">05</span>
+        <div>
+          <p class="qt">Andrea e Cristina hanno due capi</p>
+          <p class="qd">Entrambi riportano sia a Giulio sia a Kledi. Se arrivano indicazioni diverse
+            nello stesso momento, chi prevale? È la domanda che l&rsquo;organigramma deve saper chiudere.</p>
+        </div>
+      </li>
+      <li>
+        <span class="num">06</span>
+        <div>
+          <p class="qt">Simone salta la Produzione e risponde al CEO</p>
+          <p class="qd">Fa lo stesso lavoro di Fabio e Julio, che invece riportano ad Andrea.
+            È una scelta voluta o un riporto da riallineare?</p>
+        </div>
+      </li>
+      <li>
+        <span class="num">07</span>
+        <div>
+          <p class="qt">Andrea ha 7 riporti diretti su 15 persone</p>
+          <p class="qd">Grafica, serigrafia, stampa, allestimento e magazzino passano tutti da lui,
+            oltre alla progettazione. Metà dell&rsquo;azienda su una persona.</p>
+        </div>
+      </li>
+      <li>
+        <span class="num">08</span>
+        <div>
+          <p class="qt">Tre agenti esterni con ruoli da struttura interna</p>
+          <p class="qd">Giulio è il sostituto del CEO; Cristina ha due persone interne che le riportano.
+            Vale la pena verificare che l&rsquo;inquadramento sia quello giusto, anche per come lo
+            comunichi ai ragazzi.</p>
+        </div>
+      </li>
+      <li>
+        <span class="num">09</span>
+        <div>
+          <p class="qt">Il CEO è il sostituto di tre persone</p>
+          <p class="qd">Kledi copre Amministrazione, Produzione e il commerciale direzionale.
+            Se manca lui, manca contemporaneamente anche il backup di tre reparti.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <footer>
+    <p>
+      <strong>Come si aggiorna.</strong> I dati stanno in <span class="mono">organigramma-dati.xlsx</span>;
+      da quel file si rigenera questa pagina. Quando cambia qualcosa si modifica l&rsquo;Excel,
+      non la pagina.
+    </p>
+    <p>
+      Per la versione da stampare o allegare: stampa questa pagina e scegli
+      &ldquo;Salva come PDF&rdquo;. Il layout è già impostato per la carta.
+    </p>
+    <p class="mono">
+      Creatio Group &middot; revisione 01, bozza interna &middot; 9 settembre 2026 &middot;
+      15 persone, 8 reparti, 9 punti aperti
+    </p>
+  </footer>
+
+</div>

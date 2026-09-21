@@ -1,0 +1,53 @@
+<title>Komunigo — le due vesti a confronto</title>
+<style>
+  :root{--bg:#ECEBE6;--ink:#22242A;--soft:#5B5E66;--line:#DEDCD5;
+    --disp:"Bahnschrift SemiBold","Bahnschrift","DIN Alternate","Oswald","Barlow Condensed","Arial Narrow",sans-serif;
+    --sans:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;--mono:"Cascadia Code","Consolas",monospace;}
+  @media (prefers-color-scheme:dark){:root{--bg:#15161A;--ink:#ECEAE6;--soft:#A6A9B0;--line:#2C2E34;}}
+  :root[data-theme="light"]{--bg:#ECEBE6;--ink:#22242A;--soft:#5B5E66;--line:#DEDCD5;}
+  :root[data-theme="dark"]{--bg:#15161A;--ink:#ECEAE6;--soft:#A6A9B0;--line:#2C2E34;}
+  *{box-sizing:border-box;} body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:900px;margin:0 auto;padding:30px 22px 60px;}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--soft);}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.01em;margin:8px 0 20px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media(max-width:680px){.grid{grid-template-columns:1fr;}}
+  .card{border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 10px 34px rgba(0,0,0,.07);}
+  .stage{padding:52px 22px;display:grid;place-items:center;}
+  .mark{font-family:var(--disp);font-weight:700;text-transform:uppercase;letter-spacing:.01em;font-size:clamp(38px,7vw,60px);line-height:.9;}
+  .rec{position:absolute;margin:12px 0 0 12px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:#2E6FB0;color:#fff;padding:3px 9px;border-radius:20px;}
+  .sw{display:flex;height:36px;} .sw i{flex:1;}
+  .meta{padding:16px 20px;} .meta h3{margin:0 0 3px;font-size:19px;} .meta p{margin:0;font-size:13px;color:var(--soft);}
+  .hex{font-family:var(--mono);font-size:11px;color:var(--soft);margin-top:8px;}
+  .note{border:1px solid var(--line);border-left:3px solid #2E6FB0;border-radius:12px;padding:14px 16px;font-size:14px;color:var(--soft);margin-top:22px;}
+  .note b{color:var(--ink);}
+</style>
+<div class="wrap">
+  <span class="eyebrow">Komunigo · scelta veste</span>
+  <h1>Le due vesti a confronto</h1>
+  <div class="grid">
+
+    <div class="card">
+      <div class="stage" style="background:#F7F4EE;position:relative;">
+        <span class="rec">consigliata</span>
+        <span class="mark" style="color:#1C2A44;">Komuni<span style="color:#2E6FB0;">go</span></span>
+      </div>
+      <div class="sw"><i style="background:#1C2A44;"></i><i style="background:#2E6FB0;"></i><i style="background:#F7F4EE;"></i><i style="background:#A9884B;"></i></div>
+      <div class="meta"><h3>Blu Notte &amp; Panna</h3>
+        <p>Blu inchiostro + panna, accento blu, logo senza punto. Elegante e sobria. È quella con cui abbiamo già fatto homepage e logo.</p>
+        <div class="hex">#1C2A44 · #2E6FB0 · #F7F4EE · #A9884B</div></div>
+    </div>
+
+    <div class="card">
+      <div class="stage" style="background:#F6F3EC;">
+        <span class="mark" style="color:#16191C;">Komuni<span style="color:#D81B78;">go</span><span style="color:#0A88B4;">.</span></span>
+      </div>
+      <div class="sw"><i style="background:#0A88B4;"></i><i style="background:#D81B78;"></i><i style="background:#16191C;"></i><i style="background:#F6F3EC;"></i></div>
+      <div class="meta"><h3>Inchiostro &amp; Segnale (CMYK)</h3>
+        <p>Cyan + magenta, barra CMYK, logo col punto. Più grintosa/tipografica, ma è quella che avevi trovato un po' “vista e rivista”.</p>
+        <div class="hex">#0A88B4 · #D81B78 · #16191C · #F6F3EC</div></div>
+    </div>
+
+  </div>
+  <div class="note">La mia raccomandazione è la <b>Blu Notte &amp; Panna</b>: è dove ci ha portato il tuo stesso feedback (via il CMYK/magenta cliché) ed è già sviluppata su homepage e logo. Prova l'interruttore chiaro/scuro per vederle su entrambi i fondi.</div>
+</div>

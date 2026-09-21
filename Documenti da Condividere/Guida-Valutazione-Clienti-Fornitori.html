@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guida — Valutazione Clienti e Fornitori (stelline)</title>
+<style>
+  :root{ --brand:#2f5bea; --ink:#1a2230; --muted:#5b6773; --line:#e3e8ef; --gold:#f5a623; --bg:#f6f8fc; }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);
+       background:var(--bg);margin:0;padding:32px;line-height:1.55}
+  .wrap{max-width:900px;margin:0 auto;background:#fff;border:1px solid var(--line);
+        border-radius:16px;padding:40px 44px;box-shadow:0 4px 24px rgba(20,40,80,.06)}
+  h1{font-size:26px;margin:0 0 4px;color:var(--brand)}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 26px}
+  h2{font-size:19px;margin:30px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--brand)}
+  h3{font-size:15px;margin:18px 0 6px;color:var(--ink)}
+  p{margin:8px 0}
+  .lead{background:#eef3ff;border-left:4px solid var(--brand);padding:12px 16px;border-radius:8px;margin:14px 0}
+  table{width:100%;border-collapse:collapse;margin:12px 0 6px;font-size:14px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:#f0f4fb;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+  .stars{color:var(--gold);white-space:nowrap;font-size:15px;letter-spacing:1px}
+  .tag{display:inline-block;background:#eef1fb;color:var(--brand);border-radius:20px;
+       padding:2px 10px;font-size:12px;font-weight:600;margin:2px 4px 2px 0}
+  ul{margin:6px 0 6px 2px;padding-left:20px}
+  li{margin:4px 0}
+  .two{display:flex;gap:18px;flex-wrap:wrap}
+  .two > div{flex:1;min-width:280px}
+  .note{background:#fff9ec;border:1px solid #f3e2b8;border-radius:8px;padding:12px 16px;margin:16px 0;font-size:14px}
+  .foot{margin-top:30px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+  @media print{ body{background:#fff;padding:0} .wrap{border:none;box-shadow:none;border-radius:0;padding:0} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>⭐ Come dare le stelline di affidabilità</h1>
+  <p class="sub">Guida operativa per la valutazione di <b>Clienti</b> e <b>Fornitori</b> nel gestionale — Creatio Group</p>
+
+  <div class="lead">
+    Le stelline (da <b>1</b> a <b>5</b>) sono un <b>voto sintetico</b> che aiuta tutti a capire a colpo d'occhio
+    quanto è affidabile un cliente o un fornitore. Si trovano nella scheda anagrafica.
+    <b>Cliente e fornitore si valutano su cose diverse</b>: leggi la sezione giusta.
+  </div>
+
+  <div class="note">
+    <b>Regola d'oro:</b> vota con onestà e in base ai <b>fatti</b>, non alle simpatie. Se hai dubbi tra due valori,
+    scegli quello più basso. Aggiorna il voto quando cambia qualcosa di rilevante (un insoluto, una consegna sbagliata,
+    un anno filato liscio). Non è un voto scolpito: è una <b>fotografia aggiornabile</b>.
+  </div>
+
+  <h2>👥 Affidabilità CLIENTE</h2>
+  <p><b>La domanda chiave:</b> «Quanto è sicuro e comodo lavorare con questo cliente?»
+     Il fattore n°1 è <b>come e quando paga</b>.</p>
+
+  <table>
+    <thead><tr><th style="width:90px">Voto</th><th>Cosa significa</th></tr></thead>
+    <tbody>
+      <tr><td class="stars">★★★★★</td><td>Paga puntuale o in anticipo, ordini chiari e completi, mai contestazioni pretestuose, facile comunicare.</td></tr>
+      <tr><td class="stars">★★★★☆</td><td>Paga nei termini concordati, qualche piccola richiesta ma tutto gestibile.</td></tr>
+      <tr><td class="stars">★★★☆☆</td><td>Paga con qualche ritardo, ordini a volte confusi da rincorrere.</td></tr>
+      <tr><td class="stars">★★☆☆☆</td><td>Ritardi frequenti, contestazioni pretestuose, chiede sempre sconti extra fuori accordo.</td></tr>
+      <tr><td class="stars">★☆☆☆☆</td><td>Paga in forte ritardo o lascia insoluti, contestazioni continue, poco affidabile.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Segnali da pesare per il cliente</h3>
+  <span class="tag">Puntualità dei pagamenti</span>
+  <span class="tag">Rispetto dei termini concordati</span>
+  <span class="tag">Chiarezza degli ordini (specifiche complete)</span>
+  <span class="tag">Contestazioni/resi giustificati o pretestuosi</span>
+  <span class="tag">Continuità (ordina con regolarità)</span>
+  <span class="tag">Rispetto dei preventivi accettati</span>
+
+  <h2>🚚 Affidabilità FORNITORE</h2>
+  <p><b>La domanda chiave:</b> «Quanto posso fidarmi a comprare da questo fornitore?»
+     Qui contano <b>consegna e qualità</b>, non il pagamento.</p>
+
+  <table>
+    <thead><tr><th style="width:90px">Voto</th><th>Cosa significa</th></tr></thead>
+    <tbody>
+      <tr><td class="stars">★★★★★</td><td>Consegna sempre nei tempi, qualità costante, zero difetti, prezzi stabili, risponde subito.</td></tr>
+      <tr><td class="stars">★★★★☆</td><td>Affidabile, rari intoppi risolti bene.</td></tr>
+      <tr><td class="stars">★★★☆☆</td><td>Ogni tanto ritarda o sbaglia quantità/qualità, ma recuperabile.</td></tr>
+      <tr><td class="stars">★★☆☆☆</td><td>Ritardi o difetti frequenti, devi sempre controllare la merce.</td></tr>
+      <tr><td class="stars">★☆☆☆☆</td><td>Inaffidabile su tempi o qualità: da usare solo per emergenze.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Segnali da pesare per il fornitore</h3>
+  <span class="tag">Puntualità di consegna</span>
+  <span class="tag">Rispetto di quantità e specifiche</span>
+  <span class="tag">% di difetti / resi</span>
+  <span class="tag">Stabilità dei prezzi e onestà dei listini</span>
+  <span class="tag">Tempi di risposta e assistenza</span>
+  <span class="tag">Rispetto di minimo d'ordine e lead time dichiarati</span>
+
+  <h2>In due parole</h2>
+  <div class="two">
+    <div>
+      <h3>Cliente</h3>
+      <p>«Mi <b>paga bene</b> e mi fa lavorare <b>sereno</b>?»</p>
+    </div>
+    <div>
+      <h3>Fornitore</h3>
+      <p>«Mi consegna <b>giusto</b>, <b>in tempo</b> e di <b>qualità</b>?»</p>
+    </div>
+  </div>
+
+  <h2>Come si mette il voto nel gestionale</h2>
+  <ul>
+    <li>Apri la scheda del cliente o del fornitore (pulsante <b>Modifica</b>).</li>
+    <li>In alto trovi <b>Affidabilità</b>: clicca sul numero di stelle che vuoi assegnare.</li>
+    <li>Per <b>togliere</b> il voto, clicca di nuovo sull'ultima stella accesa (torna a 0 = nessun voto).</li>
+    <li>Premi <b>Salva</b>. Il voto compare subito nell'elenco.</li>
+  </ul>
+
+  <div class="foot">
+    Documento interno Creatio Group — guida alla valutazione affidabilità. Aggiornabile: se cambiano i criteri, chiedete l'ultima versione.
+  </div>
+
+</div>
+</body>
+</html>

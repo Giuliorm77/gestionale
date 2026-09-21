@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Integrazione Fatture in Cloud — Gestionale Creatio</title>
+<style>
+  :root{
+    --bg:#EAEEF0; --surface:#FFFFFF; --surface-2:#F3F6F7;
+    --ink:#132029; --ink-soft:#51646F; --ink-faint:#8698A2;
+    --accent:#0B7A91; --accent-2:#0E93AE; --accent-wash:#E2F0F3;
+    --line:#D6DEE2;
+    --ok:#2C7A54; --ok-wash:#E4F1EA;
+    --paid:#9A6712; --paid-wash:#F6ECD8;
+    --fic:#7A3E9A; --fic-wash:#F0E7F5;
+    --shadow:0 1px 2px rgba(19,32,41,.05), 0 8px 28px rgba(19,32,41,.06);
+    --mono:"Cascadia Code","Consolas",ui-monospace,"SFMono-Regular",Menlo,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0D171E; --surface:#15242D; --surface-2:#1A2E38;
+      --ink:#E8EFF2; --ink-soft:#9CB0BB; --ink-faint:#63808C;
+      --accent:#37B9D4; --accent-2:#54CBE4; --accent-wash:#123039;
+      --line:#263A45; --ok:#52B486; --ok-wash:#152B22;
+      --paid:#D2A455; --paid-wash:#2A2415;
+      --fic:#B98CD6; --fic-wash:#241A2E;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#EAEEF0; --surface:#FFFFFF; --surface-2:#F3F6F7;
+    --ink:#132029; --ink-soft:#51646F; --ink-faint:#8698A2;
+    --accent:#0B7A91; --accent-2:#0E93AE; --accent-wash:#E2F0F3;
+    --line:#D6DEE2; --ok:#2C7A54; --ok-wash:#E4F1EA;
+    --paid:#9A6712; --paid-wash:#F6ECD8; --fic:#7A3E9A; --fic-wash:#F0E7F5;
+    --shadow:0 1px 2px rgba(19,32,41,.05), 0 8px 28px rgba(19,32,41,.06);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0D171E; --surface:#15242D; --surface-2:#1A2E38;
+    --ink:#E8EFF2; --ink-soft:#9CB0BB; --ink-faint:#63808C;
+    --accent:#37B9D4; --accent-2:#54CBE4; --accent-wash:#123039;
+    --line:#263A45; --ok:#52B486; --ok-wash:#152B22;
+    --paid:#D2A455; --paid-wash:#2A2415; --fic:#B98CD6; --fic-wash:#241A2E;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;
+    -webkit-font-smoothing:antialiased;margin:0;}
+  .wrap{max-width:860px;margin:0 auto;padding:32px 22px 80px;}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--accent);font-weight:600;}
+  h2.sec{font-size:21px;font-weight:800;letter-spacing:-.01em;margin:34px 2px 4px;}
+  .sec-sub{font-size:14px;color:var(--ink-soft);margin:0 2px 16px;}
+
+  /* hero */
+  .hero{position:relative;padding:34px 30px 30px;margin-bottom:8px;background:var(--surface);
+    border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
+  .hero h1{font-size:clamp(27px,4.6vw,40px);line-height:1.05;font-weight:800;
+    letter-spacing:-.02em;margin:12px 0 10px;text-wrap:balance;}
+  .hero p.lead{font-size:16.5px;color:var(--ink-soft);margin:0;max-width:62ch;}
+  .crop{position:absolute;width:14px;height:14px;pointer-events:none;opacity:.5;}
+  .crop::before,.crop::after{content:"";position:absolute;background:var(--ink-faint);}
+  .crop::before{width:100%;height:1.5px;top:0;} .crop::after{width:1.5px;height:100%;left:0;}
+  .crop.tl{top:9px;left:9px;} .crop.tr{top:9px;right:9px;transform:scaleX(-1);}
+  .crop.bl{bottom:9px;left:9px;transform:scaleY(-1);} .crop.br{bottom:9px;right:9px;transform:scale(-1,-1);}
+
+  /* who does what */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px;}
+  @media(max-width:620px){.split{grid-template-columns:1fr;}}
+  .col{background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:18px;box-shadow:var(--shadow);}
+  .col h3{font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:8px;}
+  .col .role{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;}
+  .col.a{border-top:3px solid var(--accent);} .col.a .role{color:var(--accent);}
+  .col.f{border-top:3px solid var(--fic);} .col.f .role{color:var(--fic);}
+  .col ul{margin:10px 0 0;padding-left:18px;font-size:14px;color:var(--ink-soft);}
+  .col li{margin:4px 0;}
+
+  /* architecture diagram */
+  .diagram{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:12px;box-shadow:var(--shadow);overflow-x:auto;}
+  .diagram svg{display:block;min-width:640px;width:100%;height:auto;}
+  .n-fill-app{fill:var(--accent-wash);stroke:var(--accent);}
+  .n-fill-edge{fill:var(--surface-2);stroke:var(--ink-faint);}
+  .n-fill-fic{fill:var(--fic-wash);stroke:var(--fic);}
+  .n-fill-sdi{fill:var(--surface-2);stroke:var(--ink-soft);}
+  .n-label{fill:var(--ink);font-family:var(--sans);font-weight:700;}
+  .n-sub{fill:var(--ink-soft);font-family:var(--mono);}
+  .flow{stroke:var(--accent);fill:none;} .flow-back{stroke:var(--fic);fill:none;stroke-dasharray:5 4;}
+  .flow-lbl{fill:var(--ink-soft);font-family:var(--mono);}
+
+  /* build steps */
+  .steps{display:flex;flex-direction:column;gap:10px;}
+  .bstep{display:grid;grid-template-columns:auto 1fr;gap:14px;background:var(--surface);
+    border:1px solid var(--line);border-radius:11px;padding:15px 16px;box-shadow:var(--shadow);}
+  .bnum{font-family:var(--mono);font-weight:700;color:var(--accent);border:1.5px solid var(--accent);
+    border-radius:8px;padding:4px 9px;line-height:1;height:fit-content;font-size:13px;}
+  .bstep h4{margin:0 0 2px;font-size:15.5px;}
+  .bstep p{margin:0;font-size:13.5px;color:var(--ink-soft);}
+  .bstep code{font-family:var(--mono);font-size:12px;background:var(--surface-2);padding:1px 5px;
+    border-radius:5px;color:var(--ink);}
+  .pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.04em;
+    text-transform:uppercase;font-weight:600;padding:2px 7px;border-radius:5px;margin-left:6px;vertical-align:1px;}
+  .pill.foundation{color:var(--paid);background:var(--paid-wash);}
+  .pill.quick{color:var(--ok);background:var(--ok-wash);}
+
+  /* checklist prerequisiti */
+  label.chk{display:grid;grid-template-columns:auto 1fr;gap:13px;align-items:start;background:var(--surface);
+    border:1px solid var(--line);border-radius:11px;padding:14px 16px;cursor:pointer;box-shadow:var(--shadow);
+    margin-bottom:9px;transition:border-color .15s;}
+  label.chk:hover{border-color:var(--ink-faint);}
+  label.chk:focus-within{outline:2px solid var(--accent);outline-offset:2px;}
+  label.chk input{position:absolute;opacity:0;width:1px;height:1px;}
+  .box{width:21px;height:21px;border:2px solid var(--ink-faint);border-radius:6px;display:grid;
+    place-items:center;margin-top:1px;flex:none;transition:all .15s;}
+  .box svg{width:12px;height:12px;stroke:#fff;stroke-width:3.4;fill:none;stroke-linecap:round;
+    stroke-linejoin:round;opacity:0;transform:scale(.5);transition:all .15s;}
+  input:checked ~ .box{background:var(--accent);border-color:var(--accent);}
+  input:checked ~ .box svg{opacity:1;transform:scale(1);}
+  input:checked ~ .ctxt .ct{color:var(--ink-faint);text-decoration:line-through;text-decoration-color:var(--ink-faint);}
+  .ct{font-weight:650;font-size:15px;display:block;} .cd{font-size:13.5px;color:var(--ink-soft);margin-top:2px;display:block;}
+  .who{font-family:var(--mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;font-weight:600;
+    color:var(--fic);background:var(--fic-wash);padding:2px 7px;border-radius:5px;margin-top:7px;display:inline-block;}
+
+  /* mapping table */
+  .tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);}
+  table{border-collapse:collapse;width:100%;min-width:480px;font-size:13.5px;}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);
+    background:var(--surface-2);}
+  tr:last-child td{border-bottom:none;}
+  td code{font-family:var(--mono);font-size:12px;color:var(--accent);}
+  .arrow{color:var(--ink-faint);}
+
+  /* tech details */
+  details.tech{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
+    padding:4px 18px;margin-top:6px;}
+  details.tech summary{cursor:pointer;font-weight:700;padding:12px 0;font-size:14.5px;list-style:none;}
+  details.tech summary::-webkit-details-marker{display:none;}
+  details.tech summary::before{content:"▸ ";color:var(--accent);}
+  details.tech[open] summary::before{content:"▾ ";}
+  details.tech .body{padding:0 0 14px;}
+  .ep{font-family:var(--mono);font-size:12.5px;padding:6px 0;border-bottom:1px dashed var(--line);color:var(--ink);}
+  .ep:last-child{border-bottom:none;}
+  .ep .m{color:var(--accent);font-weight:700;}
+  .ep .c{color:var(--ink-soft);}
+
+  .note{background:var(--accent-wash);border:1px solid var(--accent);border-radius:11px;padding:14px 16px;
+    font-size:13.5px;color:var(--ink);margin-top:16px;}
+  .foot{margin-top:34px;padding-top:20px;border-top:1px dashed var(--line);font-size:13px;color:var(--ink-soft);}
+  .foot .sig{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:10px;}
+  @media print{.diagram svg{min-width:0;} details.tech{page-break-inside:avoid;}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="crop tl"></span><span class="crop tr"></span><span class="crop bl"></span><span class="crop br"></span>
+    <span class="eyebrow">Gestionale Creatio · Disegno tecnico</span>
+    <h1>Integrazione con Fatture in Cloud</h1>
+    <p class="lead">Come il gestionale emetterà fatture elettroniche, DDT e terrà lo scadenzario appoggiandosi a Fatture in Cloud — senza ricostruire nulla di fiscale e senza toccare lo SDI.</p>
+  </header>
+
+  <div class="note"><b>L'idea in una riga:</b> il gestionale resta il <b>davanti operativo</b> (preventivi, commesse, produzione); Fatture in Cloud fa il <b>dietro fiscale</b> (fatture, DDT, SDI, conservazione, pagamenti). Noi costruiamo solo il <b>ponte</b> tra i due.</div>
+
+  <div class="split">
+    <div class="col a">
+      <span class="role">Lo fa il gestionale</span>
+      <h3>🏭 Ciclo operativo</h3>
+      <ul>
+        <li>Anagrafiche clienti e fornitori</li>
+        <li>Preventivi e commesse</li>
+        <li>Produzione, magazzino, consuntivo</li>
+        <li>Pulsante «Genera fattura / DDT»</li>
+        <li>Vista stato documenti e scadenze</li>
+      </ul>
+    </div>
+    <div class="col f">
+      <span class="role">Lo fa Fatture in Cloud</span>
+      <h3>🧾 Parte fiscale</h3>
+      <ul>
+        <li>Fattura elettronica (formato a norma)</li>
+        <li>Invio allo <b>SDI</b> e ricevute</li>
+        <li>DDT / documenti di trasporto</li>
+        <li>Conservazione sostitutiva 10 anni</li>
+        <li>Registro incassi e pagamenti</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2 class="sec">Come sono collegati</h2>
+  <p class="sec-sub">Le chiavi segrete non stanno mai nel browser: le custodisce una piccola funzione sicura su Supabase.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 680 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Schema del flusso: Gestionale, Edge Function, Fatture in Cloud, SDI">
+      <!-- nodes -->
+      <g>
+        <rect class="n-fill-app" x="8" y="70" width="140" height="70" rx="10" stroke-width="2"/>
+        <text class="n-label" x="78" y="100" font-size="14" text-anchor="middle">Gestionale</text>
+        <text class="n-sub" x="78" y="118" font-size="10" text-anchor="middle">browser</text>
+      </g>
+      <g>
+        <rect class="n-fill-edge" x="200" y="70" width="150" height="70" rx="10" stroke-width="2"/>
+        <text class="n-label" x="275" y="96" font-size="13" text-anchor="middle">Edge Function</text>
+        <text class="n-sub" x="275" y="113" font-size="10" text-anchor="middle">Supabase · chiave</text>
+        <text class="n-sub" x="275" y="126" font-size="10" text-anchor="middle">segreta qui</text>
+      </g>
+      <g>
+        <rect class="n-fill-fic" x="402" y="70" width="150" height="70" rx="10" stroke-width="2"/>
+        <text class="n-label" x="477" y="96" font-size="13" text-anchor="middle">Fatture</text>
+        <text class="n-label" x="477" y="113" font-size="13" text-anchor="middle">in Cloud</text>
+        <text class="n-sub" x="477" y="130" font-size="9.5" text-anchor="middle">API v2</text>
+      </g>
+      <g>
+        <rect class="n-fill-sdi" x="600" y="78" width="72" height="54" rx="10" stroke-width="2"/>
+        <text class="n-label" x="636" y="101" font-size="13" text-anchor="middle">SDI</text>
+        <text class="n-sub" x="636" y="117" font-size="8.5" text-anchor="middle">Ag. Entrate</text>
+      </g>
+      <!-- forward arrows -->
+      <path class="flow" d="M148 95 L196 95" stroke-width="2" marker-end="url(#ar)"/>
+      <path class="flow" d="M350 95 L398 95" stroke-width="2" marker-end="url(#ar)"/>
+      <path class="flow" d="M552 100 L596 100" stroke-width="2" marker-end="url(#ar)"/>
+      <text class="flow-lbl" x="172" y="86" font-size="9" text-anchor="middle">dati</text>
+      <text class="flow-lbl" x="374" y="86" font-size="9" text-anchor="middle">crea+invia</text>
+      <!-- back arrows (webhook / stato) -->
+      <path class="flow-back" d="M398 128 L352 128" stroke-width="2" marker-end="url(#arb)"/>
+      <path class="flow-back" d="M200 128 L150 128" stroke-width="2" marker-end="url(#arb)"/>
+      <text class="flow-lbl" x="375" y="150" font-size="9" text-anchor="middle">webhook: stato</text>
+      <text class="flow-lbl" x="175" y="150" font-size="9" text-anchor="middle">inviata / pagata</text>
+      <defs>
+        <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="var(--accent)"/></marker>
+        <marker id="arb" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="var(--fic)"/></marker>
+      </defs>
+    </svg>
+  </div>
+
+  <h2 class="sec">Cosa costruiamo noi</h2>
+  <p class="sec-sub">In ordine: dalla base tecnica alle funzioni. Ogni blocco è indipendente e collaudabile.</p>
+  <div class="steps">
+    <div class="bstep"><span class="bnum">1</span><div><h4>Il «ponte» sicuro (Edge Function)<span class="pill foundation">base</span></h4><p>Una funzione su Supabase che custodisce il token di Fatture in Cloud e inoltra le chiamate. È il primo mattoncino di backend: senza, le altre funzioni non esistono.</p></div></div>
+    <div class="bstep"><span class="bnum">2</span><div><h4>Sincronia anagrafica clienti</h4><p>Ogni cliente del gestionale viene collegato al corrispondente «cliente» su Fatture in Cloud (salviamo il suo <code>id</code>). Serve per emettere documenti senza reinserire i dati.</p></div></div>
+    <div class="bstep"><span class="bnum">3</span><div><h4>«Genera DDT» dalla commessa<span class="pill quick">veloce</span></h4><p>Dati già pronti: cliente, righe, colli, destinazione. Un pulsante crea il DDT su Fatture in Cloud. Buon primo traguardo, indipendente dalla fatturazione.</p></div></div>
+    <div class="bstep"><span class="bnum">4</span><div><h4>«Genera fattura elettronica»</h4><p>Dalla commessa/preventivo approvato: mappiamo righe e pagamenti, creiamo la fattura con <code>e_invoice</code> attivo e la mandiamo allo SDI. Fatture in Cloud pensa a XML, invio e conservazione.</p></div></div>
+    <div class="bstep"><span class="bnum">5</span><div><h4>Ritorno di stato (webhook)</h4><p>Fatture in Cloud avvisa quando una fattura è <i>inviata</i>, <i>accettata</i>, <i>scartata</i> o <i>pagata</i>. Aggiorniamo lo stato nel gestionale in tempo reale.</p></div></div>
+    <div class="bstep"><span class="bnum">6</span><div><h4>Vista Scadenzario</h4><p>Con gli stati e le scadenze che arrivano dal punto 5, il gestionale mostra chi deve pagare e quando — <b>senza costruire un modulo da zero</b>.</p></div></div>
+  </div>
+
+  <h2 class="sec">Prerequisiti da preparare</h2>
+  <p class="sec-sub">Cose da raccogliere/decidere con chi gestisce Fatture in Cloud e col commercialista. Spunta man mano.</p>
+
+  <label class="chk"><input type="checkbox" data-id="p1"><span class="box"><svg viewBox="0 0 20 20"><path d="M4 10l4 4 8-9"/></svg></span><span class="ctxt"><span class="ct">Verificare che il piano includa l'accesso API</span><span class="cd">Su Fatture in Cloud, sezione sviluppatori: creare un'«app» e ottenere il <b>Client ID</b>. Di norma disponibile, ma va confermato sul vostro piano.</span><span class="who">Titolare account FiC</span></span></label>
+
+  <label class="chk"><input type="checkbox" data-id="p2"><span class="box"><svg viewBox="0 0 20 20"><path d="M4 10l4 4 8-9"/></svg></span><span class="ctxt"><span class="ct">Autorizzare l'app e generare il token</span><span class="cd">Con l'autenticazione «manuale»: Impostazioni → Applicazioni connesse → selezionare l'azienda e i permessi. Si ottiene un <b>token che non scade</b>. Lo faremo insieme; il token andrà nella Edge Function, mai nel browser.</span><span class="who">Titolare account FiC</span></span></label>
+
+  <label class="chk"><input type="checkbox" data-id="p3"><span class="box"><svg viewBox="0 0 20 20"><path d="M4 10l4 4 8-9"/></svg></span><span class="ctxt"><span class="ct">Confermare che la conservazione sostitutiva sia attiva</span><span class="cd">È l'archiviazione a norma per 10 anni. Spesso è un servizio a parte da attivare su Fatture in Cloud.</span><span class="who">Titolare account FiC</span></span></label>
+
+  <label class="chk"><input type="checkbox" data-id="p4"><span class="box"><svg viewBox="0 0 20 20"><path d="M4 10l4 4 8-9"/></svg></span><span class="ctxt"><span class="ct">Allineare i dati fiscali di base</span><span class="cd">Numerazione fatture, aliquote IVA, metodi e conti di pagamento, eventuale <b>split payment</b> o reverse charge. Sono già configurati su Fatture in Cloud: ci basta rispecchiarli.</span><span class="who">Commercialista</span></span></label>
+
+  <label class="chk"><input type="checkbox" data-id="p5"><span class="box"><svg viewBox="0 0 20 20"><path d="M4 10l4 4 8-9"/></svg></span><span class="ctxt"><span class="ct">Completare i clienti con il codice destinatario</span><span class="cd">Per la fattura elettronica ogni cliente deve avere il <b>Codice Destinatario</b> (SDI) o la PEC. Da verificare in anagrafica.</span><span class="who">Amministrazione</span></span></label>
+
+  <h2 class="sec">Come si traducono i dati</h2>
+  <p class="sec-sub">Dalla commessa del gestionale al documento di Fatture in Cloud.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Nel gestionale</th><th></th><th>Su Fatture in Cloud</th></tr></thead>
+    <tbody>
+      <tr><td>Cliente</td><td class="arrow">→</td><td><code>entity</code> (collegato con il suo id)</td></tr>
+      <tr><td>Righe della commessa</td><td class="arrow">→</td><td><code>items_list</code> (descrizione, qtà, prezzo, IVA)</td></tr>
+      <tr><td>Condizioni di pagamento</td><td class="arrow">→</td><td><code>payments_list</code> (scadenza, importo)</td></tr>
+      <tr><td>Tipo documento</td><td class="arrow">→</td><td><code>invoice</code> oppure <code>delivery_note</code> (DDT)</td></tr>
+      <tr><td>Dati fattura elettronica</td><td class="arrow">→</td><td><code>e_invoice: true</code> + <code>ei_data</code></td></tr>
+      <tr><td>Numero e stato fattura</td><td class="arrow">←</td><td>ritornano da FiC (<code>number</code>, <code>ei_status</code>)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 class="sec">Ordine e tempi</h2>
+  <p class="sec-sub">Si incastra con il piano di produzione: si costruisce mentre i ragazzi testano il ciclo operativo.</p>
+  <div class="steps">
+    <div class="bstep"><span class="bnum">Est.</span><div><h4>Estate 2026 — DDT</h4><p>Costruiamo il ponte (Edge Function) + sincronia clienti + generazione DDT. Traguardo concreto e a basso rischio.</p></div></div>
+    <div class="bstep"><span class="bnum">Set-Ott</span><div><h4>Set–Ott 2026 — Fatturazione elettronica</h4><p>Generazione fattura + invio SDI + ritorno di stato. È il pezzo che detta i tempi, per questo parte presto.</p></div></div>
+    <div class="bstep"><span class="bnum">Nov</span><div><h4>Novembre 2026 — Scadenzario</h4><p>Vista incassi/scadenze basata sugli stati che già arrivano da Fatture in Cloud.</p></div></div>
+  </div>
+
+  <details class="tech">
+    <summary>Dettagli tecnici (per lo sviluppo)</summary>
+    <div class="body">
+      <div class="ep"><span class="m">GET</span> <span class="c">/c/{company_id}/issued_documents/info</span> — metadati: tipi IVA, metodi e conti di pagamento (letti una volta)</div>
+      <div class="ep"><span class="m">GET/POST</span> <span class="c">/c/{company_id}/entities/clients</span> — sincronia anagrafica clienti</div>
+      <div class="ep"><span class="m">POST</span> <span class="c">/c/{company_id}/issued_documents</span> — crea fattura (<code>type:invoice</code>) o DDT (<code>type:delivery_note</code>)</div>
+      <div class="ep"><span class="m">GET</span> <span class="c">/c/{company_id}/issued_documents/{id}/e_invoice/xml_verify</span> — verifica prima dell'invio</div>
+      <div class="ep"><span class="m">POST</span> <span class="c">/c/{company_id}/issued_documents/{id}/e_invoice/send</span> — invio allo SDI (supporta <code>dry_run</code>)</div>
+      <div class="ep"><span class="m">GET</span> <span class="c">/c/{company_id}/issued_documents/{id}</span> — legge <code>ei_status</code>: attempt · pending · sent · accepted · discarded · error</div>
+      <div class="ep"><span class="m">GET</span> <span class="c">/c/{company_id}/issued_documents/{id}/e_invoice/error_reason</span> — motivo dello scarto</div>
+      <div class="ep"><span class="m">WEBHOOK</span> <span class="c">it.fattureincloud.webhooks.issued_documents.e_invoices.status_update</span> — aggiornamenti stato in tempo reale</div>
+      <div class="ep"><span class="c">Auth:</span> autenticazione «manuale» → token non scadente per singola azienda. Client ID dall'app developer. Token custodito nella Supabase Edge Function.</div>
+      <div class="ep"><span class="c">Vincolo:</span> lo SDI accetta solo documenti creati tramite Fatture in Cloud → si crea via API, non si carica un XML esterno.</div>
+    </div>
+  </details>
+
+  <div class="foot">
+    <p>In sintesi: <b>non costruiamo la fatturazione</b>, la <b>colleghiamo</b>. Questo riduce il rischio e rende gennaio 2027 realistico. La parte più delicata resta a chi è già a norma (Fatture in Cloud), noi facciamo il ponte e i pulsanti.</p>
+    <p class="sig">Creatio Group · Stampa &amp; Allestimenti — disegno integrazione FiC</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY="creatio_fic_prereq_v1";
+  var boxes=[].slice.call(document.querySelectorAll('input[type=checkbox][data-id]'));
+  var st={}; try{st=JSON.parse(localStorage.getItem(KEY)||"{}");}catch(e){}
+  boxes.forEach(function(b){
+    if(st[b.dataset.id]) b.checked=true;
+    b.addEventListener('change',function(){
+      var o={}; boxes.forEach(function(x){ if(x.checked)o[x.dataset.id]=1; });
+      try{localStorage.setItem(KEY,JSON.stringify(o));}catch(e){}
+    });
+  });
+})();
+</script>
+</body></html>

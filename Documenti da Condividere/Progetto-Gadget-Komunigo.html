@@ -1,0 +1,198 @@
+<title>Progetto Gadget Komunigo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    --paper:#F7F4EE; --surface:#FFFFFF; --surface-2:#F0EBDF;
+    --ink:#1C2A44; --ink-soft:#55607A; --ink-faint:#8b93a5;
+    --line:#E4DFD2; --line-strong:#CFC8B7;
+    --blu:#2E6FB0; --blu-wash:#E4EDF6; --sand:#A9884B; --sand-wash:#EFE7D4;
+    --ok:#1f9c68; --ok-wash:#e6f4ee; --warn:#c47a1e; --warn-wash:#fdf0e3;
+    --shadow:0 1px 2px rgba(28,42,68,.06),0 8px 24px rgba(28,42,68,.06);
+    --disp:'Oswald',system-ui,sans-serif; --body:'Barlow',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#131727; --surface:#1A2033; --surface-2:#212840;
+      --ink:#ECEBE4; --ink-soft:#A7ACBA; --ink-faint:#6E7488;
+      --line:#2C3350; --line-strong:#3C4468;
+      --blu:#5B9BD8; --blu-wash:#16233B; --sand:#C79A57; --sand-wash:#2A2417;
+      --ok:#57c08a; --ok-wash:#16271f; --warn:#d79a4a; --warn-wash:#2a2114;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#131727; --surface:#1A2033; --surface-2:#212840;
+    --ink:#ECEBE4; --ink-soft:#A7ACBA; --ink-faint:#6E7488;
+    --line:#2C3350; --line-strong:#3C4468;
+    --blu:#5B9BD8; --blu-wash:#16233B; --sand:#C79A57; --sand-wash:#2A2417;
+    --ok:#57c08a; --ok-wash:#16271f; --warn:#d79a4a; --warn-wash:#2a2114;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);line-height:1.58;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:940px;margin:0 auto;padding:0 22px 80px;}
+
+  header.top{margin:0 -22px 32px;}
+  .band-k{background:#12151d;color:#F7F4EE;padding:26px 22px 22px;}
+  .band-k .logo{font-family:var(--disp);font-weight:700;font-size:26px;letter-spacing:.02em;}
+  .band-k .logo .go{color:var(--blu);}
+  .band-k .kick{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#A9884B;margin-top:2px;}
+  .topline{height:3px;background:linear-gradient(90deg,var(--blu) 0%,var(--blu) 74%,var(--sand) 100%);}
+  .band-panna{height:9px;background:var(--paper);}
+  .head-body{padding:26px 22px 4px;}
+  h1{font-family:var(--disp);font-weight:600;font-size:clamp(28px,5vw,42px);line-height:1.04;margin:0 0 10px;text-wrap:balance;letter-spacing:.01em;}
+  .lead{color:var(--ink-soft);font-size:16.5px;max-width:66ch;margin:0;}
+  .meta{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--sand);margin-bottom:10px;}
+
+  h2{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--sand);margin:48px 0 18px;padding-bottom:8px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:baseline;}
+  h2 .n{font-family:var(--mono);font-size:12px;color:var(--blu);}
+  h3{font-family:var(--disp);font-weight:600;font-size:19px;letter-spacing:.01em;margin:0 0 6px;}
+  p{margin:0 0 12px;}
+  .muted{color:var(--ink-soft);}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow);}
+  .card + .card{margin-top:14px;}
+
+  /* flusso a step */
+  .flow{display:flex;gap:0;flex-wrap:wrap;align-items:stretch;margin:6px 0 4px;}
+  .step{flex:1 1 130px;min-width:130px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow);position:relative;}
+  .step + .step{margin-left:12px;}
+  .step .s-n{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--blu);}
+  .step h4{font-family:var(--disp);font-weight:600;font-size:15px;margin:4px 0 2px;letter-spacing:.01em;}
+  .step p{font-size:12.5px;color:var(--ink-soft);margin:0;}
+  .step.key{border-color:var(--sand);background:var(--sand-wash);}
+  @media(max-width:720px){.flow{flex-direction:column;}.step+.step{margin-left:0;margin-top:10px;}}
+
+  /* schema configuratore */
+  .schema{font-family:var(--mono);font-size:13px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;line-height:1.75;overflow-x:auto;}
+  .schema .b{color:var(--blu);font-weight:600;}
+  .schema .s{color:var(--sand);font-weight:600;}
+  .schema .c{color:var(--ink-faint);}
+  .formula{background:var(--blu-wash);border:1px solid var(--blu);border-radius:12px;padding:14px 16px;font-family:var(--mono);font-size:13px;line-height:1.7;margin-top:12px;}
+
+  /* stati bozza */
+  .states{display:flex;flex-direction:column;gap:10px;margin-top:4px;}
+  .state{display:flex;gap:12px;align-items:flex-start;}
+  .pill{flex:0 0 auto;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:5px 10px;border-radius:20px;white-space:nowrap;}
+  .p-wait{background:var(--surface-2);color:var(--ink-soft);}
+  .p-work{background:var(--warn-wash);color:var(--warn);}
+  .p-check{background:var(--blu-wash);color:var(--blu);}
+  .p-ok{background:var(--ok-wash);color:var(--ok);}
+  .state .d{font-size:14px;padding-top:4px;}
+
+  /* tabella */
+  .tblwrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:520px;}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top;}
+  thead th{font-family:var(--disp);font-weight:500;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);}
+  td .yes{color:var(--ok);font-weight:600;} td .add{color:var(--sand);font-weight:600;}
+  tbody tr:last-child td{border-bottom:0;}
+
+  /* fasi */
+  .phase{display:grid;grid-template-columns:auto 1fr;gap:0 18px;}
+  .phase .ph-n{font-family:var(--disp);font-weight:700;font-size:30px;color:var(--blu);line-height:1;grid-row:span 2;padding-top:2px;}
+  .phase h3{margin:0 0 2px;} .phase p{margin:0 0 18px;color:var(--ink-soft);font-size:14px;}
+
+  .note{background:var(--warn-wash);border:1px solid var(--warn);border-radius:12px;padding:14px 16px;font-size:14px;}
+  .note b{color:var(--warn);}
+  ul.tight{margin:6px 0 0;padding-left:20px;} ul.tight li{margin-bottom:6px;}
+  .foot{margin-top:48px;font-family:var(--mono);font-size:12px;color:var(--ink-faint);text-align:center;letter-spacing:.04em;}
+</style>
+
+<header class="top">
+  <div class="band-k">
+    <div class="logo">Komuni<span class="go">go</span></div>
+    <div class="kick">Stampa · Insegne · Allestimenti</div>
+  </div>
+  <div class="topline"></div>
+  <div class="band-panna"></div>
+  <div class="wrap head-body">
+    <div class="meta">Documento di progetto · bozza da valutare</div>
+    <h1>Gadget personalizzati su Komunigo</h1>
+    <p class="lead">Come vendere online penne, borracce, shopper, magliette e simili — con configurazione, preventivo automatico e <b>bozza grafica da approvare</b> — riusando l'infrastruttura del negozio già costruita. Impianto ispirato a come lo gestisce Stampasi.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <h2><span class="n">01</span> Il flusso, in sei passi</h2>
+  <p class="muted">Il gadget non ha un'anteprima grafica “fai-da-te”: il cliente configura e ordina, noi prepariamo una <b>simulazione di stampa (bozza)</b> che lui approva prima di andare in produzione. È il modello di Stampasi (“Bozza grafica gratis, da confermare”).</p>
+  <div class="flow">
+    <div class="step"><div class="s-n">01</div><h4>Configura</h4><p>Colori + quantità per colore, posizioni e tipo di stampa.</p></div>
+    <div class="step"><div class="s-n">02</div><h4>Prezzo</h4><p>Preventivo automatico, con minimi e sconti a volume.</p></div>
+    <div class="step"><div class="s-n">03</div><h4>Ordina</h4><p>Dati, pagamento, e carica il logo/grafica.</p></div>
+    <div class="step key"><div class="s-n">04</div><h4>Bozza</h4><p>Prepariamo la simulazione di stampa e gliela mandiamo.</p></div>
+    <div class="step key"><div class="s-n">05</div><h4>Approva</h4><p>Il cliente conferma la bozza (o chiede modifiche).</p></div>
+    <div class="step"><div class="s-n">06</div><h4>Produzione</h4><p>Solo dopo l'ok: commessa in lavorazione.</p></div>
+  </div>
+
+  <h2><span class="n">02</span> Il configuratore gadget</h2>
+  <p>È un'estensione del motore prezzi che già usiamo per i prodotti su misura. Cambia la <b>forma della configurazione</b>: non “misure”, ma <b>varianti colore con quantità</b> e <b>posizioni di stampa</b>.</p>
+  <div class="schema">
+<span class="b">Prodotto gadget</span> { nome · descrizione · <span class="c">minimo ordinabile (es. 250) · unità = pz</span> }
+ ├─ <span class="s">Varianti colore</span> [ { colore · costo/pz · articolo di magazzino (o fornitore) } ]  <span class="c">→ quantità PER colore</span>
+ ├─ <span class="s">Posizioni di stampa</span> [ { nome posizione · area max (cm) ·
+ │        tecniche: [ { nome (serigrafia/digitale) · n° colori · prezzo · setup } ] } ]
+ ├─ <span class="s">Fasce sconto</span> [ { da quantità · sconto % } ]
+ └─ <span class="s">Opzioni</span> [ voci extra facoltative ]
+  </div>
+  <div class="formula">
+    prezzo = <b>Σ</b>(variante × q.tà colore) + <b>Σ</b>(posizioni scelte: tecnica × n° colori) + setup una-tantum
+    <br>→ applica fascia sconto per quantità totale → non sotto il minimo
+  </div>
+  <p class="muted" style="margin-top:12px;font-size:13.5px;">Esempio penna: <b>Centrato sulla clip</b> (area 3×4,3 cm · 1–4 colori) · <b>Dietro la clip</b> (2,2×1 cm · 1 colore) · <b>Corpo in digitale</b> (3,6×6,2 cm). Il cliente sceglie dove e con quanti colori stampare: è questo che muove il prezzo.</p>
+
+  <h2><span class="n">03</span> La bozza grafica da approvare</h2>
+  <p>È lo step nuovo — e utile a <b>tutti</b> i prodotti, non solo ai gadget. Si innesta sul flusso file/ordine che già abbiamo, aggiungendo uno stato all'ordine.</p>
+  <div class="card">
+    <div class="states">
+      <div class="state"><span class="pill p-wait">In attesa file</span><div class="d">Il cliente ha ordinato ma non ha ancora caricato il logo/grafica.</div></div>
+      <div class="state"><span class="pill p-work">Bozza in preparazione</span><div class="d">Lo staff prepara la simulazione di stampa dal file del cliente.</div></div>
+      <div class="state"><span class="pill p-check">Bozza da approvare</span><div class="d">Lo staff carica la bozza; il cliente la vede in “I miei ordini” e riceve una mail.</div></div>
+      <div class="state"><span class="pill p-ok">Approvata</span><div class="d">Il cliente conferma → <b>solo ora</b> si genera la commessa e va in produzione. (Se chiede modifiche, si torna “in preparazione”.)</div></div>
+    </div>
+  </div>
+  <p class="muted" style="margin-top:12px;">In pratica: nel pannello <b>Ordini Komunigo</b> lo staff carica la bozza; nella pagina <b>“I miei ordini”</b> il cliente vede “Approva bozza” / “Chiedi modifica”. Il pulsante <b>Genera commessa</b> si sblocca solo a bozza approvata.</p>
+
+  <h2><span class="n">04</span> Cosa riusiamo, cosa aggiungiamo</h2>
+  <p class="muted">La buona notizia: gran parte c'è già. I gadget aggiungono poco.</p>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Elemento</th><th>Stato oggi</th><th>Da fare per i gadget</th></tr></thead>
+    <tbody>
+      <tr><td>Motore prezzi configuratore</td><td><span class="yes">✅ c'è</span></td><td>Aggiungere varianti-colore + posizioni di stampa</td></tr>
+      <tr><td>Minimo ordinabile + sconti a volume</td><td><span class="yes">✅ c'è</span></td><td>Solo impostare minimi alti (es. 250)</td></tr>
+      <tr><td>Schede prodotto + foto + template</td><td><span class="yes">✅ c'è</span></td><td>—</td></tr>
+      <tr><td>Ordine + upload file cliente</td><td><span class="yes">✅ c'è</span></td><td>—</td></tr>
+      <tr><td>Pannello ordini + genera commessa</td><td><span class="yes">✅ c'è</span></td><td>Sbloccare “genera” solo a bozza approvata</td></tr>
+      <tr><td>Pagamenti / spedizioni / stati automatici</td><td><span class="yes">✅ c'è</span></td><td>—</td></tr>
+      <tr><td><b>Step bozza grafica da approvare</b></td><td><span class="add">➕ nuovo</span></td><td>Stato ordine + upload bozza (staff) + approva (cliente)</td></tr>
+      <tr><td><b>Configuratore gadget</b> (colori+stampa)</td><td><span class="add">➕ nuovo</span></td><td>Config in gestionale + motore prezzi + UI negozio</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2><span class="n">05</span> Da decidere prima di partire</h2>
+  <div class="card">
+    <ul class="tight">
+      <li><b>Chi stampa i gadget?</b> Li stampiamo noi (serigrafia/digitale in casa) oppure si comprano <b>neutri dal fornitore</b> e si fa stampare? Cambia il flusso di produzione/acquisto (per i gadget da fornitore l'ordine genera un <b>ordine fornitore neutro</b> + la stampa).</li>
+      <li><b>Da quali categorie partire?</b> Suggerisco 1–2 famiglie semplici (es. <b>penne</b> e <b>shopper</b>) per rodare il configuratore, poi allargare.</li>
+      <li><b>Listino d'acquisto e minimi</b> reali per variante colore e per tecnica di stampa (servono per il calcolo prezzo).</li>
+      <li><b>Bozza obbligatoria sempre?</b> Proposta: sì per la stampa personalizzata; per i prodotti già pronti a magazzino no.</li>
+    </ul>
+  </div>
+
+  <h2><span class="n">06</span> Come lo farei — a fasi</h2>
+  <div class="phase">
+    <div class="ph-n">A</div>
+    <div><h3>Step “bozza da approvare”</h3><p>Utile subito a tutti i prodotti. Aggiunge lo stato bozza all'ordine, l'upload bozza lato staff e l'approvazione lato cliente. Poca cosa, alto valore.</p></div>
+    <div class="ph-n">B</div>
+    <div><h3>Configuratore gadget</h3><p>Varianti colore con quantità + posizioni di stampa (area + n° colori) nel motore prezzi, gestione in gestionale e UI nel negozio. È il pezzo grosso.</p></div>
+    <div class="ph-n">C</div>
+    <div><h3>Rifiniture</h3><p>Aggancio a fornitori per i gadget neutri, data di spedizione stimata, categorie gadget dedicate in home.</p></div>
+  </div>
+
+  <div class="note" style="margin-top:26px;">💡 <b>Consiglio:</b> partiamo dalla <b>Fase A (bozza da approvare)</b> — serve comunque a tutti i prodotti e ci porta subito più vicini al modello Stampasi — e affrontiamo il configuratore gadget (Fase B) quando avremo deciso i punti del capitolo 05.</div>
+
+  <div class="foot">Creatio Group · komunigo.it — documento di progetto interno · rev. bozza</div>
+</div>

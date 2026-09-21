@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checklist amministratori — Setup Gestionale Creatio</title>
+<style>
+  :root{ --brand:#2f5bea; --ink:#1a2230; --muted:#5b6773; --line:#e3e8ef; --ok:#1f9c68; --warn:#b26a00; --bg:#f6f8fc; }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);margin:0;padding:0 30px 40px}
+  .wrap{max-width:960px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:30px 42px 38px;box-shadow:0 4px 24px rgba(20,40,80,.06);margin-top:96px}
+  h1{font-size:25px;margin:0 0 4px;color:var(--brand)}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 18px}
+  h2{font-size:18px;margin:26px 0 8px;padding:8px 12px;background:#eef3ff;border-radius:8px;color:var(--brand)}
+  p{margin:6px 0;line-height:1.5}
+  .crit{background:#fdecea;border:1px solid #f3b8b8;border-radius:8px;padding:12px 16px;margin:14px 0;font-size:14px;line-height:1.5}
+  table{width:100%;border-collapse:collapse;margin:8px 0 6px;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#f0f4fb;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+  td.done{background:#f2faf5}
+  .ck{width:42px;text-align:center}
+  .chk{width:20px;height:20px;cursor:pointer;accent-color:var(--ok)}
+  .m{white-space:nowrap;font-weight:600}
+  .exp{color:var(--muted);font-size:12.5px}
+  .foot{margin-top:26px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+  /* barra fissa in alto */
+  .bar{position:fixed;top:0;left:0;right:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);
+       box-shadow:0 2px 10px rgba(20,40,80,.05);padding:10px 30px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .bar .ttl{font-weight:700;color:var(--brand)}
+  .prog{flex:1;min-width:160px;height:10px;background:#eef1f5;border-radius:6px;overflow:hidden}
+  .prog>i{display:block;height:100%;width:0;background:var(--ok);transition:width .2s}
+  .cnt{font-size:13px;color:var(--muted);white-space:nowrap}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer}
+  .btn:hover{background:#f6f8fc}
+  @media print{ .bar{display:none} body{background:#fff;padding:0} .wrap{border:none;box-shadow:none;border-radius:0;padding:0;margin-top:0} }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="ttl">🛠️ Setup amministratori</span>
+  <div class="prog"><i id="pbar"></i></div>
+  <span class="cnt" id="pcnt">0 / 0</span>
+  <button class="btn" onclick="window.print()">🖨️ Stampa</button>
+  <button class="btn" onclick="azzera()">↺ Azzera</button>
+</div>
+<div class="wrap">
+
+  <h1>🛠️ Checklist amministratori — Setup pre-consegna</h1>
+  <p class="sub">Cosa configurare prima di dare la versione definitiva ai ragazzi. Le caselle si <b>salvano da sole</b> nel browser. Segui l'ordine (dall'infrastruttura ai dati). Tutto col ruolo <b>amministratore</b>.</p>
+
+  <div class="crit">
+    <b>⚠️ Passo zero — Database.</b> In Supabase → SQL Editor esegui <b>tutte le migrazioni</b> fino all'ultima (<b>v78</b>). Se ne salti una, i dati nuovi non si salvano. Rieseguirle è sicuro. Poi apri <b>gestionale.creatiogroup.it</b> e fai <b>Ctrl+Shift+R</b>.
+  </div>
+
+  <h2>1 · Impostazioni azienda &nbsp;<span class="m">⚙️ Impostazioni</span></h2>
+  <table>
+    <thead><tr><th class="ck">✔</th><th>Cosa impostare</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Dati azienda: ragione sociale, indirizzo, P.IVA, telefono, email, IBAN</td><td class="exp">Compaiono nei PDF</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Carta intestata (sfondo PDF) e margini</td><td class="exp">Solo se usate carta intestata vostra</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Spese generali %, IVA %, margine minimo di avviso %</td><td class="exp">Congelati su ogni preventivo</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Sconto standard rivenditori %</td><td class="exp">Ai clienti categoria "Rivenditore"</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Costi di struttura + costi diretti annui → % spese generali suggerita</td><td class="exp">Solo amministratore</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Condizioni di vendita default (pagina allegata al preventivo)</td><td class="exp">Testo standard</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Elenco <b>Lavorazioni</b> e <b>Materie prime</b></td><td class="exp">Usati in catalogo, fornitori, tariffe</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td><b>Tariffe per lavorazione</b> (costo/ora + margine)</td><td class="exp">Servono a manodopera e consuntivi</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2 · Catalogo &nbsp;<span class="m">📦 Catalogo</span></h2>
+  <table>
+    <thead><tr><th class="ck">✔</th><th>Cosa caricare</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td class="ck"><input type="checkbox" class="chk" checked></td><td>Gadget da fornitore (import Excel)</td><td class="exp">Già fatto (≈5.914 articoli PROMIT)</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Materiali rigidi (forex, pvc, plexi…): unità mq, prezzo, peso, mq/lastra</td><td class="exp">Per caricarli a lastre</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Carte: unità <b>foglio</b>, grammatura, formato, fogli/pacco, prezzo/kg → costo/foglio</td><td class="exp">Costo/foglio col pulsante</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Altri consumabili (inchiostri, bordature, viteria…)</td><td class="exp">Con unità e prezzo</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Collega gli articoli ai <b>fornitori</b> (prezzo d'acquisto)</td><td class="exp">Per ordini e miglior prezzo</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Prezzi di <b>listino</b> (vendita) sugli articoli che vendi</td><td class="exp">Base per gli sconti</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3 · Prodotti configurabili e Imballi &nbsp;<span class="m">🧩 · 🎁</span></h2>
+  <table>
+    <thead><tr><th class="ck">✔</th><th>Cosa creare</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Prodotti configurabili (es. Pannello su Forex) con varianti e voci</td><td class="exp">Costo variante agganciato all'articolo</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Articoli <b>PLURIBALL-&lt;altezza&gt;</b> (bobine) con prezzo</td><td class="exp">Per il pluriball automatico</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Ricette imballo: Scatola (capienza), Scotch (a perimetro), Angolari, Parabordi…</td><td class="exp">Meglio mono-materiale, da combinare sulla riga</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4 · Anagrafiche e sconti &nbsp;<span class="m">👥 · 🚚 · 🧑‍💼</span></h2>
+  <table>
+    <thead><tr><th class="ck">✔</th><th>Cosa caricare</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Clienti: categoria, dati fiscali, termini pagamento, agente, affidabilità</td><td class="exp">Termini nel PDF preventivo</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Sconti: standard cliente e/o eccezioni per categoria</td><td class="exp">Nella scheda cliente</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Fornitori: tipo Materiale / Terzista + termini pagamento</td><td class="exp">Termini nel PDF ordine</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Agenti + provvigioni</td><td class="exp">Per le commissioni</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5 · Operatori e PIN &nbsp;<span class="m">👷 Operatori</span></h2>
+  <div class="crit"><b>⚠️ Obbligatorio:</b> ogni operatore deve avere un <b>PIN</b>, altrimenti non può timbrare. PIN diversi e non banali (no 0000 / 1234).</div>
+  <table>
+    <thead><tr><th class="ck">✔</th><th>Cosa fare</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Crea tutti gli operatori: nome, reparti, tipo, costo orario</td><td class="exp">Costo orario visibile solo all'admin</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Assegna un <b>PIN</b> a ciascun operatore e comunicalo</td><td class="exp">Serve per la Postazione</td></tr>
+    </tbody>
+  </table>
+
+  <h2>6 · Corrieri / trasporto &nbsp;<span class="m">🚚 Trasporti</span></h2>
+  <table>
+    <thead><tr><th class="ck">✔</th><th>Cosa creare</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Un listino per corriere + zona: base, scaglioni, minimo, supplemento collo</td><td class="exp">Il trasporto nel preventivo si calcola da qui</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Verifica che gli articoli spediti abbiano il <b>peso</b> (in Catalogo)</td><td class="exp">Serve al calcolo automatico</td></tr>
+    </tbody>
+  </table>
+
+  <h2>7 · Utenti e ruoli &nbsp;<span class="m">🔑 Utenti &amp; Ruoli</span></h2>
+  <table>
+    <thead><tr><th class="ck">✔</th><th>Cosa fare</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Ogni persona si registra con la propria email</td><td class="exp">Nasce "reception" e "in attesa"</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Approva e assegna il <b>ruolo</b> corretto</td><td class="exp">amministratore / commerciale / produzione / magazzino / reception</td></tr>
+    </tbody>
+  </table>
+  <p class="exp"><b>Chi vede cosa</b> — produzione: Postazione, Commesse (viste), giacenze in lettura · magazzino: giacenze + carico/scarico, no prezzi, no Catalogo · commerciale: tutto tranne Utenti · reception: anagrafica clienti · amministratore: tutto.</p>
+
+  <h2>8 · Verifiche finali</h2>
+  <table>
+    <thead><tr><th class="ck">✔</th><th>Cosa verificare</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Ciclo completo: preventivo → commessa → scarico → postazione → consuntivo</td><td class="exp">Vedi checklist ragazzi</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Con un ruolo non-admin: costi/prezzi nascosti dove previsto</td><td class="exp">Produzione e magazzino</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Backup Supabase attivi</td><td class="exp">Sicurezza dati</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Consegna ai ragazzi: Checklist di test + Guida valutazioni + i loro PIN</td><td class="exp">Cartella Documenti da Condividere</td></tr>
+    </tbody>
+  </table>
+
+  <div class="foot">Documento interno Creatio Group — checklist di setup amministratori (interattiva, si salva nel browser).</div>
+</div>
+
+<script>
+(function(){
+  var KEY="ck_admin_setup_v1";
+  var boxes=[].slice.call(document.querySelectorAll(".chk"));
+  var saved={}; try{ saved=JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(e){}
+  function paint(b){ var td=b.closest("td"); if(td){ td.classList.toggle("done", b.checked); } }
+  function prog(){ var n=boxes.filter(function(b){return b.checked;}).length, t=boxes.length;
+    document.getElementById("pcnt").textContent=n+" / "+t;
+    document.getElementById("pbar").style.width=(t?Math.round(n/t*100):0)+"%"; }
+  function save(){ var o={}; boxes.forEach(function(b,i){ o[i]=b.checked; }); localStorage.setItem(KEY,JSON.stringify(o)); }
+  boxes.forEach(function(b,i){ if(saved[i]) b.checked=true; paint(b);
+    b.addEventListener("change",function(){ paint(b); save(); prog(); }); });
+  prog();
+  window.azzera=function(){ if(!confirm("Azzerare tutte le spunte di questa checklist?")) return;
+    boxes.forEach(function(b){ b.checked=false; paint(b); }); save(); prog(); };
+})();
+</script>
+</body>
+</html>

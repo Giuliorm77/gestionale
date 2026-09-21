@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ruoli e permessi — Gestionale Creatio</title>
+<style>
+  :root{
+    --bg:#EAEEF0; --surface:#FFFFFF; --surface-2:#F3F6F7; --ink:#132029; --ink-soft:#51646F;
+    --ink-faint:#8698A2; --accent:#0B7A91; --accent-2:#0E93AE; --accent-wash:#E2F0F3; --line:#D6DEE2;
+    --ok:#2C7A54; --ok-wash:#E4F1EA; --no:#B23A3A; --no-wash:#F7E7E7;
+    --shadow:0 1px 2px rgba(19,32,41,.05), 0 8px 28px rgba(19,32,41,.06);
+    --mono:"Cascadia Code","Consolas",ui-monospace,"SFMono-Regular",Menlo,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0D171E; --surface:#15242D; --surface-2:#1A2E38; --ink:#E8EFF2; --ink-soft:#9CB0BB;
+    --ink-faint:#63808C; --accent:#37B9D4; --accent-2:#54CBE4; --accent-wash:#123039; --line:#263A45;
+    --ok:#52B486; --ok-wash:#152B22; --no:#E07373; --no-wash:#2C1717;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);}}
+  :root[data-theme="light"]{
+    --bg:#EAEEF0; --surface:#FFFFFF; --surface-2:#F3F6F7; --ink:#132029; --ink-soft:#51646F;
+    --ink-faint:#8698A2; --accent:#0B7A91; --accent-2:#0E93AE; --accent-wash:#E2F0F3; --line:#D6DEE2;
+    --ok:#2C7A54; --ok-wash:#E4F1EA; --no:#B23A3A; --no-wash:#F7E7E7;
+    --shadow:0 1px 2px rgba(19,32,41,.05), 0 8px 28px rgba(19,32,41,.06);}
+  :root[data-theme="dark"]{
+    --bg:#0D171E; --surface:#15242D; --surface-2:#1A2E38; --ink:#E8EFF2; --ink-soft:#9CB0BB;
+    --ink-faint:#63808C; --accent:#37B9D4; --accent-2:#54CBE4; --accent-wash:#123039; --line:#263A45;
+    --ok:#52B486; --ok-wash:#152B22; --no:#E07373; --no-wash:#2C1717;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);}
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;margin:0;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:860px;margin:0 auto;padding:32px 22px 80px;}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:600;}
+  h2.sec{font-size:20px;font-weight:800;letter-spacing:-.01em;margin:34px 2px 4px;}
+  .sec-sub{font-size:14px;color:var(--ink-soft);margin:0 2px 16px;}
+  .hero{position:relative;padding:32px 28px 26px;margin-bottom:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
+  .hero h1{font-size:clamp(25px,4.4vw,36px);line-height:1.07;font-weight:800;letter-spacing:-.02em;margin:12px 0 10px;text-wrap:balance;}
+  .hero p.lead{font-size:16px;color:var(--ink-soft);margin:0;max-width:62ch;}
+  .roles{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:6px;}
+  @media(max-width:680px){.roles{grid-template-columns:1fr 1fr;}}
+  .role{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow);border-top:3px solid var(--accent);}
+  .role .rn{font-weight:800;font-size:14px;} .role .rd{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .role.r0{border-top-color:#7A3E9A;} .role.r1{border-top-color:#0B7A91;} .role.r2{border-top-color:#B26A00;} .role.r3{border-top-color:#2C7A54;} .role.r4{border-top-color:#8698A2;}
+  .tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);}
+  table{border-collapse:collapse;width:100%;min-width:640px;font-size:13px;}
+  th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:center;}
+  th:first-child,td:first-child{text-align:left;}
+  thead th{font-family:var(--mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);background:var(--surface-2);position:sticky;top:0;}
+  tbody td:first-child{font-weight:600;}
+  tr:last-child td{border-bottom:none;}
+  .yes{color:var(--ok);font-weight:800;} .non{color:var(--ink-faint);}
+  td.y{background:var(--ok-wash);}
+  .ro{font-size:9.5px;color:var(--ink-faint);font-family:var(--mono);display:block;margin-top:1px;}
+  .note{background:var(--accent-wash);border:1px solid var(--accent);border-radius:11px;padding:14px 16px;font-size:13.5px;margin-top:16px;}
+  .note b{color:var(--ink);}
+  .foot{margin-top:34px;padding-top:20px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--ink-soft);}
+  .foot .sig{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:10px;}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">Gestionale Creatio · Ruoli e permessi</span>
+    <h1>Chi vede e fa cosa</h1>
+    <p class="lead">I <b>cinque ruoli</b> e, per ciascuno, quali moduli vede e quali azioni può compiere. L'economico (prezzi, costi, margini) non è solo nascosto graficamente: è <b>bloccato dal database</b>.</p>
+  </header>
+
+  <h2 class="sec">I cinque ruoli</h2>
+  <div class="roles">
+    <div class="role r0"><div class="rn">👑 Amministratore</div><div class="rd">Vede e fa tutto, compresa la gestione utenti e i costi di struttura.</div></div>
+    <div class="role r1"><div class="rn">💼 Commerciale</div><div class="rd">Vendite e preventivi. Vede prezzi e margini, lavora su tutto; non gestisce utenti né elimina.</div></div>
+    <div class="role r2"><div class="rn">🏭 Produzione</div><div class="rd">Reparto. Niente prezzi. Commesse (in vista), Postazione (cronometro), giacenze in lettura.</div></div>
+    <div class="role r3"><div class="rn">🏬 Magazzino</div><div class="rd">Carico/scarico e giacenze, <b>senza prezzi</b>. Fa lo scarico materiali delle commesse.</div></div>
+    <div class="role r4"><div class="rn">📇 Reception</div><div class="rd">Front office. Solo l'anagrafica clienti (con dati fiscali), niente economico.</div></div>
+  </div>
+
+  <h2 class="sec">Cosa VEDE ogni ruolo (i moduli)</h2>
+  <p class="sec-sub">✓ = accessibile. Dove indicato, con limitazioni.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Modulo</th><th>Ammin.</th><th>Commerc.</th><th>Produz.</th><th>Magazz.</th><th>Recept.</th></tr></thead>
+    <tbody>
+      <tr><td>👥 Anagrafica Clienti</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td></tr>
+      <tr><td>🧾 Preventivi</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>🏭 Commesse</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span><span class="ro">senza prezzi</span></td><td class="y"><span class="yes">✓</span><span class="ro">scarico, no prezzi</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>⏱️ Postazione operatore</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>🏬 Magazzino</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span><span class="ro">giacenze, lettura</span></td><td class="y"><span class="yes">✓</span><span class="ro">carico/scarico</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>🏷️ Pezzi &amp; Etichette</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>📦 Catalogo</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>🧩 Prodotti configurabili</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>🎁 Imballi</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>🚚 Anagrafica Fornitori</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>🛒 Ordini fornitori</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>🚚 Trasporti</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>🧑‍💼 Agenti</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>👷 Operatori</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>⚙️ Impostazioni</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span><span class="ro">no costi struttura</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>📊 Report</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td></tr>
+      <tr><td>🔑 Utenti &amp; Ruoli</td><td class="y"><span class="yes">✓</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td><td><span class="non">–</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 class="sec">Cosa può FARE ogni ruolo (le capacità)</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Capacità</th><th>Ammin.</th><th>Commerc.</th><th>Produz.</th><th>Magazz.</th><th>Recept.</th></tr></thead>
+    <tbody>
+      <tr><td>✏️ Creare / modificare</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">✗</span></td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td></tr>
+      <tr><td>🗑️ Eliminare</td><td class="y"><span class="yes">✓</span></td><td><span class="non">✗</span></td><td><span class="non">✗</span></td><td><span class="non">✗</span></td><td><span class="non">✗</span></td></tr>
+      <tr><td>💶 Vedere prezzi / costi / margini</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">✗</span></td><td><span class="non">✗</span></td><td><span class="non">✗</span></td></tr>
+      <tr><td>🏗️ Vedere costi di struttura e costo operatori</td><td class="y"><span class="yes">✓</span></td><td><span class="non">✗</span></td><td><span class="non">✗</span></td><td><span class="non">✗</span></td><td><span class="non">✗</span></td></tr>
+      <tr><td>🧾 Vedere dati fiscali</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">✗</span></td><td><span class="non">✗</span></td><td class="y"><span class="yes">✓</span></td></tr>
+      <tr><td>⏱️ Usare la Postazione (con PIN)</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">✗</span></td></tr>
+      <tr><td>📦 Scaricare materiali dal magazzino</td><td class="y"><span class="yes">✓</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">✗</span></td><td class="y"><span class="yes">✓</span></td><td><span class="non">✗</span></td></tr>
+      <tr><td>🔑 Gestire utenti e permessi</td><td class="y"><span class="yes">✓</span></td><td><span class="non">✗</span></td><td><span class="non">✗</span></td><td><span class="non">✗</span></td><td><span class="non">✗</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note">🛡️ <b>L'economico è blindato dal database (RLS), non solo nascosto graficamente.</b> Chi non ha il permesso "economici" (Produzione, Magazzino, Reception) riceve <b>vuoto</b> dalle tabelle di prezzi/costi: non è aggirabile smanettando nel browser. I <b>costi di struttura</b> sono su una tabella separata leggibile solo dall'amministratore.</div>
+
+  <h2 class="sec">Note importanti</h2>
+  <div class="note" style="background:var(--surface-2);border-color:var(--line);color:var(--ink)">
+    <b>Deroghe per singola persona.</b> Dal modulo 🔑 Utenti &amp; Ruoli, col pulsante <b>Permessi</b>, puoi fare eccezioni per una persona (stati "Come ruolo / Sì / No") su singole capacità o moduli — utile per casi particolari senza cambiare ruolo a tutti.
+    <ul style="margin:8px 0 0;padding-left:18px;">
+      <li><b>PIN Postazione:</b> ogni operatore deve avere un PIN (impostato in 👷 Operatori), altrimenti non può timbrare.</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <p>In sintesi: <b>Amministratore</b> tutto · <b>Commerciale</b> tutto tranne utenti, costi di struttura e "elimina" · <b>Produzione</b> commesse + postazione senza soldi · <b>Magazzino</b> giacenze e carico/scarico senza prezzi · <b>Reception</b> solo clienti.</p>
+    <p class="sig">Creatio Group · Stampa &amp; Allestimenti — ruoli e permessi</p>
+  </div>
+</div>
+</body></html>

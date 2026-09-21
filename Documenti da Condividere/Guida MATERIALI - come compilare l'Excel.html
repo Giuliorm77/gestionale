@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0}
+  button{font:inherit}
+</style>
+<title>Materiali — come compilare l'Excel</title>
+<style>
+  :root{
+    --bg:#f3f6f6; --surface:#ffffff; --surface-2:#eef2f3;
+    --ink:#0f1b21; --ink-2:#4a5b63; --ink-3:#7b8b92;
+    --line:#d4dcdf; --line-strong:#b5c1c5;
+    --accent:#0e5c6b; --accent-soft:#e0eef1;
+    --warn:#9a5209; --warn-soft:#fbf0e1;
+    --danger:#9c2018; --danger-soft:#fbebe9;
+    --ok-ink:#146043; --ok-soft:#e2f1e9;
+    --sans:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SFMono-Regular","Cascadia Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0c1316; --surface:#131c20; --surface-2:#182226;
+      --ink:#e9eff1; --ink-2:#98a9b0; --ink-3:#71838a;
+      --line:#253237; --line-strong:#35464c;
+      --accent:#57b3c3; --accent-soft:#0e2f36;
+      --warn:#dfa662; --warn-soft:#2e2110;
+      --danger:#e78c82; --danger-soft:#301714;
+      --ok-ink:#67c39a; --ok-soft:#0f2a20;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0c1316; --surface:#131c20; --surface-2:#182226;
+    --ink:#e9eff1; --ink-2:#98a9b0; --ink-3:#71838a;
+    --line:#253237; --line-strong:#35464c;
+    --accent:#57b3c3; --accent-soft:#0e2f36;
+    --warn:#dfa662; --warn-soft:#2e2110;
+    --danger:#e78c82; --danger-soft:#301714;
+    --ok-ink:#67c39a; --ok-soft:#0f2a20;
+  }
+  :root[data-theme="light"]{
+    --bg:#f3f6f6; --surface:#ffffff; --surface-2:#eef2f3;
+    --ink:#0f1b21; --ink-2:#4a5b63; --ink-3:#7b8b92;
+    --line:#d4dcdf; --line-strong:#b5c1c5;
+    --accent:#0e5c6b; --accent-soft:#e0eef1;
+    --warn:#9a5209; --warn-soft:#fbf0e1;
+    --danger:#9c2018; --danger-soft:#fbebe9;
+    --ok-ink:#146043; --ok-soft:#e2f1e9;
+  }
+
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+    line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:60rem;margin:0 auto;padding:2.5rem 1.25rem 4rem;
+    display:flex;flex-direction:column;gap:2.75rem;}
+
+  /* ---- intestazione ---- */
+  .head{display:flex;flex-direction:column;gap:.6rem;
+    border-bottom:2px solid var(--ink);padding-bottom:1.25rem;}
+  .eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent);font-weight:600;}
+  h1{font-size:clamp(1.8rem,4.5vw,2.6rem);line-height:1.12;margin:0;font-weight:700;
+    letter-spacing:-.02em;text-wrap:balance;}
+  .sub{color:var(--ink-2);max-width:60ch;font-size:1.02rem;margin:0;}
+  .filechip{display:inline-flex;align-items:center;gap:.5rem;align-self:flex-start;
+    font-family:var(--mono);font-size:.82rem;background:var(--surface-2);
+    border:1px solid var(--line);padding:.4rem .7rem;color:var(--ink);}
+
+  /* ---- sezioni ---- */
+  section{display:flex;flex-direction:column;gap:1rem;}
+  h2{font-size:1.3rem;margin:0;font-weight:700;letter-spacing:-.01em;
+    display:flex;align-items:baseline;gap:.7rem;text-wrap:balance;}
+  h2::before{content:"";flex:0 0 1.6rem;height:2px;background:var(--accent);transform:translateY(-.35em);}
+  h3{font-size:1rem;margin:0;font-weight:700;}
+  p{margin:0;}
+  .lead{color:var(--ink-2);max-width:65ch;}
+
+  /* ---- le tre regole ---- */
+  .rules{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));}
+  .rule{background:var(--surface);border:1px solid var(--line-strong);
+    border-top:3px solid var(--danger);padding:1.1rem;display:flex;flex-direction:column;gap:.55rem;}
+  .rule code{font-family:var(--mono);font-size:1rem;font-weight:700;color:var(--ink);}
+  .rule p{font-size:.92rem;color:var(--ink-2);}
+  .rule .why{font-size:.85rem;color:var(--danger);font-weight:600;}
+
+  /* ---- tabella colonne ---- */
+  .scroll{overflow-x:auto;border:1px solid var(--line);background:var(--surface);}
+  table{border-collapse:collapse;width:100%;min-width:38rem;font-size:.93rem;}
+  thead th{text-align:left;background:var(--surface-2);color:var(--ink-2);
+    font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;
+    font-weight:600;padding:.7rem .85rem;border-bottom:1px solid var(--line-strong);white-space:nowrap;}
+  tbody td{padding:.7rem .85rem;border-bottom:1px solid var(--line);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:0;}
+  td.col{font-family:var(--mono);font-weight:600;white-space:nowrap;}
+  td.ex{font-family:var(--mono);color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  tr.must td.col{color:var(--danger);}
+  tr.must{background:var(--danger-soft);}
+  .tag{display:inline-block;font-size:.68rem;font-family:var(--mono);letter-spacing:.06em;
+    text-transform:uppercase;padding:.12rem .4rem;border:1px solid currentColor;margin-left:.4rem;
+    vertical-align:.08em;font-weight:600;}
+  .tag.req{color:var(--danger);}
+
+  /* ---- avvisi ---- */
+  .note{border-left:3px solid var(--warn);background:var(--warn-soft);
+    padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.4rem;}
+  .note.stop{border-left-color:var(--danger);background:var(--danger-soft);}
+  .note strong{color:var(--ink);}
+  .note p{font-size:.95rem;color:var(--ink-2);}
+  .note .title{font-weight:700;color:var(--ink);font-size:.95rem;}
+
+  /* ---- liste ---- */
+  ol.steps{margin:0;padding:0;list-style:none;counter-reset:s;
+    display:flex;flex-direction:column;gap:.85rem;}
+  ol.steps li{counter-increment:s;display:grid;grid-template-columns:1.9rem 1fr;gap:.85rem;
+    align-items:start;}
+  ol.steps li::before{content:counter(s);font-family:var(--mono);font-weight:700;font-size:.85rem;
+    color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);
+    width:1.9rem;height:1.9rem;display:flex;align-items:center;justify-content:center;}
+  ol.steps p{font-size:.95rem;color:var(--ink-2);}
+  ol.steps .t{font-weight:600;color:var(--ink);font-size:.98rem;}
+
+  ul.plain{margin:0;padding-left:1.15rem;display:flex;flex-direction:column;gap:.45rem;
+    color:var(--ink-2);font-size:.95rem;}
+  ul.plain code,p code,li code{font-family:var(--mono);font-size:.88em;background:var(--surface-2);
+    border:1px solid var(--line);padding:.05rem .3rem;color:var(--ink);}
+
+  .foot{border-top:1px solid var(--line);padding-top:1.25rem;color:var(--ink-3);font-size:.85rem;}
+
+  @media print{
+    body{background:#fff;}
+    .wrap{padding:0;gap:1.6rem;max-width:none;}
+    .rule,.scroll,.note{break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="head">
+    <span class="eyebrow">Gestionale Creatio · Magazzino</span>
+    <h1>Materiali: come compilare l'Excel</h1>
+    <p class="sub">Serve a caricare in blocco forex, plexi, vinili e consumabili. Una riga per ogni materiale che teniamo davvero in casa.</p>
+    <span class="filechip">MATERIALI-da-compilare.xlsx → foglio “materiali”</span>
+  </header>
+
+  <section>
+    <h2>Le tre colonne che non perdonano</h2>
+    <p class="lead">Il resto si sistema anche dopo. Queste tre no: se sbagliate qui, il gestionale calcola male senza che nessuno se ne accorga.</p>
+    <div class="rules">
+      <div class="rule">
+        <code>unita</code>
+        <p>Per le lastre rigide scrivete sempre <code>mq</code>. Per le bobine <code>ml (metro lineare)</code>, per gli inchiostri <code>kg</code>.</p>
+        <p class="why">Il prelievo lastre scarica in metri quadri: se la giacenza fosse in “lastre”, i numeri sarebbero falsi.</p>
+      </div>
+      <div class="rule">
+        <code>scorta_minima</code>
+        <p>Mettetela sempre, anche bassa. È la soglia sotto la quale scatta l'allarme.</p>
+        <p class="why">Se resta vuota, il materiale sparisce dall'elenco proprio quando arriva a zero.</p>
+      </div>
+      <div class="rule">
+        <code>costo</code>
+        <p>È il prezzo che <strong>paghiamo noi</strong> al fornitore, per unità (es. €/mq).</p>
+        <p class="why">Se resta vuoto, ogni commessa che usa quel materiale mostra un margine sbagliato.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Riferimento colonne</h2>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Colonna</th><th>Cosa scriverci</th><th>Esempio</th></tr>
+        </thead>
+        <tbody>
+          <tr class="must">
+            <td class="col">nome_articolo<span class="tag req">obbl.</span></td>
+            <td>Nome leggibile, con spessore e colore.</td>
+            <td class="ex">Forex bianco 3mm</td>
+          </tr>
+          <tr class="must">
+            <td class="col">unita</td>
+            <td><code>mq</code> per i rigidi · <code>ml (metro lineare)</code> per le bobine · <code>kg</code> per gli inchiostri.</td>
+            <td class="ex">mq</td>
+          </tr>
+          <tr class="must">
+            <td class="col">costo</td>
+            <td>Prezzo d'acquisto per unità.</td>
+            <td class="ex">8,50</td>
+          </tr>
+          <tr class="must">
+            <td class="col">scorta_minima</td>
+            <td>Soglia di riordino. Sempre compilata.</td>
+            <td class="ex">20</td>
+          </tr>
+          <tr>
+            <td class="col">codice</td>
+            <td>Codice nostro parlante. Schema: <code>MAT-materiale-spessore-colore</code>.</td>
+            <td class="ex">MAT-FOREX-03-BN</td>
+          </tr>
+          <tr>
+            <td class="col">categoria</td>
+            <td>Serve a raggruppare: Rigidi, Vinili, Tessuti, Consumabili…</td>
+            <td class="ex">Rigidi</td>
+          </tr>
+          <tr>
+            <td class="col">colore_articolo</td>
+            <td>Il colore di questa riga. Un colore = una riga a sé.</td>
+            <td class="ex">Bianco</td>
+          </tr>
+          <tr>
+            <td class="col">giacenza</td>
+            <td>Quanto ne abbiamo adesso, nella stessa unità.</td>
+            <td class="ex">70</td>
+          </tr>
+          <tr>
+            <td class="col">peso_kg</td>
+            <td>Peso per unità. Serve a calcolare il trasporto.</td>
+            <td class="ex">1,8</td>
+          </tr>
+          <tr>
+            <td class="col">peso_um</td>
+            <td>Come pesa: <code>mq</code>, <code>mtl</code> o <code>pz</code>.</td>
+            <td class="ex">mq</td>
+          </tr>
+          <tr>
+            <td class="col">peso_eccedenza_pct</td>
+            <td><strong>Lasciatelo vuoto.</strong> Vedi il riquadro qui sotto.</td>
+            <td class="ex">—</td>
+          </tr>
+          <tr>
+            <td class="col">dimensione_articolo</td>
+            <td>Formato della lastra intera (solo informativo).</td>
+            <td class="ex">3050x2050</td>
+          </tr>
+          <tr>
+            <td class="col">materiale_articolo</td>
+            <td>Di cosa è fatto.</td>
+            <td class="ex">PVC espanso</td>
+          </tr>
+          <tr>
+            <td class="col">descrizione_articolo</td>
+            <td>Facoltativa.</td>
+            <td class="ex">—</td>
+          </tr>
+          <tr>
+            <td class="col">settore</td>
+            <td>Facoltativo.</td>
+            <td class="ex">Materiali</td>
+          </tr>
+          <tr>
+            <td class="col">fornitore</td>
+            <td>Ragione sociale <strong>esatta</strong>, come in Anagrafica Fornitori.</td>
+            <td class="ex">Rossi Plast Srl</td>
+          </tr>
+          <tr>
+            <td class="col">codice_fornitore</td>
+            <td>Il codice con cui <strong>il fornitore</strong> chiama questo materiale.</td>
+            <td class="ex">FX-3000-BI</td>
+          </tr>
+          <tr>
+            <td class="col">prezzo_fornitore</td>
+            <td>Quanto chiede <em>quel</em> fornitore. Con un fornitore solo è lo stesso numero di <code>costo</code>: potete lasciarlo vuoto.</td>
+            <td class="ex">8,50</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Un colore = una riga</h2>
+    <p class="lead">Il forex bianco e il forex nero si comprano, si contano e si finiscono in modo indipendente: sono due materiali diversi, non due sfumature dello stesso. Stessa cosa per gli spessori.</p>
+    <ul class="plain">
+      <li><code>MAT-FOREX-03-BN</code> — Forex 3mm bianco — giacenza 70 mq</li>
+      <li><code>MAT-FOREX-03-NR</code> — Forex 3mm nero — giacenza 20 mq</li>
+      <li><code>MAT-FOREX-05-BN</code> — Forex 5mm bianco — giacenza 15 mq</li>
+    </ul>
+    <div class="note">
+      <span class="title">Solo quello che teniamo davvero</span>
+      <p>I colori che ordiniamo <em>solo su richiesta</em> non vanno caricati: quelli si gestiscono al momento, nel preventivo o nell'ordine al fornitore. Altrimenti ci ritroviamo decine di articoli fantasma sempre a zero.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Due colonne che si confondono facilmente</h2>
+
+    <div class="note">
+      <span class="title">peso_eccedenza_pct — lasciatela vuota</span>
+      <p>È la maggiorazione di <strong>peso</strong> dovuta all'imballo. Non si può sapere in anticipo: dipende dalla spedizione, non dal materiale — una lastra sola si protegge in un modo, cinquanta su un bancale in un altro.</p>
+      <p>Chi spedisce vede il <strong>peso vero sulla bilancia</strong> e lo corregge al momento: il gestionale propone il peso netto e lascia modificare. Fra qualche mese, se noteremo una maggiorazione costante su un materiale, la scriveremo lì — con un dato osservato, non inventato.</p>
+    </div>
+
+    <div class="note">
+      <span class="title">Eccedenza non è sfrido</span>
+      <p><strong>Eccedenza</strong> = quanto pesa in più quando lo <em>spedisci</em> → si somma ai chili, serve al costo del trasporto.</p>
+      <p><strong>Sfrido</strong> = quanto materiale consumi in più quando lo <em>tagli</em> → si somma ai metri quadri, serve al costo del lavoro.</p>
+      <p>Lo sfrido <strong>non sta in questo file</strong>: si imposta sul prodotto configurabile, perché dipende dalla lavorazione — un pannello dritto sfrida meno di uno sagomato.</p>
+    </div>
+
+    <div class="note">
+      <span class="title">costo non è prezzo_fornitore</span>
+      <p><strong><code>costo</code></strong> è uno solo per materiale ed è quello che il gestionale usa per calcolare i margini delle commesse. Va sempre compilato.</p>
+      <p><strong><code>prezzo_fornitore</code></strong> è quanto chiede <em>quel</em> fornitore: se ne può avere uno per ciascun fornitore dello stesso materiale, e il gestionale evidenzia il più conveniente. Con un fornitore solo, è lo stesso numero: potete lasciarlo vuoto.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Cosa non dovete compilare</h2>
+    <ul class="plain">
+      <li><strong>Prezzo di listino</strong> — i materiali non si vendono a listino. Il prezzo lo costruisce il preventivo.</li>
+      <li><strong>Codice interno</strong> — lo genera il gestionale da solo (<code>ART-00001</code>, <code>ART-00002</code>…).</li>
+      <li><strong>Campi imballo / carton</strong> — non li usa nessun calcolo.</li>
+      <li><strong>peso_eccedenza_pct</strong> — vedi sopra.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Come si importa</h2>
+    <ol class="steps">
+      <li>
+        <div><p class="t">Controllate i fornitori</p>
+        <p>Se compilate <code>fornitore</code>, quel nome deve già esistere in Anagrafica Fornitori, scritto identico. Se non lo trova, l'articolo entra lo stesso ma senza il codice fornitore collegato.</p></div>
+      </li>
+      <li>
+        <div><p class="t">Catalogo → Importa Excel</p>
+        <p>Scegliete il file, tipo <strong>Prodotti</strong>. Le colonne si abbinano da sole perché hanno già i nomi giusti: date solo un'occhiata all'anteprima.</p></div>
+      </li>
+      <li>
+        <div><p class="t">Confronta col catalogo</p>
+        <p>Premete il pulsante e leggete il riepilogo: quanti nuovi, quanti già presenti, quanti codici ambigui. Il pulsante finale dice esattamente cosa succederà.</p></div>
+      </li>
+      <li>
+        <div><p class="t">Verificate</p>
+        <p>Aprite due o tre materiali e controllate unità, costo e scorta. Poi Magazzino → Giacenze: devono comparire lì, con il loro stato.</p></div>
+      </li>
+    </ol>
+    <div class="note">
+      <span class="title">Si può correggere e reimportare</span>
+      <p>Prima di scrivere, l'import <strong>confronta il file col catalogo</strong> e vi dice quanti articoli sono nuovi e quanti già presenti. Se avete sbagliato qualcosa, correggete l'Excel e rimandatelo: gli articoli già dentro vengono <strong>aggiornati</strong>, non duplicati.</p>
+      <p>L'aggiornamento in blocco lo fa <strong>l'amministratore</strong>, e resta annullabile: nel Catalogo c'è <strong>↩ Annulla ultimo import</strong> che rimette tutto com'era.</p>
+      <p><strong>Le celle vuote non sovrascrivono nulla:</strong> per correggere solo i prezzi potete mandare un file con due sole colonne, <code>codice</code> e <code>costo</code>, senza toccare giacenze e scorte.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Perché ci teniamo</h2>
+    <p class="lead">Da questi dati dipendono tre cose che usiamo tutti i giorni: chi progetta vede al volo <strong>cosa c'è in magazzino</strong> prima di scegliere un materiale; le commesse calcolano il <strong>costo vero</strong> del lavoro; e quando un materiale scende sotto scorta il gestionale <strong>lo segnala prima</strong> che ci fermiamo.</p>
+  </section>
+
+  <p class="foot">Nel dubbio su una colonna, lasciatela vuota e segnalatelo: meglio un campo mancante che un dato sbagliato. Il minimo utile per far entrare un materiale è nome, unità e costo.</p>
+
+</div>
+</body>
+</html>

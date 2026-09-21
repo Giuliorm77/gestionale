@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checklist di test — Gestionale Creatio (per i ragazzi)</title>
+<style>
+  :root{ --brand:#2f5bea; --ink:#1a2230; --muted:#5b6773; --line:#e3e8ef; --ok:#1f9c68; --warn:#b26a00; --bg:#f6f8fc; }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);margin:0;padding:0 30px 40px}
+  .wrap{max-width:960px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:30px 42px 38px;box-shadow:0 4px 24px rgba(20,40,80,.06);margin-top:96px}
+  h1{font-size:25px;margin:0 0 4px;color:var(--brand)}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 18px}
+  h2{font-size:18px;margin:26px 0 8px;padding:8px 12px;background:#eef3ff;border-radius:8px;color:var(--brand);overflow:hidden}
+  h2 .who{float:right;font-size:12px;background:var(--brand);color:#fff;border-radius:20px;padding:2px 12px;font-weight:600}
+  p{margin:6px 0;line-height:1.5}
+  .lead{background:#fff9ec;border:1px solid #f3e2b8;border-radius:8px;padding:12px 16px;margin:14px 0;font-size:14px;line-height:1.5}
+  table{width:100%;border-collapse:collapse;margin:8px 0 6px;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#f0f4fb;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+  td.done{background:#f2faf5}
+  .ck{width:42px;text-align:center}
+  .chk{width:20px;height:20px;cursor:pointer;accent-color:var(--ok)}
+  .exp{color:var(--muted);font-size:12.5px}
+  .tag{display:inline-block;background:#eef1fb;color:var(--brand);border-radius:20px;padding:1px 9px;font-size:11.5px;font-weight:600}
+  .foot{margin-top:26px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+  ul{margin:6px 0 6px 2px;padding-left:20px} li{margin:3px 0}
+  .bar{position:fixed;top:0;left:0;right:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);
+       box-shadow:0 2px 10px rgba(20,40,80,.05);padding:10px 30px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .bar .ttl{font-weight:700;color:var(--brand)}
+  .prog{flex:1;min-width:160px;height:10px;background:#eef1f5;border-radius:6px;overflow:hidden}
+  .prog>i{display:block;height:100%;width:0;background:var(--ok);transition:width .2s}
+  .cnt{font-size:13px;color:var(--muted);white-space:nowrap}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer}
+  .btn:hover{background:#f6f8fc}
+  @media print{ .bar{display:none} body{background:#fff;padding:0} .wrap{border:none;box-shadow:none;border-radius:0;padding:0;margin-top:0} }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="ttl">✅ Test gestionale</span>
+  <div class="prog"><i id="pbar"></i></div>
+  <span class="cnt" id="pcnt">0 / 0</span>
+  <button class="btn" onclick="window.print()">🖨️ Stampa</button>
+  <button class="btn" onclick="azzera()">↺ Azzera</button>
+</div>
+<div class="wrap">
+
+  <h1>✅ Checklist di test — per i ragazzi</h1>
+  <p class="sub">Prova il gestionale nel <b>tuo ruolo</b>: vai alla tua sezione. Le caselle si <b>salvano da sole</b> nel browser. Se qualcosa non torna, annotalo e segnalalo (come farlo è scritto in fondo).</p>
+
+  <div class="lead">
+    <b>La configurazione (articoli, listini, corrieri, PIN, utenti) l'ha già fatta l'amministratore.</b> Tu qui devi solo <b>usare</b> il gestionale. Se un pulsante o una sezione <b>non</b> compare, spesso è giusto: dipende dal tuo ruolo (prezzi/costi non si vedono in produzione e magazzino). Segnala solo ciò che è palesemente sbagliato o dà errore.
+  </div>
+
+  <h2>Per tutti <span class="who">ogni ruolo</span></h2>
+  <table>
+    <thead><tr><th class="ck">✔</th><th>Cosa provare</th><th>Cosa deve succedere</th></tr></thead>
+    <tbody>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Entra col <b>tuo utente</b></td><td class="exp">Vedi solo i moduli del tuo ruolo</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Usa la <b>ricerca</b> nei moduli che vedi</td><td class="exp">Trova subito ciò che cerchi</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Ricarica la pagina (Ctrl+Shift+R)</td><td class="exp">Dati aggiornati; se avevi una bozza te la propone</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Commerciale <span class="who">ruolo commerciale</span></h2>
+  <table>
+    <thead><tr><th class="ck">✔</th><th>Cosa provare</th><th>Cosa deve succedere</th></tr></thead>
+    <tbody>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Crea un <b>cliente</b> (finale e rivenditore) e un <b>fornitore</b></td><td class="exp">Si salvano; cliente con termini pagamento e affidabilità</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Preventivo con <b>materiale</b> + <b>manodopera</b> + <b>prodotto configurato</b></td><td class="exp">Il configurato calcola dalle misure; margine mostrato</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Su una riga aggiungi <b>più imballi</b> (Pluriball + Scotch + Angolari)</td><td class="exp">Chip col costo + totale imballo</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Compila <b>descrizione breve</b>, <b>Alla c.a.</b>, <b>email</b> destinatario</td><td class="exp">In elenco e nel PDF</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Stampa <b>PDF interno</b> e <b>PDF cliente</b></td><td class="exp">Nel PDF cliente le lavorazioni sono fuse nel materiale; totale identico</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Calcola il <b>trasporto</b> col pulsante 🚚</td><td class="exp">Peso dagli articoli; costo dal listino; se vuoto → PDF "Trasporto escluso"</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Crea una <b>commessa da preventivo</b> e una <b>da zero</b></td><td class="exp">Materiali impegnati; la "da zero" non richiede preventivo</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Aggiungi una <b>fase esterna (terzista)</b>, poi stampa la <b>Scheda di lavorazione</b></td><td class="exp">Compare "🏭 TERZISTA: nome"</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Riapri una commessa <b>chiusa</b></td><td class="exp">La apri e vedi tutti i dettagli, incl. "Chi ci ha lavorato"</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Su una commessa lavorata premi <b>📄 Genera consuntivo</b></td><td class="exp">Preventivo bozza con materiali scaricati + ore reali</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Apri il <b>📊 Report</b></td><td class="exp">Ricavi, costi, margine reali</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Magazzino <span class="who">ruolo magazzino</span></h2>
+  <table>
+    <thead><tr><th class="ck">✔</th><th>Cosa provare</th><th>Cosa deve succedere</th></tr></thead>
+    <tbody>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>In <b>🏬 Magazzino</b> cerca un articolo (anche nuovo, a giacenza 0)</td><td class="exp">La ricerca lo trova comunque</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td><b>Carico</b> bolla: prova in <b>pezzi</b>, <b>lastre</b>, <b>kg</b>, <b>pacchi</b></td><td class="exp">Converte nell'unità dell'articolo; giacenza aggiornata</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Apri una <b>commessa</b> → Materiali → <b>Scarica dal magazzino</b></td><td class="exp">Crea i movimenti, la giacenza cala; <b>nessun prezzo</b></td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td><b>Storna</b> uno scarico</td><td class="exp">Giacenza ripristinata</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Guarda le giacenze</td><td class="exp">Quantità e disponibilità <b>senza prezzi</b></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Produzione <span class="who">ruolo produzione</span></h2>
+  <table>
+    <thead><tr><th class="ck">✔</th><th>Cosa provare</th><th>Cosa deve succedere</th></tr></thead>
+    <tbody>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Apri la <b>⏱️ Postazione</b>, scegli il tuo nome, inserisci il <b>PIN</b></td><td class="exp">PIN giusto = accedi; sbagliato = rifiuta (il PIN te lo dà l'admin)</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td><b>Avvia</b>, metti in <b>pausa</b> (con motivo), <b>riprendi</b>, <b>termina</b> una lavorazione</td><td class="exp">Registra inizio/fine; riepilogo tempi</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Verifica di vedere le fasi del tuo reparto</td><td class="exp">Dalle commesse aperte / in produzione</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Controlla di <b>non</b> vedere prezzi/costi</td><td class="exp">La produzione non vede dati economici</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Reception <span class="who">ruolo reception</span></h2>
+  <table>
+    <thead><tr><th class="ck">✔</th><th>Cosa provare</th><th>Cosa deve succedere</th></tr></thead>
+    <tbody>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Apri <b>👥 Anagrafica Clienti</b>, cerca e apri una scheda</td><td class="exp">Vedi i dati anagrafici di base</td></tr>
+      <tr><td class="ck"><input type="checkbox" class="chk"></td><td>Controlla di <b>non</b> vedere prezzi, sconti, margini</td><td class="exp">La reception non vede dati economici</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Verifica permessi <span class="who">ognuno nel suo ruolo</span></h2>
+  <p>Ognuno controlli che, nel proprio ruolo, <b>NON</b> compaiano i dati riservati:</p>
+  <ul>
+    <li><span class="tag">produzione</span> → Postazione e Commesse (in vista), giacenze in lettura; no prezzi, no movimenti magazzino</li>
+    <li><span class="tag">magazzino</span> → giacenze + carico/scarico senza prezzi; no Catalogo/Preventivi</li>
+    <li><span class="tag">commerciale</span> → preventivi, commesse, margini; no costi di struttura, no gestione utenti</li>
+    <li><span class="tag">reception</span> → solo anagrafica clienti di base</li>
+  </ul>
+
+  <div class="lead">
+    <b>Come segnalare un problema:</b> <b>1)</b> con che utente/ruolo eri, <b>2)</b> in quale schermata, <b>3)</b> cosa hai fatto passo-passo, <b>4)</b> cosa ti aspettavi, <b>5)</b> cosa è successo (copia eventuali errori). Uno screenshot aiuta molto.
+  </div>
+
+  <div class="foot">Documento interno Creatio Group — checklist di collaudo ragazzi (interattiva, si salva nel browser).</div>
+</div>
+
+<script>
+(function(){
+  var KEY="ck_test_ragazzi_v1";
+  var boxes=[].slice.call(document.querySelectorAll(".chk"));
+  var saved={}; try{ saved=JSON.parse(localStorage.getItem(KEY)||"{}"); }catch(e){}
+  function paint(b){ var td=b.closest("td"); if(td){ td.classList.toggle("done", b.checked); } }
+  function prog(){ var n=boxes.filter(function(b){return b.checked;}).length, t=boxes.length;
+    document.getElementById("pcnt").textContent=n+" / "+t;
+    document.getElementById("pbar").style.width=(t?Math.round(n/t*100):0)+"%"; }
+  function save(){ var o={}; boxes.forEach(function(b,i){ o[i]=b.checked; }); localStorage.setItem(KEY,JSON.stringify(o)); }
+  boxes.forEach(function(b,i){ if(saved[i]) b.checked=true; paint(b);
+    b.addEventListener("change",function(){ paint(b); save(); prog(); }); });
+  prog();
+  window.azzera=function(){ if(!confirm("Azzerare tutte le spunte di questa checklist?")) return;
+    boxes.forEach(function(b){ b.checked=false; paint(b); }); save(); prog(); };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,328 @@
+{
+  "_meta": {
+    "azienda": "Creatio Group",
+    "revisione": "01 - bozza",
+    "data": "2026-09-09",
+    "fonte": "organigramma-dati_1.xlsx (foglio Persone), compilato dall'utente",
+    "nota": "I campi 'assunzione' segnalano dati che NON vengono dall'Excel ma da un'ipotesi nostra, da confermare. I 'flag' sono le zone grigie emerse dalla compilazione."
+  },
+
+  "reparti": [
+    { "id": "direzione",      "nome": "Direzione",                 "colore": "#3A4247" },
+    { "id": "amministrazione","nome": "Amministrazione",           "colore": "#0B7FAE" },
+    { "id": "commerciale",    "nome": "Commerciale",               "colore": "#B4007A" },
+    { "id": "produzione",     "nome": "Progettazione e Produzione","colore": "#1B6B47" },
+    { "id": "grafico",        "nome": "Reparto Grafico",           "colore": "#6244A8" },
+    { "id": "serigrafia",     "nome": "Serigrafia",                "colore": "#C4551B" },
+    { "id": "stampa",         "nome": "Stampa",                    "colore": "#2C5C93" },
+    { "id": "allestimento",   "nome": "Allestimento / Finitura",   "colore": "#0D7A82" },
+    { "id": "magazzino",      "nome": "Magazzino / Logistica",     "colore": "#8A6A1F" }
+  ],
+
+  "tipi": ["Interno", "Agente esterno", "Consulente", "Collaboratore", "Stagista"],
+
+  "persone": [
+    {
+      "id": "kledi-dellomo",
+      "nome": "Kledi Dell'Omo",
+      "ruolo": "CEO",
+      "reparti": ["direzione"],
+      "riporta_a": [],
+      "responsabilita": ["Amministrare l'attività"],
+      "sostituti": ["giulio-dellomo"],
+      "tipo": "Interno",
+      "note": null,
+      "assunzione": "Reparto non indicato nell'Excel: assegnato a Direzione.",
+      "flag": ["reparto-assunto", "backup-di-molti"]
+    },
+    {
+      "id": "monica-domogos",
+      "nome": "Monica Domogos",
+      "ruolo": "Responsabile Amministrazione",
+      "reparti": ["amministrazione"],
+      "riporta_a": ["kledi-dellomo"],
+      "responsabilita": [
+        "Fatturazione",
+        "Pagamenti fornitori",
+        "Pagamento stipendi",
+        "Incassi e solleciti incassi",
+        "Gestione documentazione"
+      ],
+      "sostituti": ["kledi-dellomo"],
+      "tipo": "Interno",
+      "note": null,
+      "flag": []
+    },
+    {
+      "id": "giulio-dellomo",
+      "nome": "Giulio Dell'Omo",
+      "ruolo": "Account Direct",
+      "reparti": ["commerciale"],
+      "riporta_a": ["kledi-dellomo"],
+      "responsabilita": ["Rapporto con i grandi clienti"],
+      "sostituti": ["kledi-dellomo"],
+      "tipo": "Agente esterno",
+      "note": null,
+      "flag": ["esterno-con-riporti"]
+    },
+    {
+      "id": "cristina-mammetti",
+      "nome": "Cristina Mammetti",
+      "ruolo": "Account Senior",
+      "reparti": ["commerciale"],
+      "riporta_a": ["giulio-dellomo", "kledi-dellomo"],
+      "responsabilita": [
+        "Gestione ordini clienti e fornitori",
+        "Inserimento ordini clienti e fornitori",
+        "Ricerca materiali"
+      ],
+      "sostituti": ["vito-barbara"],
+      "tipo": "Agente esterno",
+      "note": null,
+      "flag": ["doppio-riporto", "esterno-con-riporti"]
+    },
+    {
+      "id": "vito-barbara",
+      "nome": "Vito Barbara",
+      "ruolo": "Account Junior",
+      "reparti": ["commerciale"],
+      "riporta_a": ["cristina-mammetti"],
+      "responsabilita": [
+        "Gestione ordini clienti e fornitori",
+        "Inserimento ordini clienti e fornitori",
+        "Ricerca materiali"
+      ],
+      "sostituti": ["cristina-mammetti"],
+      "tipo": "Interno",
+      "note": null,
+      "flag": []
+    },
+    {
+      "id": "andrea-bonanni",
+      "nome": "Andrea Bonanni",
+      "ruolo": "Responsabile Produzione e Progettazione",
+      "reparti": ["produzione"],
+      "riporta_a": ["giulio-dellomo", "kledi-dellomo"],
+      "responsabilita": ["Sviluppo e progettazione", "Responsabile di produzione"],
+      "sostituti": ["kledi-dellomo"],
+      "tipo": "Interno",
+      "note": null,
+      "flag": ["doppio-riporto", "span-of-control-alto"]
+    },
+    {
+      "id": "marco-laurenzi",
+      "nome": "Marco Laurenzi",
+      "ruolo": "Grafico Stampatore",
+      "reparti": ["grafico", "stampa"],
+      "riporta_a": ["andrea-bonanni"],
+      "responsabilita": [
+        "Stampa digitale piccolo e grande formato",
+        "Applicatore",
+        "Sviluppo grafiche"
+      ],
+      "sostituti": ["rebecca-bertilone", "julio-landaverde"],
+      "tipo": "Interno",
+      "note": null,
+      "flag": []
+    },
+    {
+      "id": "rebecca-bertilone",
+      "nome": "Rebecca Bertilone",
+      "ruolo": "Designer",
+      "reparti": ["grafico"],
+      "riporta_a": ["andrea-bonanni"],
+      "responsabilita": [
+        "Modellazione 3D",
+        "Progettazione strutture e stand",
+        "Sviluppo grafiche",
+        "Rendering"
+      ],
+      "sostituti": ["fatima-dammando"],
+      "tipo": "Interno",
+      "note": null,
+      "flag": []
+    },
+    {
+      "id": "fatima-dammando",
+      "nome": "Fatima D'Ammando",
+      "ruolo": "Designer",
+      "reparti": ["grafico"],
+      "riporta_a": ["andrea-bonanni"],
+      "responsabilita": [
+        "Modellazione 3D",
+        "Progettazione strutture e stand",
+        "Sviluppo grafiche",
+        "Rendering"
+      ],
+      "sostituti": [],
+      "tipo": "Agente esterno",
+      "note": null,
+      "assunzione": "Nell'Excel risulta sostituta di se stessa: campo svuotato in attesa di conferma.",
+      "flag": ["sostituto-se-stessa"]
+    },
+    {
+      "id": "flavia-nicolini",
+      "nome": "Flavia Nicolini",
+      "ruolo": "Serigrafa",
+      "reparti": ["serigrafia"],
+      "riporta_a": ["andrea-bonanni"],
+      "responsabilita": [
+        "Incisione telai",
+        "Recupero e sviluppo telai",
+        "Stampa serigrafica",
+        "Stampa digitale",
+        "Allestimenti interni",
+        "Lavorazioni con la pressa",
+        "Supporto ai reparti che ne hanno bisogno"
+      ],
+      "sostituti": ["andrea-bonanni"],
+      "tipo": "Interno",
+      "note": null,
+      "flag": ["unica-nel-reparto"]
+    },
+    {
+      "id": "fabio-locatelli",
+      "nome": "Fabio Locatelli",
+      "ruolo": "Allestitore interno",
+      "reparti": ["allestimento"],
+      "riporta_a": ["andrea-bonanni"],
+      "responsabilita": [
+        "Allestimento cartotecnica, tipografia e digitale",
+        "Supporto ai reparti che ne hanno bisogno"
+      ],
+      "sostituti": ["andrea-bonanni"],
+      "tipo": "Interno",
+      "note": null,
+      "flag": []
+    },
+    {
+      "id": "julio-landaverde",
+      "nome": "Julio Landaverde",
+      "ruolo": "Stampatore Allestitore",
+      "reparti": ["stampa", "allestimento"],
+      "riporta_a": ["andrea-bonanni"],
+      "responsabilita": [
+        "Stampa digitale grande formato",
+        "Applicatore",
+        "Allestimento interno ed esterno"
+      ],
+      "sostituti": ["marco-laurenzi"],
+      "tipo": "Interno",
+      "note": null,
+      "flag": []
+    },
+    {
+      "id": "simone-la-commarre",
+      "nome": "Simone La Commarre",
+      "ruolo": "Allestitore / Fresatore",
+      "reparti": ["allestimento"],
+      "riporta_a": ["kledi-dellomo"],
+      "responsabilita": ["Lavorazioni CNC", "Allestimento interno ed esterno"],
+      "sostituti": ["julio-landaverde"],
+      "tipo": "Interno",
+      "note": null,
+      "flag": ["riporto-salta-produzione"]
+    },
+    {
+      "id": "alessandro-munarin",
+      "nome": "Alessandro Munarin",
+      "ruolo": "Magazziniere",
+      "reparti": ["magazzino"],
+      "riporta_a": ["andrea-bonanni"],
+      "responsabilita": [
+        "Carico e scarico merci",
+        "Preparazione ordini",
+        "Sistemazione materiale eventi",
+        "Gestione materiali interni di consumo"
+      ],
+      "sostituti": [],
+      "tipo": "Interno",
+      "note": "Nell'Excel il sostituto è \"non lo so\".",
+      "assunzione": "Nell'Excel \"Riporta a\" è troncato a \"Bo\": interpretato come Andrea Bonanni.",
+      "flag": ["riporto-troncato", "senza-sostituto"]
+    },
+    {
+      "id": "lica-popa",
+      "nome": "Lica Popa",
+      "ruolo": "Autista / Allestitore",
+      "reparti": [],
+      "riporta_a": ["cristina-mammetti"],
+      "responsabilita": [
+        "Ritiri e consegne",
+        "Allestimento interno ed esterno",
+        "Manutenzione stabile interna ed esterna"
+      ],
+      "sostituti": [],
+      "tipo": "Interno",
+      "note": null,
+      "assunzione": "Reparto non indicato nell'Excel: lasciato vuoto di proposito.",
+      "flag": ["senza-reparto", "riporta-al-commerciale", "senza-sostituto"]
+    }
+  ],
+
+  "da_chiarire": [
+    {
+      "n": 1,
+      "tipo": "dato-incompleto",
+      "persone": ["alessandro-munarin"],
+      "titolo": "\"Riporta a: Bo\" è troncato",
+      "dettaglio": "Ho ipotizzato Andrea Bonanni. Se il magazzino risponde a qualcun altro, va corretto."
+    },
+    {
+      "n": 2,
+      "tipo": "dato-incompleto",
+      "persone": ["fatima-dammando"],
+      "titolo": "Fatima è indicata come sostituta di se stessa",
+      "dettaglio": "Probabile copia-incolla dalla riga di Rebecca. Chi copre davvero Fatima?"
+    },
+    {
+      "n": 3,
+      "tipo": "dato-incompleto",
+      "persone": ["lica-popa"],
+      "titolo": "Lica Popa è senza reparto e senza sostituto",
+      "dettaglio": "Fa ritiri e consegne, allestimenti e manutenzione dello stabile: tre aree diverse. Va deciso dove sta."
+    },
+    {
+      "n": 4,
+      "tipo": "dato-incompleto",
+      "persone": ["alessandro-munarin"],
+      "titolo": "Il magazzino non ha copertura ferie",
+      "dettaglio": "Sostituto compilato con \"non lo so\": carico/scarico e preparazione ordini restano scoperti."
+    },
+    {
+      "n": 5,
+      "tipo": "scelta-organizzativa",
+      "persone": ["andrea-bonanni", "cristina-mammetti"],
+      "titolo": "Doppio riporto ad Andrea e Cristina",
+      "dettaglio": "Entrambi riportano sia a Giulio sia a Kledi. In caso di indicazioni diverse, chi prevale?"
+    },
+    {
+      "n": 6,
+      "tipo": "scelta-organizzativa",
+      "persone": ["simone-la-commarre"],
+      "titolo": "Simone riporta al CEO saltando la Produzione",
+      "dettaglio": "È allestitore e fresatore come Fabio e Julio, che invece riportano ad Andrea. Voluto o da riallineare?"
+    },
+    {
+      "n": 7,
+      "tipo": "scelta-organizzativa",
+      "persone": ["andrea-bonanni"],
+      "titolo": "Andrea ha 7 riporti diretti su 15 persone",
+      "dettaglio": "Grafica, serigrafia, stampa, allestimento e magazzino passano tutti da lui, oltre alla progettazione."
+    },
+    {
+      "n": 8,
+      "tipo": "scelta-organizzativa",
+      "persone": ["giulio-dellomo", "cristina-mammetti", "fatima-dammando"],
+      "titolo": "Tre agenti esterni con ruoli da struttura interna",
+      "dettaglio": "Giulio è il sostituto del CEO, Cristina ha due persone interne che le riportano. Verificare che l'inquadramento sia quello giusto."
+    },
+    {
+      "n": 9,
+      "tipo": "scelta-organizzativa",
+      "persone": ["kledi-dellomo"],
+      "titolo": "Il CEO è il sostituto di tre persone",
+      "dettaglio": "Copre Amministrazione, Produzione e il Commerciale direzionale. Se manca lui manca anche il backup."
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+# ============================================================
+#  .gitignore del gestionale — cosa NON deve MAI finire su Git
+#  (segreti, password, backup, dati locali, repo di pubblicazione)
+# ============================================================
+
+# --- Segreti / password (MAI condividere) ---
+CASSAFORTE/
+RISERVATO-password/
+config.local.js
+
+# --- Dati di sessione/memoria di Claude Code (personali, non del progetto) ---
+.claude/
+
+# --- Repo di PUBBLICAZIONE (ha il suo Git separato: si aggiorna in fase di deploy) ---
+SITO_DA_PUBBLICARE/
+
+# --- Backup e file locali pesanti / non necessari allo sviluppo ---
+*_BACKUP_*.html
+index_BACKUP*.html
+database.odt
+resoconto-conversazione.txt
+espositore_nivea.jpg
+
+# --- Materiali di prova / asset pesanti / vecchi prototipi (non servono allo sviluppo) ---
+file per prove gestionale/
+file per prove/
+FILE JSX CHAT CLAUDE/
+
+# --- Sistema ---
+Thumbs.db
+.DS_Store
+desktop.ini

@@ -1,0 +1,157 @@
+<title>Formati foto Komunigo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    --paper:#F7F4EE; --surface:#FFFFFF; --surface-2:#F0EBDF;
+    --ink:#1C2A44; --ink-soft:#55607A; --ink-faint:#8b93a5;
+    --line:#E4DFD2; --line-strong:#CFC8B7;
+    --blu:#2E6FB0; --blu-wash:#E4EDF6; --sand:#A9884B; --sand-wash:#EFE7D4;
+    --shadow:0 1px 2px rgba(28,42,68,.06),0 8px 24px rgba(28,42,68,.06);
+    --disp:'Oswald',system-ui,sans-serif; --body:'Barlow',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  :root:not([data-theme="light"]){}
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#131727; --surface:#1A2033; --surface-2:#212840;
+      --ink:#ECEBE4; --ink-soft:#A7ACBA; --ink-faint:#6E7488;
+      --line:#2C3350; --line-strong:#3C4468;
+      --blu:#5B9BD8; --blu-wash:#16233B; --sand:#C79A57; --sand-wash:#2A2417;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#131727; --surface:#1A2033; --surface-2:#212840;
+    --ink:#ECEBE4; --ink-soft:#A7ACBA; --ink-faint:#6E7488;
+    --line:#2C3350; --line-strong:#3C4468;
+    --blu:#5B9BD8; --blu-wash:#16233B; --sand:#C79A57; --sand-wash:#2A2417;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:900px;margin:0 auto;padding:0 22px 72px;}
+
+  /* header a bande, eco del negozio */
+  header.top{margin:0 -22px 34px;}
+  .band-k{background:#12151d;color:#F7F4EE;padding:26px 22px 22px;}
+  .band-k .logo{font-family:var(--disp);font-weight:700;font-size:26px;letter-spacing:.02em;}
+  .band-k .logo .go{color:var(--blu);}
+  .band-k .kick{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#A9884B;margin-top:2px;}
+  .topline{height:3px;background:linear-gradient(90deg,var(--blu) 0%,var(--blu) 74%,var(--sand) 100%);}
+  .band-panna{height:9px;background:var(--paper);}
+  .head-body{padding:26px 22px 4px;}
+  h1{font-family:var(--disp);font-weight:600;font-size:clamp(28px,5vw,40px);line-height:1.05;margin:0 0 8px;text-wrap:balance;letter-spacing:.01em;}
+  .lead{color:var(--ink-soft);font-size:16.5px;max-width:60ch;margin:0;}
+
+  h2{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--sand);margin:44px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--line);}
+
+  /* schede formato */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:680px){.grid{grid-template-columns:1fr;}}
+  .fmt{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px;}
+  .fmt-top{display:flex;gap:16px;align-items:center;}
+  .prev{flex:0 0 auto;background:var(--blu-wash);border:1.5px dashed var(--blu);border-radius:8px;display:grid;place-items:center;color:var(--blu);font-family:var(--mono);font-size:11px;font-weight:600;width:96px;}
+  .prev.sq{height:96px;} .prev.r43{height:72px;} .prev.wide{width:130px;height:50px;} .prev.doc{height:110px;width:80px;border-style:solid;background:var(--sand-wash);border-color:var(--sand);color:var(--sand);}
+  .fmt h3{font-family:var(--disp);font-weight:600;font-size:19px;margin:0 0 3px;letter-spacing:.01em;}
+  .fmt .use{color:var(--ink-soft);font-size:13.5px;margin:0;}
+  .specs{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13.5px;border-top:1px solid var(--line);padding-top:12px;}
+  .specs dt{color:var(--ink-faint);}
+  .specs dd{margin:0;font-weight:500;}
+  .px{font-family:var(--mono);font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .pill{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--sand-wash);color:var(--sand);vertical-align:middle;margin-left:8px;}
+
+  /* regole generali */
+  .rules{display:grid;grid-template-columns:1fr 1fr;gap:14px 26px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:var(--shadow);}
+  @media(max-width:680px){.rules{grid-template-columns:1fr;}}
+  .rule b{display:block;font-family:var(--disp);font-weight:500;font-size:15px;letter-spacing:.02em;margin-bottom:2px;}
+  .rule p{margin:0;color:var(--ink-soft);font-size:13.5px;}
+  .rule .hl{color:var(--ink);font-family:var(--mono);font-weight:600;font-size:12.5px;}
+
+  .foot{margin-top:40px;font-size:12.5px;color:var(--ink-faint);text-align:center;font-family:var(--mono);letter-spacing:.04em;}
+</style>
+
+<header class="top">
+  <div class="band-k">
+    <div class="logo">Komuni<span class="go">go</span></div>
+    <div class="kick">Stampa · Insegne · Allestimenti</div>
+  </div>
+  <div class="topline"></div>
+  <div class="band-panna"></div>
+  <div class="wrap head-body">
+    <h1>Formati delle foto da caricare</h1>
+    <p class="lead">Guida rapida per preparare le immagini del negozio. Segui proporzione e misure indicate: il sito ritaglia in automatico, ma partendo da foto giuste il risultato è sempre pulito e nitido.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <h2>Formati per tipo di immagine</h2>
+  <div class="grid">
+
+    <div class="fmt">
+      <div class="fmt-top">
+        <div class="prev sq">1:1</div>
+        <div><h3>Foto prodotto</h3><p class="use">Catalogo e schede prodotto (galleria).</p></div>
+      </div>
+      <dl class="specs">
+        <dt>Proporzione</dt><dd>Quadrata (1:1)</dd>
+        <dt>Misura</dt><dd><span class="px">1200 × 1200 px</span></dd>
+        <dt>Formato</dt><dd>JPG</dd>
+        <dt>Peso max</dt><dd class="px">≈ 400 KB</dd>
+      </dl>
+    </div>
+
+    <div class="fmt">
+      <div class="fmt-top">
+        <div class="prev sq">1:1</div>
+        <div><h3>Lavori installati</h3><p class="use">Home, sezione “Fatti da noi, installati da noi”.</p></div>
+      </div>
+      <dl class="specs">
+        <dt>Proporzione</dt><dd>Quadrata (1:1)</dd>
+        <dt>Misura</dt><dd><span class="px">1000 × 1000 px</span></dd>
+        <dt>Formato</dt><dd>JPG</dd>
+        <dt>Peso max</dt><dd class="px">≈ 400 KB</dd>
+      </dl>
+    </div>
+
+    <div class="fmt">
+      <div class="fmt-top">
+        <div class="prev wide">16:6</div>
+        <div><h3>Carosello home <span class="pill">in arrivo</span></h3><p class="use">Banda larga a scorrimento, foto generiche.</p></div>
+      </div>
+      <dl class="specs">
+        <dt>Proporzione</dt><dd>Larga (~16:6, quasi 2,6:1)</dd>
+        <dt>Misura</dt><dd><span class="px">1920 × 720 px</span></dd>
+        <dt>Formato</dt><dd>JPG</dd>
+        <dt>Peso max</dt><dd class="px">≈ 600 KB</dd>
+      </dl>
+    </div>
+
+    <div class="fmt">
+      <div class="fmt-top">
+        <div class="prev doc">PDF</div>
+        <div><h3>Template / tracciato</h3><p class="use">Il layout che il cliente scarica dalla scheda.</p></div>
+      </div>
+      <dl class="specs">
+        <dt>Formato</dt><dd>PDF vettoriale</dd>
+        <dt>Misura</dt><dd>Reale del prodotto</dd>
+        <dt>Abbondanza</dt><dd class="px">3 mm per lato</dd>
+        <dt>Nota</dt><dd>Indica area utile e margini</dd>
+      </dl>
+    </div>
+
+  </div>
+
+  <h2>Regole valide per tutte le foto</h2>
+  <div class="rules">
+    <div class="rule"><b>Formato file</b><p><span class="hl">JPG</span> per le foto. <span class="hl">PNG</span> solo se serve lo sfondo trasparente (loghi, grafiche).</p></div>
+    <div class="rule"><b>Colore</b><p>Profilo <span class="hl">sRGB</span> (è lo standard del web). Il CMYK serve solo per i file di stampa, non per il sito.</p></div>
+    <div class="rule"><b>Peso &amp; nitidezza</b><p>Comprimi sotto <span class="hl">~400–600 KB</span>: più leggere = sito veloce. Evita foto sgranate o troppo scure.</p></div>
+    <div class="rule"><b>Risoluzione</b><p>Sul web contano i <span class="hl">pixel</span>, non i DPI. Rispetta le misure in px: bastano quelle.</p></div>
+    <div class="rule"><b>Inquadratura</b><p>Soggetto centrato e con un po' d'aria intorno: il sito ritaglia ai bordi, meglio non appiccicare il soggetto al margine.</p></div>
+    <div class="rule"><b>Nome del file</b><p>Senza spazi né accenti. Es. <span class="hl">insegna-luminosa.jpg</span>, non <span class="hl">Insegna Città.jpg</span>.</p></div>
+  </div>
+
+  <div class="foot">Creatio Group · komunigo.it — riferimento interno formati immagine</div>
+</div>

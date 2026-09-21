@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E-commerce Creatio — il progetto</title>
+<style>
+  :root{
+    --bg:#EAEEF0; --surface:#FFFFFF; --surface-2:#F3F6F7; --ink:#132029; --ink-soft:#51646F;
+    --ink-faint:#8698A2; --accent:#0B7A91; --accent-2:#0E93AE; --accent-wash:#E2F0F3; --line:#D6DEE2;
+    --ok:#2C7A54; --ok-wash:#E4F1EA; --paid:#9A6712; --paid-wash:#F6ECD8;
+    --b2b:#7A3E9A; --b2b-wash:#F0E7F5; --b2c:#0B6E4F; --b2c-wash:#E2F1EB;
+    --shadow:0 1px 2px rgba(19,32,41,.05), 0 8px 28px rgba(19,32,41,.06);
+    --mono:"Cascadia Code","Consolas",ui-monospace,"SFMono-Regular",Menlo,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0D171E; --surface:#15242D; --surface-2:#1A2E38; --ink:#E8EFF2; --ink-soft:#9CB0BB;
+    --ink-faint:#63808C; --accent:#37B9D4; --accent-2:#54CBE4; --accent-wash:#123039; --line:#263A45;
+    --ok:#52B486; --ok-wash:#152B22; --paid:#D2A455; --paid-wash:#2A2415;
+    --b2b:#B98CD6; --b2b-wash:#241A2E; --b2c:#54C79B; --b2c-wash:#13271F;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);}}
+  :root[data-theme="light"]{
+    --bg:#EAEEF0; --surface:#FFFFFF; --surface-2:#F3F6F7; --ink:#132029; --ink-soft:#51646F;
+    --ink-faint:#8698A2; --accent:#0B7A91; --accent-2:#0E93AE; --accent-wash:#E2F0F3; --line:#D6DEE2;
+    --ok:#2C7A54; --ok-wash:#E4F1EA; --paid:#9A6712; --paid-wash:#F6ECD8;
+    --b2b:#7A3E9A; --b2b-wash:#F0E7F5; --b2c:#0B6E4F; --b2c-wash:#E2F1EB;
+    --shadow:0 1px 2px rgba(19,32,41,.05), 0 8px 28px rgba(19,32,41,.06);}
+  :root[data-theme="dark"]{
+    --bg:#0D171E; --surface:#15242D; --surface-2:#1A2E38; --ink:#E8EFF2; --ink-soft:#9CB0BB;
+    --ink-faint:#63808C; --accent:#37B9D4; --accent-2:#54CBE4; --accent-wash:#123039; --line:#263A45;
+    --ok:#52B486; --ok-wash:#152B22; --paid:#D2A455; --paid-wash:#2A2415;
+    --b2b:#B98CD6; --b2b-wash:#241A2E; --b2c:#54C79B; --b2c-wash:#13271F;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);}
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;margin:0;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:100%;margin:0 auto;padding:32px 22px 80px;}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:600;}
+  h2.sec{font-size:21px;font-weight:800;letter-spacing:-.01em;margin:36px 2px 4px;}
+  .sec-sub{font-size:14px;color:var(--ink-soft);margin:0 2px 16px;}
+  .hero{position:relative;padding:34px 30px 28px;margin-bottom:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
+  .hero h1{font-size:clamp(27px,4.6vw,40px);line-height:1.05;font-weight:800;letter-spacing:-.02em;margin:12px 0 10px;text-wrap:balance;}
+  .hero p.lead{font-size:16.5px;color:var(--ink-soft);margin:0;max-width:62ch;}
+  .crop{position:absolute;width:14px;height:14px;pointer-events:none;opacity:.5;}
+  .crop::before,.crop::after{content:"";position:absolute;background:var(--ink-faint);}
+  .crop::before{width:100%;height:1.5px;top:0;} .crop::after{width:1.5px;height:100%;left:0;}
+  .crop.tl{top:9px;left:9px;} .crop.tr{top:9px;right:9px;transform:scaleX(-1);}
+  .crop.bl{bottom:9px;left:9px;transform:scaleY(-1);} .crop.br{bottom:9px;right:9px;transform:scale(-1,-1);}
+  .note{background:var(--accent-wash);border:1px solid var(--accent);border-radius:11px;padding:14px 16px;font-size:14px;margin-top:16px;}
+  .warn{background:var(--paid-wash);border:1px solid var(--paid);border-radius:12px;padding:15px 17px;font-size:14px;margin-top:16px;}
+  .warn b{color:var(--paid);}
+
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px;}
+  @media(max-width:640px){.split{grid-template-columns:1fr;}}
+  .col{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow);}
+  .col.b2c{border-top:3px solid var(--b2c);} .col.b2b{border-top:3px solid var(--b2b);}
+  .col .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;}
+  .col.b2c .tag{color:var(--b2c);} .col.b2b .tag{color:var(--b2b);}
+  .col h3{font-size:16px;margin:4px 0 4px;} .col ul{margin:8px 0 0;padding-left:18px;font-size:14px;color:var(--ink-soft);} .col li{margin:5px 0;}
+
+  /* flusso automazione ordine */
+  .flow{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 18px;box-shadow:var(--shadow);}
+  .fstep{display:flex;align-items:flex-start;gap:14px;padding:2px 0;}
+  .fico{width:38px;height:38px;flex:none;border-radius:10px;display:grid;place-items:center;font-size:19px;background:var(--surface-2);border:1px solid var(--line);}
+  .fbody{padding-bottom:14px;flex:1;}
+  .fbody h4{margin:0 0 1px;font-size:15px;} .fbody p{margin:0;font-size:13px;color:var(--ink-soft);}
+  .farrow{margin:0 0 0 18px;color:var(--accent);font-weight:800;line-height:.5;padding-bottom:8px;}
+  .fbranch{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:4px 0 0 52px;}
+  @media(max-width:600px){.fbranch{grid-template-columns:1fr;margin-left:0;}}
+  .fb{background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:12px 13px;}
+  .fb h5{margin:0 0 2px;font-size:13px;} .fb p{margin:0;font-size:12.5px;color:var(--ink-soft);}
+  .fb.alert{border-color:var(--paid);} .fb.alert h5{color:var(--paid);}
+
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:640px){.cards{grid-template-columns:1fr;}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow);}
+  .card h4{margin:0 0 4px;font-size:15px;} .card p{margin:0;font-size:13.5px;color:var(--ink-soft);}
+  .card code{font-family:var(--mono);font-size:12px;background:var(--surface-2);padding:1px 5px;border-radius:5px;color:var(--ink);}
+
+  .layers{display:flex;flex-direction:column;gap:11px;}
+  .layer{display:grid;grid-template-columns:auto 1fr;gap:15px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 17px;box-shadow:var(--shadow);}
+  .layer.now{border-left:4px solid var(--ok);}
+  .lnum{font-family:var(--mono);font-weight:700;color:#fff;background:var(--accent);border-radius:9px;padding:6px 11px;line-height:1;height:fit-content;font-size:12px;white-space:nowrap;}
+  .layer.now .lnum{background:var(--ok);}
+  .layer h4{margin:0 0 3px;font-size:16px;} .layer p{margin:0;font-size:14px;color:var(--ink-soft);}
+  .layer .why{font-size:12.5px;color:var(--accent);font-weight:700;margin-top:6px;}
+
+  .moat{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:10px;}
+  .moat h4{margin:0 0 3px;font-size:15px;} .moat p{margin:0;font-size:13.5px;color:var(--ink-soft);}
+
+  .foot{margin-top:34px;padding-top:20px;border-top:1px dashed var(--line);font-size:13px;color:var(--ink-soft);}
+  .foot .sig{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:10px;}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="crop tl"></span><span class="crop tr"></span><span class="crop bl"></span><span class="crop br"></span>
+    <span class="eyebrow">Gestionale Creatio · Progetto e-commerce</span>
+    <h1>Un e-commerce modulare, che cresce nel tempo</h1>
+    <p class="lead">Si parte piccolo e sicuro — vendendo ciò che avete in casa e le lavorazioni che garantite ogni giorno — e si aggiungono moduli col tempo. Tutto sullo stesso "cervello" del gestionale: un unico database, niente doppioni.</p>
+    <div class="note">🧱 <b>Filosofia: modulare.</b> Non un colosso costruito in un colpo, ma una base solida che cresce a pezzi. Ogni modulo funziona da solo e si aggancia al gestionale. Meno rischio, si impara strada facendo.</div>
+  </header>
+
+  <h2 class="sec">Fase 1 — Il punto di partenza (subito realistico)</h2>
+  <p class="sec-sub">Ciò che controllate al 100%: nessuna dipendenza esterna, promesse mantenibili.</p>
+  <div class="cards">
+    <div class="card"><h4>📦 Prodotti che avete in casa</h4><p>Vendete il <b>vostro stock reale</b>: giacenze vere dal magazzino del gestionale. Zero rischio di vendere ciò che non c'è.</p></div>
+    <div class="card"><h4>🖨️ Lavorazioni stampa garantite</h4><p>Le lavorazioni che <b>assicurate ogni giorno</b>, a prezzo competitivo. Prometti solo ciò che mantieni: affidabilità, non "il più basso del web".</p></div>
+    <div class="card"><h4>🎨 Prodotti configurabili</h4><p>Misure, materiali, quantità, upload file → prezzo dal <b>motore prezzi del gestionale</b> (tariffe e margini già impostati).</p></div>
+    <div class="card"><h4>💳 Pagamento con carta</h4><p>Incasso online tramite un servizio accreditato (Stripe/Nexi): la parte sensibile delle carte la gestiscono loro.</p></div>
+  </div>
+  <div class="note">💡 <b>Sul "prezzo concorrenziale":</b> non puntare a battere i giganti su tutto — scegli le lavorazioni dove sei <b>forte e affidabile</b> e vinci su <b>affidabilità + locale + servizio</b>, a prezzo competitivo. "Sicuro e puntuale" batte "il più economico" per il cliente giusto.</div>
+
+  <h2 class="sec">Il cuore intelligente: l'automazione dell'ordine</h2>
+  <p class="sec-sub">Quando arriva un ordine confermato e pagato, il sistema fa già gran parte del lavoro — riusando pezzi che il gestionale ha già.</p>
+  <div class="flow">
+    <div class="fstep"><div class="fico">💳</div><div class="fbody"><h4>Ordine confermato e pagato</h4><p>Il cliente paga online con carta.</p></div></div>
+    <div class="farrow">↓</div>
+    <div class="fstep"><div class="fico">📦</div><div class="fbody"><h4>Impegna la merce in magazzino</h4><p>La quantità viene subito riservata. <b>La funzione "impegno" esiste già</b> nel gestionale (la usa la commessa).</p></div></div>
+    <div class="farrow">↓</div>
+    <div class="fbranch">
+      <div class="fb"><h5>🏭 Se è custom / da produrre</h5><p>Nasce una <b>commessa</b> in produzione, pronta da lavorare.</p></div>
+      <div class="fb alert"><h5>🛒 Se è gadget da personalizzare</h5><p>Si prepara l'<b>ordine dei neutri al fornitore</b> → 🔔 <b>alert al commerciale</b> → verifica → <b>invia</b>. All'arrivo: personalizzazione e spedizione.</p></div>
+    </div>
+  </div>
+  <div class="note">✅ <b>La scelta saggia:</b> l'ordine al fornitore non parte da solo — il <b>commerciale controlla prima</b>. Automatico dove serve, umano dove conta. E riusa <b>magazzino</b>, <b>ordini fornitore</b> e <b>listino fornitori</b> già presenti nel gestionale.</div>
+
+  <h2 class="sec">Fase 2 — Il magazzino esteso del fornitore (gadget e maglieria)</h2>
+  <p class="sec-sub">Proporre online anche ciò che non tenete in casa: si mostra la disponibilità dei prodotti <b>neutri</b> del fornitore; quando arriva l'ordine, si acquista il neutro, lo <b>personalizzate voi</b> e si spedisce. (Non è dropshipping: lavorazione e spedizione restano vostre.)</p>
+  <div class="warn">⚠️ <b>Il punto critico non dipende da noi, ma dai fornitori.</b> Funziona solo se il fornitore espone le sue <b>giacenze in tempo reale</b> (feed/API) e con <b>tempi di consegna</b> chiari. C'è chi le dà, chi manda un file una volta al giorno, chi niente. <b>Prima cosa da verificare</b>, coi fornitori, prima di scrivere codice.</div>
+  <div class="cards" style="margin-top:12px">
+    <div class="card"><h4>🔄 Giacenze dei neutri in tempo reale</h4><p>Mostrate online la disponibilità dei prodotti neutri del fornitore: catalogo ampio senza tenere tutto a magazzino. Serve per <b>promettere date realistiche</b>.</p></div>
+    <div class="card"><h4>⚙️ Ogni ordine = una mini-lavorazione</h4><p>Il gadget arriva <b>neutro</b> e passa in produzione per la personalizzazione (stampa/serigrafia/ricamo) prima della spedizione. È il vostro mestiere — e vi distingue dai rivenditori puri.</p></div>
+    <div class="card"><h4>⏱️ Il tempo è la chiave</h4><p>Data di consegna al cliente = <b>lead time fornitore + personalizzazione + spedizione</b>. Con fornitori veloci prometti stretto, con lenti stai largo.</p></div>
+    <div class="card"><h4>⚠️ Oversell da gestire</h4><p>Se la giacenza del fornitore cambia, rischi di vendere ciò che non c'è → serve un <b>margine di sicurezza</b>.</p></div>
+  </div>
+
+  <h2 class="sec">Le due porte del negozio</h2>
+  <div class="split">
+    <div class="col b2c">
+      <span class="tag">Aperta a tutti</span>
+      <h3>🛒 Negozio pubblico (B2C)</h3>
+      <ul><li>Catalogo, carrello, pagamento con carta</li><li>La vetrina per la campagna marketing</li><li>Prodotti in casa + lavorazioni + gadget (Fase 2)</li></ul>
+    </div>
+    <div class="col b2b">
+      <span class="tag">Riservata</span>
+      <h3>🔐 Area clienti (B2B)</h3>
+      <ul><li>I clienti fissi entrano coi <b>loro prezzi</b></li><li><b>Riordinano</b> e seguono le commesse</li><li>Il pezzo a più alto valore per i clienti da 10-100k</li></ul>
+    </div>
+  </div>
+
+  <h2 class="sec">Dove Creatio vince (da non dimenticare)</h2>
+  <div class="moat"><h4>🏗️ Allestimenti, insegne, grande formato installato</h4><p>I giganti spediscono una scatola. Voi montate, allestite, fate il sopralluogo. Qui non vi seguono.</p></div>
+  <div class="moat"><h4>📸 Il portfolio dei lavori installati + servizio locale</h4><p>La vetrina che loro non hanno. Il gadget-shop è un <b>complemento comodo</b> per i vostri clienti, non la guerra di prezzo dove i giganti vincono.</p></div>
+
+  <h2 class="sec">La crescita a moduli</h2>
+  <p class="sec-sub">Regola d'oro: prima il gestionale in uso reale, poi si costruisce un modulo alla volta.</p>
+  <div class="layers">
+    <div class="layer now"><span class="lnum">FASE 1</span><div><h4>Vetrina + stock proprio + lavorazioni + configuratore + carta</h4><p>Ciò che controllate, con l'automazione ordine→impegno→commessa. Basso rischio, lanciabile presto.</p><div class="why">→ La base. Nessuna dipendenza esterna.</div></div></div>
+    <div class="layer"><span class="lnum">FASE 2</span><div><h4>Area clienti B2B (riordino + listini)</h4><p>Serve i clienti fissi che già avete, senza le complicazioni del pubblico.</p></div></div>
+    <div class="layer"><span class="lnum">FASE 3</span><div><h4>Gadget/maglieria da fornitore + automazione ordine fornitore</h4><p>Dopo aver verificato cosa i fornitori espongono. Con alert al commerciale.</p></div></div>
+    <div class="layer"><span class="lnum">FASE 4</span><div><h4>Rifiniture: marketing, campagne, ottimizzazioni</h4><p>Quando il motore gira, si accende la crescita.</p></div></div>
+  </div>
+
+  <div class="note">🚦 <b>La mossa numero uno, subito e senza codice:</b> chiedere ai fornitori principali di gadget/maglieria se offrono <b>giacenze in tempo reale</b> (feed/API) e con quali <b>tempi di consegna</b>. È il tassello che sblocca la Fase 3.</div>
+
+  <div class="foot">
+    <p>In sintesi: progetto ambizioso ma <b>sensato e modulare</b>, e più della metà del "dietro" (magazzino, ordini fornitore, motore prezzi) <b>c'è già nel gestionale</b>. Si parte da ciò che controllate, si cresce un pezzo alla volta, e non si insegue il commodity dove i giganti vincono.</p>
+    <p class="sig">Creatio Group · Stampa &amp; Allestimenti — progetto e-commerce (v2)</p>
+  </div>
+</div>
+</body></html>

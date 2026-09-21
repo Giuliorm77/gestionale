@@ -1,0 +1,56 @@
+╔══════════════════════════════════════════════════════════════════╗
+║   DOCUMENTI DA CONDIVIDERE — GESTIONALE CREATIO                    ║
+║   Copie offline dei documenti del progetto (aggiornate 12/07/2026) ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Questi sono file HTML AUTONOMI: si aprono con doppio clic (nel browser),
+funzionano anche senza internet, e si possono stampare o salvare in PDF
+(apri il file → Ctrl+P → "Salva come PDF").
+
+────────────────────────────────────────────────────────────────────
+COSA C'È DENTRO
+────────────────────────────────────────────────────────────────────
+
+• Guida-Test-Ragazzi.html
+  → PER IL TEAM. Come accedere e cosa provare durante i test.
+
+• Guida-Messa-in-Produzione.html
+  → PER TE E KLEDI. Il piano dal collaudo al go-live di gennaio 2027
+    (Netlify, dominio, Supabase Pro, 2FA, doppio binario).
+
+• Integrazione-Fatture-in-Cloud.html
+  → TECNICO. Come il gestionale si collegherà a Fatture in Cloud
+    (fatture elettroniche, DDT, scadenzario).
+
+• Progetto-Ecommerce.html
+  → STRATEGICO. Il progetto del negozio online (B2B + B2C, standard
+    e su misura) collegato al gestionale.
+
+• Analisi-Competitor-Ecommerce.html
+  → STRATEGICO. Analisi dei 4 competitor web-to-print (Pixart,
+    Flyeralarm, Stampasi, Gadget365) e strategia: dove differenziarsi.
+
+• Mail-Fornitori-Giacenze.txt
+  → OPERATIVO. Mail-tipo da mandare ai fornitori di gadget/maglieria
+    per capire se offrono giacenze in tempo reale, prezzi e tempi.
+
+• Report-Monica-Fatture-in-Cloud.html
+  → PER MONICA. La lista di cose da preparare sull'account Fatture in
+    Cloud (Client ID, token, conservazione, dati fiscali).
+
+• Ruoli-e-Permessi.html
+  → RIFERIMENTO. Cosa vede e cosa può fare ogni ruolo (amministratore,
+    commerciale, produzione, reception). Utile per impostare gli utenti.
+
+────────────────────────────────────────────────────────────────────
+VERSIONI ONLINE (stessi documenti, sempre aggiornati)
+────────────────────────────────────────────────────────────────────
+• Guida test .......... https://claude.ai/code/artifact/c2ffb1ce-15ec-4565-b87f-5e4342badae8
+• Messa in produzione . https://claude.ai/code/artifact/c7f38b38-8b8d-4297-a5f6-45037effe292
+• Fatture in Cloud ..... https://claude.ai/code/artifact/ed61dc5f-74de-4c72-853c-89688d224154
+• E-commerce .......... https://claude.ai/code/artifact/4a253ac0-fb96-491b-998e-45229d20a934
+• Analisi competitor .. https://claude.ai/code/artifact/54e590c6-4683-4aca-bc02-5ac5d283464d
+• Report Monica ....... https://claude.ai/code/artifact/fd85ee38-81f6-4c47-95a5-6dd116921709
+
+Nota: le copie in questa cartella sono una "fotografia" del 12/07/2026.
+Se un documento viene aggiornato online, rifai la copia offline.

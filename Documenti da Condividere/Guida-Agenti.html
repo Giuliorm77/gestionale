@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guida per l'agente — Gestionale Creatio</title>
+<style>
+  :root{
+    --bg:#EAEEF0; --surface:#FFFFFF; --surface-2:#F3F6F7; --ink:#132029; --ink-soft:#51646F;
+    --ink-faint:#8698A2; --accent:#0B7A91; --accent-2:#0E93AE; --accent-wash:#E2F0F3; --line:#D6DEE2;
+    --ok:#2C7A54; --ok-wash:#E4F1EA; --warn:#9A6712; --warn-wash:#F6ECD8;
+    --shadow:0 1px 2px rgba(19,32,41,.05), 0 8px 28px rgba(19,32,41,.06);
+    --mono:"Cascadia Code","Consolas",ui-monospace,"SFMono-Regular",Menlo,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    /* colori stati trattativa (coerenti con l'app) */
+    --s-nuovo:#5b6773; --s-contatto:#2f5bea; --s-tratt:#8a5cf6; --s-off:#c07a12; --s-vinta:#2C7A54; --s-persa:#c0392b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:820px;margin:0 auto;padding:32px 22px 80px;}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:600;}
+  h2.sec{font-size:20px;font-weight:800;letter-spacing:-.01em;margin:38px 2px 4px;}
+  .sec-sub{font-size:14px;color:var(--ink-soft);margin:0 2px 16px;}
+  .hero{position:relative;padding:34px 30px 28px;margin-bottom:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
+  .hero h1{font-size:32px;line-height:1.06;font-weight:800;letter-spacing:-.02em;margin:12px 0 10px;}
+  .hero p.lead{font-size:16px;color:var(--ink-soft);margin:0;max-width:62ch;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px 22px;margin-top:14px;}
+  .note{background:var(--accent-wash);border:1px solid var(--accent);border-radius:11px;padding:14px 16px;font-size:14px;margin-top:16px;}
+  .note b{color:var(--accent);}
+  .ok{background:var(--ok-wash);border:1px solid var(--ok);border-radius:11px;padding:13px 15px;font-size:13.5px;margin-top:14px;}
+  .ok b{color:var(--ok);}
+  .warn{background:var(--warn-wash);border:1px solid var(--warn);border-radius:11px;padding:13px 15px;font-size:13.5px;margin-top:14px;}
+  .warn b{color:var(--warn);}
+  p{margin:10px 2px;}
+  ol.steps{list-style:none;counter-reset:s;margin:6px 0;padding:0;}
+  ol.steps li{position:relative;padding:9px 0 9px 42px;border-bottom:1px solid var(--line);font-size:14.5px;}
+  ol.steps li:last-child{border-bottom:none;}
+  ol.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:9px;width:27px;height:27px;
+    background:var(--accent);color:#fff;border-radius:50%;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;}
+  ul.ticks{list-style:none;margin:6px 0;padding:0;}
+  ul.ticks li{position:relative;padding:6px 0 6px 26px;font-size:14.5px;}
+  ul.ticks li::before{content:"→";position:absolute;left:2px;top:6px;color:var(--accent);font-weight:800;}
+  .pipe{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:14px 0;}
+  .pill{color:#fff;border-radius:20px;padding:4px 12px;font-size:12.5px;font-weight:700;white-space:nowrap;}
+  .pipe .ar{color:var(--ink-faint);font-weight:800;}
+  .p-nuovo{background:var(--s-nuovo);} .p-contatto{background:var(--s-contatto);} .p-tratt{background:var(--s-tratt);}
+  .p-off{background:var(--s-off);} .p-vinta{background:var(--s-vinta);} .p-persa{background:var(--s-persa);}
+  table.g{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);font-size:13.5px;margin-top:8px;}
+  table.g th,table.g td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--line);vertical-align:top;}
+  table.g th{background:var(--surface-2);font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);}
+  table.g tr:last-child td{border-bottom:none;}
+  table.g td:first-child{font-weight:700;white-space:nowrap;}
+  .kbd{font-family:var(--mono);font-size:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;}
+  .tag{display:inline-block;font-size:12px;font-weight:700;background:var(--accent-wash);color:var(--accent);border-radius:7px;padding:2px 9px;}
+  .foot{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-faint);}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;}
+  @media(max-width:620px){.two{grid-template-columns:1fr;}}
+  .mini{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin:2px 0 8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <span class="eyebrow">Gestionale Creatio · Rete agenti</span>
+    <h1>La tua area commerciale</h1>
+    <p class="lead">Da oggi hai uno spazio tuo nel gestionale: i tuoi clienti, le trattative, i promemoria e le provvigioni. Al computer in ufficio o dal telefono quando sei in giro. Questa guida ti fa partire in cinque minuti.</p>
+  </div>
+
+  <div class="note">🔒 <b>Vedi solo i tuoi.</b> Il sistema ti mostra esclusivamente i clienti e le trattative assegnati a te. Non vedi (e non tocchi) quelli degli altri colleghi. Chi è in ufficio (amministrazione/commerciale) vede il quadro completo per coordinare.</div>
+
+  <!-- 1. ACCESSO -->
+  <h2 class="sec">1 · Come si accede</h2>
+  <p class="sec-sub">Un unico indirizzo, dal computer o dal telefono.</p>
+  <div class="card">
+    <ol class="steps">
+      <li>Apri il gestionale all'indirizzo che ti ha dato l'ufficio (<span class="kbd">gestionale.creatiogroup.it</span>) e accedi con la <b>tua email e password</b>.</li>
+      <li>Se è la <b>prima volta</b>, ti registri: l'amministratore poi ti <b>abilita</b> come "agente" e ti collega alla tua scheda. Finché non sei abilitato vedi una schermata di attesa — è normale.</li>
+      <li>Fatto. Al computer trovi due voci nuove nel menu: <span class="tag">🎯 CRM / Trattative</span> e <span class="tag">📅 Agenda &amp; Follow-up</span>. Dal telefono si apre <b>direttamente la tua area</b> (più avanti).</li>
+    </ol>
+    <div class="warn">Dopo ogni aggiornamento del gestionale, se qualcosa sembra "vecchio" premi <b>Ctrl + Shift + R</b> (sul telefono: chiudi e riapri la scheda). Ricarica la versione aggiornata.</div>
+  </div>
+
+  <!-- 2. CRM DESKTOP -->
+  <h2 class="sec">2 · Le trattative (dal computer)</h2>
+  <p class="sec-sub">La sezione 🎯 CRM è la tua pipeline: ogni trattativa avanza da sinistra a destra.</p>
+
+  <div class="pipe">
+    <span class="pill p-nuovo">Nuovo</span><span class="ar">›</span>
+    <span class="pill p-contatto">Contatto</span><span class="ar">›</span>
+    <span class="pill p-tratt">Trattativa</span><span class="ar">›</span>
+    <span class="pill p-off">Offerta</span><span class="ar">›</span>
+    <span class="pill p-vinta">Vinta</span>
+    <span class="pill p-persa" style="margin-left:6px;">Persa</span>
+  </div>
+
+  <div class="card">
+    <div class="mini">Creare una trattativa</div>
+    <ol class="steps">
+      <li>Premi <b>+ Nuova trattativa</b> in alto a destra.</li>
+      <li>Scegli il <b>cliente</b>, dai un <b>titolo</b> (es. "Fornitura insegne negozio"), scrivi due righe di <b>descrizione</b>.</li>
+      <li>Indica il <b>valore stimato</b> (€), la <b>probabilità</b> di chiusura e, se vuoi, una <b>data prevista</b>.</li>
+      <li>Imposta lo <b>stato</b> giusto e salva. La trattativa compare nella colonna corrispondente.</li>
+    </ol>
+    <div class="mini" style="margin-top:16px;">Farla avanzare</div>
+    <ul class="ticks">
+      <li>Clicca una trattativa per <b>aprirla e aggiornarla</b>: quando il cliente risponde, sposti lo stato avanti.</li>
+      <li>Quando chiudi positivo → stato <b>Vinta</b>. Se salta → <b>Persa</b> (scrivi il <b>motivo</b>: serve a capire e migliorare).</li>
+      <li>In cima trovi i tuoi <b>numeri</b>: trattative aperte, valore in pipeline, vinte, tasso di chiusura e la tua <b>provvigione maturata</b>.</li>
+    </ul>
+  </div>
+
+  <!-- 3. AGENDA -->
+  <h2 class="sec">3 · Attività e follow-up (📅 Agenda)</h2>
+  <p class="sec-sub">Ogni chiamata, visita o email è un'attività. Se le metti un promemoria, ti torna in Agenda al momento giusto.</p>
+  <div class="card">
+    <ul class="ticks">
+      <li><b>Registra un'attività</b> (chiamata / visita / email / nota / appuntamento) sul cliente o sulla trattativa, con esito e note.</li>
+      <li>Metti un <b>promemoria</b> (data e ora) e l'attività finisce nella tua <b>Agenda</b>, raggruppata in <b>Scaduti · Oggi · Prossimi giorni</b>.</li>
+      <li>Quando l'hai fatta, premi <b>✓ Fatto</b> e sparisce dai promemoria.</li>
+    </ul>
+    <div class="ok">💡 <b>Abitudine che ripaga:</b> alla fine di ogni contatto, prima di chiudere, fissa <b>il prossimo passo con una data</b>. Così non perdi mai un cliente per dimenticanza.</div>
+  </div>
+
+  <!-- 4. SCHEDA CLIENTE -->
+  <h2 class="sec">4 · La scheda del cliente</h2>
+  <p class="sec-sub">Dentro ogni tuo cliente hai lo storico commerciale completo.</p>
+  <div class="card">
+    <p>Aprendo un cliente (menu <b>Clienti</b>) trovi in fondo la sezione <b>🎯 CRM — Trattative e attività</b>: vedi tutte le trattative e i contatti di quel cliente, e puoi crearne di nuovi <b>già collegati a lui</b> (senza doverlo riselezionare).</p>
+  </div>
+
+  <!-- 5. TELEFONO -->
+  <h2 class="sec">5 · Dal telefono</h2>
+  <p class="sec-sub">Quando accedi dal cellulare si apre automaticamente la tua area, pensata per lo schermo piccolo.</p>
+  <div class="two">
+    <div class="card" style="margin-top:0;">
+      <div class="mini">In alto: i tuoi numeri</div>
+      <ul class="ticks">
+        <li><b>Aperte</b> — trattative in corso</li>
+        <li><b>Pipeline</b> — valore in ballo</li>
+        <li><b>Follow-up</b> — quanti da fare (rosso = ci sono scaduti)</li>
+        <li><b>Provvigione</b> — maturata sulle vinte</li>
+      </ul>
+    </div>
+    <div class="card" style="margin-top:0;">
+      <div class="mini">Le tre schede</div>
+      <ul class="ticks">
+        <li><b>Trattative</b> — le tue aperte, tocca per aprire</li>
+        <li><b>Follow-up</b> — promemoria con <b>✓ Fatto</b></li>
+        <li><b>Clienti</b> — ricerca rapida + <b>registra attività</b> al volo</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <ul class="ticks">
+      <li>I pulsanti <b>+ Trattativa</b> e <b>+ Attività</b> sono sempre a portata di pollice: registri un contatto <b>mentre sei dal cliente</b>, non a memoria la sera.</li>
+      <li>Ti serve tutto il gestionale (es. cercare un preventivo)? In fondo c'è <b>"Apri la versione completa →"</b>.</li>
+    </ul>
+  </div>
+
+  <!-- 6. PROVVIGIONI -->
+  <h2 class="sec">6 · Le provvigioni</h2>
+  <p class="sec-sub">Un numero indicativo, calcolato in automatico sulle trattative che chiudi.</p>
+  <div class="card">
+    <table class="g">
+      <tr><th>Cosa</th><th>Come funziona</th></tr>
+      <tr><td>Su cosa</td><td>Sulle trattative che passano a <b>Vinta</b> (valore stimato della trattativa).</td></tr>
+      <tr><td>Con quale %</td><td>La <b>percentuale del cliente</b> se è stata impostata; altrimenti la <b>tua % standard</b> di agente.</td></tr>
+      <tr><td>Dove la vedi</td><td>KPI <b>"Provvigione maturata"</b> nel CRM (da computer) e nella tua area mobile.</td></tr>
+    </table>
+    <div class="warn">È una <b>stima gestionale</b> per darti il polso, non un cedolino. Il conteggio ufficiale resta quello concordato con l'amministrazione. Se il numero ti sembra a zero, probabilmente manca la percentuale nella tua scheda: <b>segnalalo all'ufficio</b>.</div>
+  </div>
+
+  <!-- 7. GIORNATA TIPO -->
+  <h2 class="sec">7 · La giornata tipo</h2>
+  <div class="card">
+    <ol class="steps">
+      <li><b>Mattina:</b> apri l'<b>Agenda</b>, guarda <b>Scaduti + Oggi</b>, pianifica i contatti.</li>
+      <li><b>In giro:</b> dopo ogni cliente, dal telefono <b>registri l'attività</b> e fissi il <b>prossimo passo con data</b>.</li>
+      <li><b>Chiusura:</b> aggiorni lo <b>stato</b> delle trattative che si sono mosse (avanti, Vinta o Persa+motivo).</li>
+      <li><b>A colpo d'occhio:</b> i KPI in alto ti dicono come stai andando e quanto hai maturato.</li>
+    </ol>
+  </div>
+
+  <div class="ok" style="margin-top:24px;">✅ <b>In una frase:</b> registra <b>subito</b> ciò che succede e fissa <b>sempre</b> il prossimo passo con una data. Il resto — numeri, promemoria, provvigioni — lo tiene insieme il gestionale.</div>
+
+  <div class="foot">
+    Gestionale Creatio — Guida per la rete agenti · documento interno.<br>
+    Per problemi di accesso o percentuali provvigione mancanti, contatta l'amministrazione.
+  </div>
+
+</div>
+</body>
+</html>

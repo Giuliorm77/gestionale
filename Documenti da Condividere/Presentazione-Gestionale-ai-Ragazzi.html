@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presentazione del gestionale — copione + prova per reparto</title>
+<style>
+  :root{
+    --bg:#EAEEF0; --surface:#FFFFFF; --surface-2:#F3F6F7; --ink:#132029; --ink-soft:#51646F;
+    --ink-faint:#8698A2; --accent:#0B7A91; --accent-2:#0E93AE; --accent-wash:#E2F0F3; --line:#D6DEE2;
+    --ok:#2C7A54; --ok-wash:#E4F1EA; --warn:#9A6712; --warn-wash:#F6ECD8;
+    --say:#12467a; --say-wash:#e9f1fb; --do:#6D4AA6; --do-wash:#eee8f6;
+    --shadow:0 1px 2px rgba(19,32,41,.05), 0 8px 28px rgba(19,32,41,.06);
+    --mono:"Cascadia Code","Consolas",ui-monospace,Menlo,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;} html,body{margin:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:860px;margin:0 auto;padding:32px 22px 80px;}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:600;}
+  h1{font-size:31px;line-height:1.07;font-weight:800;letter-spacing:-.02em;margin:12px 0 10px;}
+  h2.sec{font-size:21px;font-weight:800;margin:36px 2px 4px;}
+  .sec-sub{font-size:14px;color:var(--ink-soft);margin:0 2px 14px;}
+  .hero{padding:30px 28px;margin-bottom:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
+  .hero p{font-size:16px;color:var(--ink-soft);margin:0;max-width:64ch;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px 20px;margin-top:14px;}
+  .step{border-left:4px solid var(--accent);padding:10px 14px;margin:12px 0;background:var(--surface);border-radius:0 12px 12px 0;border:1px solid var(--line);border-left-width:4px;box-shadow:var(--shadow);}
+  .step h3{margin:0 0 6px;font-size:16px;}
+  .say{background:var(--say-wash);border-radius:9px;padding:9px 12px;margin:8px 0;font-size:14.5px;}
+  .say::before{content:"🗣️ Dì: ";font-weight:800;color:var(--say);}
+  .do{background:var(--do-wash);border-radius:9px;padding:8px 12px;margin:8px 0;font-size:13.5px;}
+  .do::before{content:"🖱️ Mostra: ";font-weight:800;color:var(--do);}
+  .point{background:var(--ok-wash);border-radius:9px;padding:8px 12px;margin:8px 0;font-size:13.5px;}
+  .point::before{content:"👉 Fai notare: ";font-weight:800;color:var(--ok);}
+  .ask{background:var(--warn-wash);border-radius:9px;padding:8px 12px;margin:8px 0;font-size:13px;}
+  .ask::before{content:"❓ Se chiedono: ";font-weight:800;color:var(--warn);}
+  .step ul{margin:6px 0;padding-left:20px;font-size:13.5px;} .step ul li{margin:2px 0;}
+  .note{background:var(--accent-wash);border:1px solid var(--accent);border-radius:11px;padding:12px 15px;font-size:13.5px;margin-top:12px;}
+  .warn{background:var(--warn-wash);border:1px solid var(--warn);border-radius:11px;padding:12px 15px;font-size:13.5px;margin-top:12px;} .warn b{color:var(--warn);}
+  code{font-family:var(--mono);font-size:12.5px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;}
+  table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);font-size:13.5px;margin-top:8px;}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{background:var(--surface-2);font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);}
+  tr:last-child td{border-bottom:none;} td:first-child{font-weight:700;white-space:nowrap;}
+  ul{margin:6px 2px;padding-left:20px;} li{margin:3px 0;}
+  .foot{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-faint);}
+  .pill{display:inline-block;font-size:11px;font-weight:800;border-radius:20px;padding:2px 10px;background:var(--ok-wash);color:var(--ok);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <span class="eyebrow">Creatio Group · presentazione interna</span>
+    <h1>Il nostro gestionale — presentazione e prova</h1>
+    <p>Questo è il <b>copione</b> da leggere mentre mostro il gestionale a schermo. Alla fine c'è, per ogni reparto, <b>cosa provare per primo</b>: così ognuno esce da qui e comincia subito a testare la sua parte.</p>
+  </div>
+
+  <div class="note">📌 <b>Prima di iniziare</b> (per me che presento): apri il gestionale su un monitor grande/proiettore, fai <code>Ctrl+Shift+R</code>, ed entra con un account amministratore così si vede tutto. Tieni pronto questo foglio accanto.</div>
+
+  <!-- ===================== INTRO ===================== -->
+  <h2 class="sec">1 · Apertura (2 minuti)</h2>
+  <div class="step">
+    <h3>Cos'è e perché</h3>
+    <div class="say">«Da oggi iniziamo a usare il <b>nostro gestionale</b>: è il posto unico dove vivono clienti, preventivi, commesse, magazzino, produzione e documenti. Serve a lavorare con ordine, non a controllarci: ognuno ha la sua area e si passa il testimone come in una staffetta. Oggi ve lo faccio vedere, poi ognuno inizia a provarlo.»</div>
+  </div>
+  <div class="step">
+    <h3>Come si accede</h3>
+    <div class="say">«Si apre da qualsiasi computer o telefono, all'indirizzo <b>gestionale.creatiogroup.it</b>, con la <b>vostra email e password</b>. Ognuno ha il suo accesso e vede solo ciò che gli serve, in base al ruolo.»</div>
+    <div class="do">la schermata di <b>login</b>. Accenna al pulsante <b>"Password dimenticata?"</b> (fa da soli il recupero via email).</div>
+  </div>
+  <div class="step">
+    <h3>Il menù a sinistra = i reparti</h3>
+    <div class="say">«A sinistra c'è il menù: ogni voce è un pezzo del lavoro. Non spaventatevi dalla quantità: ognuno userà solo le <b>sue</b> voci, le altre non vi compaiono nemmeno.»</div>
+    <div class="do">scorri il menù nominando le aree principali: Clienti, CRM, Preventivi, Commesse, Magazzino, Postazione, Qualità, Report.</div>
+  </div>
+
+  <!-- ===================== GIRO ===================== -->
+  <h2 class="sec">2 · Il giro guidato — seguendo un lavoro vero</h2>
+  <p class="sec-sub">Mostro il flusso come accade davvero: dal cliente alla consegna. Ogni tappa: cosa dire, cosa cliccare, cosa far notare.</p>
+
+  <div class="step">
+    <h3>a) Il cliente <span class="pill">Commerciale / Reception</span></h3>
+    <div class="say">«Tutto parte dal cliente. Qui c'è l'anagrafica completa: dati, <b>sedi</b> (legale, operativa, consegna), <b>email</b> divise per tipo, telefono, dati fiscali. Per chi di competenza ci sono anche <b>condizioni di pagamento e listini</b>. È la base: se il cliente è fatto bene, preventivi e commesse vengono da soli.»</div>
+    <div class="do">👥 <b>Anagrafica Clienti</b> → clicca su una scheda. Scorri: contatti, <b>sedi multiple</b>, email, stelle di <b>affidabilità</b>; in fondo la sezione <b>📋 Feedback (ISO)</b>.</div>
+    <div class="point">in alto la <b>ricerca</b> e i <b>filtri</b> (lavorazione, regione, città); il pulsante <b>⬇️ Esporta Excel</b> e la colonna <b>Incidenza %</b> (quanto pesa il cliente sul fatturato) — questi due li vede solo chi ha i permessi economici.</div>
+    <div class="ask">«Vedono tutti i prezzi dei clienti?» → No: prezzi, condizioni e fatturato li vede solo chi ha il permesso economico (amministrazione/commerciale). Produzione e magazzino vedono l'anagrafica ma non i numeri.</div>
+  </div>
+
+  <div class="step">
+    <h3>b) Trattative e agenda <span class="pill">Commerciale / Agenti</span></h3>
+    <div class="say">«Le opportunità di vendita si seguono nel <b>CRM</b>: ogni trattativa è una scheda che avanza per stati — Nuovo, Contatto, Trattativa, Offerta, Vinta/Persa — trascinandola nella colonna giusta. In <b>Agenda</b> tornano i promemoria dei follow-up, così non si perde un cliente per dimenticanza.»</div>
+    <div class="do">🎯 <b>CRM / Trattative</b>: mostra le colonne (la pipeline) e apri una trattativa (valore stimato, probabilità, stato). Poi 📅 <b>Agenda</b>: raggruppa <b>Scaduti · Oggi · Prossimi</b>.</div>
+    <div class="point">gli <b>agenti</b> vedono <b>solo i propri</b> clienti e trattative, e hanno una <b>versione da telefono</b> con i loro numeri (pipeline, vinte, provvigione maturata).</div>
+    <div class="ask">«Chi decide quanto prende l'agente?» → Lo decide il <b>commerciale nel preventivo</b> (lo vediamo tra poco). L'agente la vede solo in lettura.</div>
+  </div>
+
+  <div class="step">
+    <h3>c) Il preventivo <span class="pill">Commerciale</span></h3>
+    <div class="say">«Quando serve un'offerta si fa il <b>preventivo</b>. Si aggiungono righe di <b>materiale</b>, <b>manodopera</b>, <b>impianti</b>; per i prodotti a misura (es. pannello forex) c'è il <b>configuratore</b>: metti le misure e lui calcola. Il sistema fa da solo <b>costo, margine, IVA</b>, avvisa se si va <b>sotto il margine minimo</b>, e per le lastre aggiunge già l'<b>abbondanza di stampa</b> (rifilo + crocini). Qui il commerciale imposta anche la <b>provvigione</b> e sceglie se il cliente <b>paga l'intera lastra</b> (così l'avanzo torna gratis) o solo la parte usata.»</div>
+    <div class="do">🧾 <b>Preventivi</b> → apri/crea un preventivo. Aggiungi un <b>🧩 Prodotto configurabile</b> (inserisci L×H → vedi il prezzo). Fai vedere i totali (imponibile, margine, IVA) e i due pulsanti <b>🖨️ PDF interno</b> e <b>👤 PDF cliente</b>.</div>
+    <div class="point">il <b>PDF cliente</b> nasconde le lavorazioni interne (vede solo il prezzo); il preventivo si <b>autosalva</b> mentre lavori; sulla riga materiale c'è la scelta "avanzo €0 / a costo".</div>
+    <div class="ask">«E se dopo il cliente chiede modifiche?» → Si modifica la <b>commessa</b> (l'ordine di produzione); il preventivo resta com'era, come offerta firmata. Restano collegati.</div>
+  </div>
+
+  <div class="step">
+    <h3>d) Dal preventivo alla commessa <span class="pill">Commerciale</span></h3>
+    <div class="say">«Quando il preventivo è <b>accettato</b>, con un clic diventa <b>commessa</b>, cioè l'ordine che va in produzione. Il gestionale porta dentro da solo gli articoli e crea le <b>fasi di lavorazione</b> dalle manodopere. E salva il preventivo in automatico.»</div>
+    <div class="do">metti un preventivo su stato <b>accettato</b> → pulsante <b>🏭 Crea commessa</b>. Poi apri la commessa in 🏭 <b>Commesse</b>: mostra <b>righe articolo</b>, <b>fasi</b>, e il pulsante <b>importa dal preventivo</b>.</div>
+    <div class="point">la commessa ricorda <b>da quale preventivo</b> è nata (traccia); ogni riga vuole la <b>data di consegna</b> (obbligatoria); da qui si vede l'avanzamento e chi ci sta lavorando.</div>
+  </div>
+
+  <div class="step">
+    <h3>e) La produzione e il cronometro <span class="pill">Produzione</span></h3>
+    <div class="say">«In officina si usa la <b>Postazione</b>, di solito su un tablet. Ognuno seleziona il suo nome e mette il suo <b>PIN</b>, poi "prende in carico" la lavorazione e parte il <b>cronometro</b>. Serve a sapere quanto tempo prende davvero un lavoro, non a spiare nessuno. Toccando <b>"cosa fare"</b> si vede tutto ciò che serve: articoli, misure, <b>foto</b>, note e le <b>etichette</b> del materiale.»</div>
+    <div class="do">⏱️ <b>Postazione operatore</b> → scegli un nome, inserisci il <b>PIN</b>, leggi la guida in alto, premi <b>▶ Prendi in carico</b> (poi ⏸/✓), e apri <b>"ℹ️ cosa fare"</b> su una lavorazione.</div>
+    <div class="point">la produzione <b>non vede prezzi né costi</b>; senza PIN non si timbra (niente timbrature a nome altrui); un <b>amministratore</b> può entrare col suo PIN e vede <b>tutte</b> le commesse.</div>
+    <div class="ask">«Ci state cronometrando?» → Sì, si misura il tempo delle <b>lavorazioni</b> (non le persone) per fare preventivi giusti; è una cosa condivisa e trasparente, il PIN serve proprio a dare a ciascuno il suo.</div>
+  </div>
+
+  <div class="step">
+    <h3>f) Magazzino, etichette e avanzi <span class="pill">Magazzino</span></h3>
+    <div class="say">«Il magazzino tiene le <b>giacenze</b> (carichi, scarichi, rettifiche) e prepara il materiale per le commesse. Le lastre si tracciano con un'<b>etichetta a codice a barre</b>: quando prepari il materiale nasce l'etichetta che <b>segue la lastra</b> in lavorazione. Quando torna l'<b>avanzo</b>, lo misuri e rientra a scaffale con una <b>nuova etichetta</b>, pronto per essere riusato.»</div>
+    <div class="do">🏬 <b>Magazzino</b>: mostra le giacenze e la colonna <b>Impegnato</b> (clic → per quali commesse). Poi 🏷️ <b>Pezzi & Etichette</b>: <b>Prepara per commessa</b> (stampa etichetta), <b>Registra rientro</b> (avanzo → nuova etichetta), e il tasto <b>🕓 storia</b> del pezzo (da dove viene).</div>
+    <div class="point">le lastre "normali" restano a quantità; il pezzo tracciato <b>nasce al prelievo</b>; l'avanzo torna a <b>€0</b> se il primo cliente ha pagato l'intera lastra (leva per il commerciale sui lavori futuri).</div>
+    <div class="ask">«Come faccio a sapere quali etichette sono di una commessa?» → Nel "cosa fare" della Postazione e nella commessa c'è l'elenco delle etichette preparate.</div>
+  </div>
+
+  <div class="step">
+    <h3>g) Spedizione e DDT <span class="pill">Magazzino</span></h3>
+    <div class="say">«Quando il lavoro è pronto, il magazzino prepara l'imballo, spedisce e genera il <b>Documento di Trasporto (DDT)</b> — anche per <b>consegne parziali</b>, se si spedisce un po' alla volta.»</div>
+    <div class="do">📄 <b>DDT</b>: crea un DDT da una commessa. Sulla commessa mostra la riga che diventa <b>spedito/consegnato</b>.</div>
+    <div class="point">il DDT si crea dalla commessa in automatico con gli articoli; le consegne parziali tengono il conto di cosa è già uscito e cosa manca.</div>
+  </div>
+
+  <div class="step">
+    <h3>h) Qualità ISO <span class="pill">Amministrazione / Resp. qualità</span></h3>
+    <div class="say">«Per la <b>certificazione ISO</b> servono dei registri. Il bello è che il gestionale li <b>genera da solo</b>: si inseriscono i dati una volta e escono i documenti pronti in <b>PDF</b> (da firmare) e/o <b>Excel</b> (il registro per l'ente). Copre non conformità, controlli qualità, mezzi e strumenti, feedback clienti, valutazione fornitori, piano di progettazione.»</div>
+    <div class="do">✅ <b>Qualità (ISO)</b>: gira i tab — <b>Non conformità</b> (apri una scheda → <b>🖨️ Rapporto PDF</b> + <b>⬇️ Registro Excel</b>), <b>Controlli qualità</b>, <b>Piano progettazione</b>, <b>Pianificazione servizio/produzione</b>. Poi 🔧 <b>Mezzi & Strumenti</b> (stato Ok / In scadenza / Scaduto).</div>
+    <div class="point">i controlli manutenzione dei mezzi li registrano anche gli <b>operatori</b> con un clic; il <b>feedback clienti</b> si mette nella scheda cliente e la <b>valutazione fornitori</b> nella scheda fornitore.</div>
+  </div>
+
+  <div class="step">
+    <h3>i) I numeri <span class="pill">Amministrazione / Titolari</span></h3>
+    <div class="say">«Alla fine il <b>Report</b>: margini, <b>punto di pareggio</b> dell'anno, provvigioni per agente, quanto pesa ogni cliente. È la fotografia dell'azienda — ma è vera solo se ognuno tiene aggiornata la sua parte. Ecco perché serve l'aiuto di tutti: ogni dato che inserite qui torna utile in fondo.»</div>
+    <div class="do">📊 <b>Report</b>: mostra il <b>punto di pareggio</b>, le <b>provvigioni</b> per agente e la <b>pipeline vendite</b>.</div>
+    <div class="point">nessuno deve "fare i conti a mano": i numeri escono dai dati che inserite lavorando normalmente.</div>
+  </div>
+
+  <!-- ===================== TOCCA A VOI ===================== -->
+  <h2 class="sec">3 · Ora tocca a voi — cosa provare per primo</h2>
+  <p class="sec-sub">Da leggere alla fine del giro. Ognuno entra col proprio account e prova la <b>sua</b> parte. Sono <b>dati di prova</b>: sbagliare qui è utile, non un problema.</p>
+  <div class="card">
+    <table>
+      <thead><tr><th>Reparto</th><th>Prova a fare questo</th></tr></thead>
+      <tbody>
+        <tr><td>Commerciale</td><td>Crea un <b>cliente</b> di prova → una <b>trattativa</b> → un <b>preventivo</b> con un prodotto a misura → trasformalo in <b>commessa</b>.</td></tr>
+        <tr><td>Reception</td><td>Inserisci un paio di <b>clienti</b> con sedi ed email; prova la ricerca e i filtri.</td></tr>
+        <tr><td>Produzione</td><td>Fatti impostare il <b>PIN</b>, entra in <b>Postazione</b>, prendi in carico una fase, avvia/pausa/chiudi il cronometro, apri "cosa fare".</td></tr>
+        <tr><td>Magazzino</td><td>Fai un <b>carico</b> giacenza; in Pezzi & Etichette <b>prepara per commessa</b> e stampa l'etichetta; prova un <b>rientro</b> avanzo.</td></tr>
+        <tr><td>Agenti</td><td>Entra dal <b>telefono</b>: guarda le tue trattative, registra un'attività, controlla i follow-up.</td></tr>
+        <tr><td>Amministrazione</td><td>Approva gli <b>utenti</b>, imposta ruoli e PIN; apri <b>Qualità (ISO)</b> e crea una non conformità di prova; guarda il <b>Report</b>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===================== REGOLE ===================== -->
+  <h2 class="sec">4 · Tre regole pratiche</h2>
+  <div class="card">
+    <ul>
+      <li>🔄 <b>Se qualcosa sembra "vecchio"</b> dopo un aggiornamento: <code>Ctrl+Shift+R</code> (sul telefono chiudi e riapri).</li>
+      <li>🔐 <b>Postazione</b>: si timbra solo col proprio <b>PIN</b> (ve lo dà l'amministratore). Serve a non timbrare a nome di altri.</li>
+      <li>🗣️ <b>Se trovi un intoppo</b>: annota <b>cosa stavi facendo</b>, <b>cosa ti aspettavi</b>, <b>cosa è successo</b>, fai uno <b>screenshot</b> e mandamelo. Le segnalazioni sono la parte più utile del collaudo.</li>
+    </ul>
+  </div>
+
+  <div class="warn">🎯 <b>Chiusura da dire:</b> «Non dovete imparare tutto oggi. Ognuno inizi dalla sua parte, con calma. Più lo usiamo e segnaliamo, prima diventa lo strumento che ci semplifica la giornata. A gennaio 2027 partiamo davvero: da qui a lì lo rodiamo insieme.»</div>
+
+  <div class="foot">
+    Creatio Group — presentazione interna del gestionale · da leggere durante la demo.<br>
+    Per i dettagli operativi di ogni reparto vedi il <b>Manuale operativo per reparto</b> e le <b>checklist di test</b>.
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lavorare in due sul gestionale con Claude Code — Guida</title>
+<style>
+  :root{
+    --bg:#EAEEF0; --surface:#FFFFFF; --surface-2:#F3F6F7; --ink:#132029; --ink-soft:#51646F;
+    --ink-faint:#8698A2; --accent:#0B7A91; --accent-wash:#E2F0F3; --line:#D6DEE2;
+    --ok:#2C7A54; --ok-wash:#E4F1EA; --warn:#9A6712; --warn-wash:#F6ECD8; --danger:#c0392b; --danger-wash:#fdecec;
+    --shadow:0 1px 2px rgba(19,32,41,.05), 0 8px 28px rgba(19,32,41,.06);
+    --mono:"Cascadia Code","Consolas",ui-monospace,Menlo,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;} html,body{margin:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:840px;margin:0 auto;padding:32px 22px 80px;}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:600;}
+  h1{font-size:30px;line-height:1.08;font-weight:800;letter-spacing:-.02em;margin:12px 0 10px;}
+  h2.sec{font-size:20px;font-weight:800;margin:34px 2px 6px;}
+  .sec-sub{font-size:14px;color:var(--ink-soft);margin:0 2px 14px;}
+  .hero{padding:30px 28px;margin-bottom:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
+  .hero p{font-size:16px;color:var(--ink-soft);margin:0;max-width:64ch;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px 20px;margin-top:14px;}
+  .who{display:inline-block;font-size:12px;font-weight:800;border-radius:20px;padding:2px 12px;margin-bottom:8px;}
+  .who.g{background:#e1f0f5;color:#0B6E8F;} .who.k{background:#eee8f6;color:#6D4AA6;} .who.both{background:#e4f1ea;color:#2C7A54;}
+  ol.steps{list-style:none;counter-reset:s;margin:6px 0;padding:0;}
+  ol.steps li{position:relative;padding:8px 0 8px 40px;border-bottom:1px solid var(--line);font-size:14.5px;}
+  ol.steps li:last-child{border-bottom:none;}
+  ol.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:8px;width:26px;height:26px;background:var(--accent);color:#fff;border-radius:50%;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;}
+  code{font-family:var(--mono);font-size:12.5px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;}
+  pre{background:#0e1b24;color:#e6edf3;border-radius:10px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.5;margin:8px 0;}
+  pre .c{color:#7fa7b8;}
+  .note{background:var(--accent-wash);border:1px solid var(--accent);border-radius:11px;padding:12px 15px;font-size:13.5px;margin-top:12px;}
+  .warn{background:var(--warn-wash);border:1px solid var(--warn);border-radius:11px;padding:12px 15px;font-size:13.5px;margin-top:12px;}
+  .warn b{color:var(--warn);} .danger{background:var(--danger-wash);border:1px solid var(--danger);border-radius:11px;padding:12px 15px;font-size:13.5px;margin-top:12px;} .danger b{color:var(--danger);}
+  .ok{background:var(--ok-wash);border:1px solid var(--ok);border-radius:11px;padding:12px 15px;font-size:13.5px;margin-top:12px;} .ok b{color:var(--ok);}
+  p{margin:10px 2px;} ul{margin:8px 2px;padding-left:20px;} li{margin:3px 0;}
+  .foot{margin-top:38px;padding-top:14px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-faint);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <span class="eyebrow">Gestionale Creatio · lavoro a due mani</span>
+    <h1>Lavorare in due sul gestionale con Claude Code</h1>
+    <p>Come io (Giulio) e Kledi possiamo lavorare sullo stesso progetto, ognuno con il suo account Team, senza pestarci i piedi. La condivisione avviene tramite <b>GitHub</b>: è la "copia unica" del codice, ognuno la modifica dal suo PC e Git tiene tutto allineato.</p>
+  </div>
+
+  <div class="note">💡 <b>Da capire subito:</b> Claude Code <b>non</b> è come Google Docs (niente stesso file live con due cursori). Ognuno lavora sui file <b>sul proprio computer</b>; ci si sincronizza mandando/ricevendo le modifiche con Git (<code>push</code> / <code>pull</code>).</div>
+
+  <h2 class="sec">Prerequisiti</h2>
+  <div class="card">
+    <ul>
+      <li><b>Abbonamento Team</b>: un posto (seat) per Giulio e uno per Kledi. Ognuno accede a Claude Code col <b>proprio</b> account.</li>
+      <li>Entrambi un <b>account GitHub</b>.</li>
+      <li><b>Claude Code</b> installato su entrambi i PC.</li>
+      <li><b>Git</b> installato (di solito arriva con Claude Code / o da git-scm.com).</li>
+    </ul>
+  </div>
+
+  <h2 class="sec">1 · Setup una-tantum</h2>
+  <p class="sec-sub">Si fa una volta sola. La parte A la fa Giulio; la parte B la fa Kledi.</p>
+
+  <div class="card">
+    <span class="who g">Fa Giulio</span>
+    <div><b>A) Mettere il progetto in un repository privato e invitare Kledi</b></div>
+    <ol class="steps">
+      <li>Ho già preparato un file <code>.gitignore</code> nella cartella del progetto: tiene <b>fuori da Git i dati sensibili</b> (CASSAFORTE, RISERVATO-password, .claude) e il repo di pubblicazione. Non toccarlo.</li>
+      <li>Apri il progetto in Claude Code e digli: <i>"crea un repository GitHub <b>privato</b> per questo progetto e fai il primo push"</i>. In alternativa, a mano nel terminale della cartella progetto:
+        <pre><span class="c"># dentro la cartella del gestionale</span>
+git init
+git add .
+git commit -m "Progetto gestionale"
+<span class="c"># crea il repo privato e carica (serve la GitHub CLI 'gh' loggata)</span>
+gh repo create gestionale --private --source=. --push</pre>
+        ⚠️ Deve essere <b>PRIVATO</b> (contiene la logica del vostro gestionale).</li>
+      <li>Su GitHub, apri il repo → <b>Settings → Collaborators</b> → <b>Add people</b> → inserisci l'username GitHub di <b>Kledi</b>.</li>
+    </ol>
+    <div class="warn">📁 <b>OneDrive:</b> il progetto è dentro OneDrive. Git e OneDrive a volte litigano. Consiglio: come copia di lavoro futura, clona il repo in una cartella <b>fuori</b> da OneDrive (es. <code>C:\Progetti\gestionale</code>) e lavora da lì. (La cartella OneDrive attuale resta come backup.)</div>
+  </div>
+
+  <div class="card">
+    <span class="who k">Fa Kledi</span>
+    <div><b>B) Scaricare il progetto e aprirlo</b></div>
+    <ol class="steps">
+      <li>Accetta l'invito al repository (arriva via email GitHub).</li>
+      <li>Installa <b>Claude Code</b> e accedi con il <b>tuo</b> account (quello nel Team).</li>
+      <li>Clona il progetto in una cartella tua (fuori da OneDrive):
+        <pre>git clone https://github.com/Giuliorm77/gestionale.git
+cd gestionale</pre></li>
+      <li>Apri quella cartella in Claude Code. Da qui puoi lavorare esattamente come Giulio.</li>
+    </ol>
+  </div>
+
+  <h2 class="sec">2 · Flusso di ogni giorno</h2>
+  <p class="sec-sub">Vale per <b>entrambi</b>, tutte le volte che ci mettete mano.</p>
+  <div class="card">
+    <span class="who both">Fanno entrambi</span>
+    <ol class="steps">
+      <li><b>Prima di iniziare</b> — scarica le ultime modifiche dell'altro:
+        <pre>git pull</pre></li>
+      <li><b>Lavora</b> con Claude Code come al solito.</li>
+      <li><b>Controlla</b> che il file compili (evita di caricare errori):
+        <pre>node compilecheck.js</pre></li>
+      <li><b>Salva e condividi</b> le tue modifiche:
+        <pre>git add -A
+git commit -m "cosa ho cambiato"
+git push</pre></li>
+      <li>Se <code>git push</code> viene <b>rifiutato</b> (l'altro ha caricato prima di te): fai <code>git pull</code>, risolvi eventuali conflitti, poi <code>git push</code>.</li>
+    </ol>
+    <div class="ok">✅ Chiedere a Claude Code stesso "<i>fai il commit e push delle modifiche</i>" va benissimo: esegue lui questi comandi.</div>
+  </div>
+
+  <h2 class="sec">3 · La regola d'oro (per non pestarsi i piedi)</h2>
+  <div class="card">
+    <p>Il gestionale è <b>un unico grande file</b> (<code>index.html</code>). Se lo modificate <b>nello stesso momento</b>, al <code>push</code> nascono <b>conflitti</b>. Per evitarlo:</p>
+    <ul>
+      <li>🗣️ <b>Coordinatevi</b>: mettetevi d'accordo su chi ci lavora in un dato momento (un messaggio "ci sto lavorando io" basta).</li>
+      <li>⏱️ <b>Sessioni brevi</b>: <code>pull</code> → fai una modifica → <code>push</code> subito. Meno tempo passa, meno conflitti.</li>
+      <li>🔀 <b>In alternativa</b> (più avanzato): ognuno lavora su un proprio <b>branch</b> e poi si uniscono. Se vi serve, chiedete a Claude Code di impostarlo.</li>
+    </ul>
+    <div class="note">Se un conflitto capita, non è un dramma: Git segnala le righe in contrasto e Claude Code vi aiuta a risolverle. L'importante è <b>non</b> forzare (<code>--force</code>) i push.</div>
+  </div>
+
+  <h2 class="sec">4 · La pubblicazione (deploy) resta invariata</h2>
+  <div class="card">
+    <p>Il sito online (<code>gestionale.creatiogroup.it</code>) si aggiorna come adesso: si copia <code>index.html</code> nella cartella di pubblicazione e si fa push del <b>suo</b> repository (Cloudflare pubblica da lì). Chi sviluppa e chi pubblica possono essere la stessa persona o no: <b>decidete chi "manda in produzione"</b> per evitare di pubblicare cose a metà. Anche qui potete chiedere a Claude Code di farlo.</p>
+    <div class="warn">🔴 <b>Regola importante:</b> si pubblica solo dopo il <code>node compilecheck.js</code> OK. E dopo un aggiornamento, ai colleghi va detto <b>Ctrl+Shift+R</b> per vedere la versione nuova.</div>
+  </div>
+
+  <h2 class="sec">5 · Cosa NON fare</h2>
+  <div class="card">
+    <div class="danger">
+      <ul style="margin:0;">
+        <li>❌ <b>Non</b> condividere il progetto copiando la cartella su OneDrive/USB: si sovrascrivereste a vicenda e si perde lo storico. Si usa <b>solo Git</b>.</li>
+        <li>❌ <b>Non</b> mettere il repository <b>pubblico</b>: deve restare privato.</li>
+        <li>❌ <b>Non</b> caricare su Git i file segreti (chiavi, password): ci pensa il <code>.gitignore</code>, non rimuoverlo.</li>
+        <li>❌ <b>Non</b> usare <code>git push --force</code>: cancella il lavoro dell'altro.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="foot">
+    Gestionale Creatio — guida al lavoro condiviso con Claude Code · documento interno.<br>
+    In caso di dubbi su Git/conflitti, chiedete direttamente a Claude Code: vi guida passo-passo.
+  </div>
+</div>
+</body>
+</html>

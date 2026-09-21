@@ -1,0 +1,59 @@
+========================================================================
+  MAIL-TIPO PER I FORNITORI DI GADGET / MAGLIERIA (prodotti neutri)
+  Creatio Group — da usare per l'integrazione e-commerce (Komunigo)
+========================================================================
+
+NOTA: Sostituire le parti tra [parentesi] prima di inviare.
+Modello: acquistiamo articoli NEUTRI e li personalizziamo internamente
+(non dropshipping). Al fornitore ci interessano disponibilità, prezzi e
+tempi di consegna A NOI.
+
+------------------------------------------------------------------------
+
+Oggetto: Integrazione e-commerce — disponibilità giacenze e listino
+
+
+Gentile [Fornitore / referente],
+
+siamo Creatio Group (stampa, serigrafia e allestimenti) e stiamo
+sviluppando un nostro e-commerce. Acquistiamo articoli neutri che poi
+personalizziamo internamente, quindi vorremmo integrare il vostro
+catalogo per proporre online i prodotti che trattate.
+
+Per capire come procedere, ci servirebbero alcune informazioni:
+
+1. GIACENZE IN TEMPO REALE — mettete a disposizione le disponibilità di
+   magazzino tramite un feed o una API? In che formato (API REST, file
+   CSV/XML) e con quale frequenza di aggiornamento? Ci serve per sapere
+   cosa possiamo garantire ai clienti.
+
+2. CATALOGO PRODOTTI — fornite un feed con schede prodotto (codici,
+   descrizioni, immagini, varianti taglia/colore)?
+
+3. LISTINO RIVENDITORE — applicate prezzi riservati ai partner/rivenditori?
+
+4. TEMPI DI CONSEGNA A NOI (lead time) e QUANTITA' MINIME D'ORDINE —
+   dato che personalizziamo prima di spedire, il tempo con cui ci
+   recapitate i pezzi neutri è fondamentale.
+
+5. MODALITA' D'ORDINE — possiamo inviarvi gli ordini di riassortimento
+   in automatico (API/EDI) o solo manualmente?
+
+6. DOCUMENTAZIONE — avete documentazione tecnica dell'API/feed da
+   condividere?
+
+Restiamo a disposizione per una call se più comodo.
+Grazie della disponibilità.
+
+Cordiali saluti,
+[Nome Cognome] — Creatio Group
+[telefono · email]
+
+------------------------------------------------------------------------
+COME LEGGERE LE RISPOSTE
+- Giacenze in tempo reale (API/feed) + consegne rapide = fornitore ideale
+  (puoi promettere online con sicurezza).
+- Solo file giornaliero = ok, ma disponibilità "aggiornata a ieri".
+- Lead time lunghi = gestire con date di consegna più prudenti sul sito.
+- Niente feed/API = catalogo manuale o fornitore da tenere fuori.
+========================================================================

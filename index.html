@@ -940,22 +940,22 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
   const [err,setErr]=useState("");
   const [apri,setApri]=useState("commesse");
   const [filtro,setFiltro]=useState("tutte");
-  const [editorTratt,setEditorTratt]=useState(null);
+  const [editorAtt,setEditorAtt]=useState(null);
   const carica=React.useCallback(async()=>{
     const tasks={
       commesse: sb.from("commesse").select("id,numero,cliente_nome,stato,data_consegna,valore,priorita, commesse_righe(stato,data_consegna,descrizione)").order("data_consegna",{ascending:true}),
     };
     if(perm.economici) tasks.preventivi = sb.from("preventivi").select("id,numero,cliente_nome,stato,data, preventivi_righe(prezzo_unitario,quantita)").order("data",{ascending:false});
     if(perm.crm){
-      tasks.trattative = sb.from("crm_trattative").select("*, clienti(ragione_sociale)").order("aggiornato_il",{ascending:false});
-      tasks.clienti    = sb.from("clienti").select("id,ragione_sociale,agente_id,provvigione_pct").order("ragione_sociale");
+      tasks.agenda  = sb.from("crm_attivita").select("*, clienti(ragione_sociale)").eq("completata",false).not("promemoria_il","is",null).order("promemoria_il");
+      tasks.clienti = sb.from("clienti").select("id,ragione_sociale,agente_id").order("ragione_sociale");
     }
     const keys=Object.keys(tasks);
     const res=await Promise.all(keys.map(k=>tasks[k]));
     const out={}; let e=null;
     keys.forEach((k,i)=>{ if(res[i].error) e=e||res[i].error; out[k]=res[i].data||[]; });
     if(e){ setErr(e.message); return; }
-    setDati({commesse:out.commesse||[], preventivi:out.preventivi||[], trattative:out.trattative||[], clienti:out.clienti||[]});
+    setDati({commesse:out.commesse||[], preventivi:out.preventivi||[], agenda:out.agenda||[], clienti:out.clienti||[]});
   },[perm.economici,perm.crm]);
   useEffect(()=>{ carica(); },[carica]);
 
@@ -979,9 +979,9 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
   const valorePronte=pronte.reduce((s,c)=>s+(Number(c.valore)||0),0);
   const consegnatoMese=comm.filter(c=>["consegnata","chiusa"].indexOf(c.stato)>=0 && String(c.data_consegna||"").slice(0,7)===meseS).reduce((s,c)=>s+(Number(c.valore)||0),0);
   const valorePrevAttesa=prevAttesa.reduce((s,p)=>s+valPrev(p),0);
-  const tratt=dati.trattative||[];
-  const APERTI_TR=["nuovo","contatto","trattativa","offerta"];
-  const trattAperte=tratt.filter(t=>APERTI_TR.indexOf(t.stato)>=0);
+  const agenda=dati.agenda||[];
+  const nowMs=Date.now();
+  const promScaduti=agenda.filter(a=>new Date(a.promemoria_il).getTime()<nowMs);
 
   const rigaComm=c=>{ const sc=STATI_COMMESSA[c.stato]||STATI_COMMESSA.aperta;
     const inRit=c.data_consegna && c.data_consegna<oggiS && ["consegnata","chiusa"].indexOf(c.stato)<0;
@@ -1000,16 +1000,16 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
       <div className="l"><div className="n">{p.numero||"—"}</div><div className="c">{p.cliente_nome||"—"}</div></div>
       <div className="r">{perm.economici && <div className="d">{eur(valPrev(p))}</div>}<div style={{fontSize:12,color:"#5b6773"}}>{gg(p.data)}</div></div>
     </div>;
-  const rigaTratt=t=>{ const S=STATI_TRATTATIVA[t.stato]||{l:t.stato,bg:"#eee",c:"#333"};
-    return <div className="cmrow" key={t.id} onClick={()=>setEditorTratt(t)} style={{cursor:"pointer"}}>
+  const rigaAtt=a=>{ const T=TIPI_ATTIVITA[a.tipo]||TIPI_ATTIVITA.nota;
+    const d=new Date(a.promemoria_il); const scad=d.getTime()<Date.now();
+    return <div className="cmrow" key={a.id} onClick={()=>setEditorAtt(a)} style={{cursor:"pointer"}}>
       <div className="l">
-        <div className="n">{t.titolo}</div>
-        <div className="c">{(t.clienti&&t.clienti.ragione_sociale)||"—"}</div>
-        <span className="cmbadge" style={{background:S.bg,color:S.c}}>{S.l}</span>
+        <div className="n">{T.ico} {(a.clienti&&a.clienti.ragione_sociale)||"—"} <span style={{fontWeight:400,color:"#5b6773"}}>· {T.l}</span></div>
+        {(a.esito||a.note) && <div className="c">{a.esito||a.note}</div>}
       </div>
       <div className="r">
-        {perm.economici && <div className="d">{eur(t.valore_stimato)}</div>}
-        {t.data_prevista && <div style={{fontSize:12,color:"#5b6773"}}>📅 {gg(t.data_prevista)}</div>}
+        <div className="d" style={{color:scad?"#c0392b":"#14202b",fontSize:12}}>🕐 {d.toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</div>
+        {scad && <div style={{fontSize:11,color:"#c0392b",fontWeight:700}}>scaduto</div>}
       </div>
     </div>; };
 
@@ -1027,10 +1027,10 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
     lista=<div className="cmlist">{pronte.length? pronte.map(rigaComm) : <div className="cmempty">Nessuna commessa pronta.</div>}</div>;
   } else if(apri==="prev"){
     lista=<div className="cmlist">{prevAttesa.length? prevAttesa.map(rigaPrev) : <div className="cmempty">Nessun preventivo in attesa.</div>}</div>;
-  } else if(apri==="crm"){
+  } else if(apri==="agenda"){
     lista=<div>
-      {perm.scrivi && <button className="btn small" style={{margin:"0 4px 10px"}} onClick={()=>setEditorTratt({})}>+ Nuova trattativa</button>}
-      <div className="cmlist">{trattAperte.length? trattAperte.map(rigaTratt) : <div className="cmempty">Nessuna trattativa aperta.</div>}</div>
+      {perm.scrivi && <button className="btn small primary" style={{margin:"0 4px 10px"}} onClick={()=>setEditorAtt({})}>+ Nuovo promemoria</button>}
+      <div className="cmlist">{agenda.length? agenda.map(rigaAtt) : <div className="cmempty">Nessun promemoria in programma.</div>}</div>
     </div>;
   }
 
@@ -1053,9 +1053,9 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
         <div className="ic">🧾</div><div className="big">{prevAttesa.length}</div><div className="lb">Preventivi in attesa</div>
         <div className="sub" style={{color:"#5b6773"}}>inviati, senza risposta</div>
       </button>}
-      {perm.crm && <button className={"cmcard"+(apri==="crm"?" sel":"")} onClick={()=>setApri("crm")}>
-        <div className="ic">🎯</div><div className="big">{trattAperte.length}</div><div className="lb">Trattative aperte</div>
-        <div className="sub" style={{color:"#5b6773"}}>CRM · pipeline</div>
+      {perm.crm && <button className={"cmcard"+(apri==="agenda"?" sel":"")} onClick={()=>setApri("agenda")}>
+        <div className="ic">📅</div><div className="big">{agenda.length}</div><div className="lb">Agenda / promemoria</div>
+        <div className="sub">{promScaduti.length>0 ? <span style={{color:"#c0392b",fontWeight:700}}>{promScaduti.length} scaduti</span> : <span style={{color:"#5b6773"}}>follow-up da fare</span>}</div>
       </button>}
     </div>
 
@@ -1074,8 +1074,8 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
 
     <button className="cmfull" onClick={onApriCompleto}>Apri la versione completa →</button>
 
-    {editorTratt && <TrattativaForm profilo={profilo} perm={perm} clienti={dati.clienti||[]} trattativa={editorTratt.id?editorTratt:null}
-      onClose={()=>setEditorTratt(null)} onSalvato={()=>{setEditorTratt(null);carica();}}/>}
+    {editorAtt && <AttivitaForm profilo={profilo} clienti={dati.clienti||[]} attivita={editorAtt.id?editorAtt:null}
+      onClose={()=>setEditorAtt(null)} onSalvato={()=>{setEditorAtt(null);carica();}}/>}
   </div>;
 }
 

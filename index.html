@@ -124,7 +124,18 @@
   .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.5);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
   @keyframes sp{to{transform:rotate(360deg)}}
   code.inline{background:#eef1f5;padding:1px 6px;border-radius:5px;font-size:12.5px}
-  @media(max-width:720px){.sidebar{display:none}.kv{grid-template-columns:1fr}}
+  .mtop{display:none}
+  @media(max-width:720px){
+    .kv{grid-template-columns:1fr}
+    .mtop{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:55;
+      background:var(--sidebar);color:#fff;padding:10px 12px}
+    .mtop .mbtn{background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:9px;padding:9px 12px;font-weight:700;font-size:15px}
+    .mtop .mtitle{flex:1;font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:70;width:80%;max-width:290px;
+      transform:translateX(-100%);transition:transform .22s ease;box-shadow:0 0 50px rgba(0,0,0,.45);overflow-y:auto}
+    .sidebar.open{transform:translateX(0)}
+    .mback{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:65}
+  }
   /* ---- Cruscotto mobile (telefono) ---- */
   .cm{min-height:100vh;background:#f4f6f8;max-width:600px;margin:0 auto;padding:12px 12px 48px}
   .cmhead{display:flex;align-items:center;justify-content:space-between;margin:4px 2px 16px}
@@ -855,6 +866,7 @@ function Gestionale({profilo}){
   const [mobile,setMobile]=useState(()=> typeof window!=="undefined" && window.matchMedia("(max-width:720px)").matches);
   const [forzaCompleto,setForzaCompleto]=useState(false);
   const [cambiaPw,setCambiaPw]=useState(false);
+  const [menuAperto,setMenuAperto]=useState(false);
   useEffect(()=>{
     const mq=window.matchMedia("(max-width:720px)");
     const h=e=>setMobile(e.matches);
@@ -864,13 +876,15 @@ function Gestionale({profilo}){
   const perm = permEffettivi(profilo);
   if(mobile && !forzaCompleto && profilo.ruolo==="agente") return <CruscottoAgente profilo={profilo} perm={perm} onApriCompleto={()=>setForzaCompleto(true)}/>;
   if(mobile && !forzaCompleto) return <CruscottoMobile profilo={profilo} perm={perm} onApriCompleto={()=>setForzaCompleto(true)}/>;
+  const moduloLbl=(NAV_ITEMS.find(it=>it.m===modulo)||{}).label||"Gestionale";
   return (
     <div className="shell">
-      <aside className="sidebar">
+      {menuAperto && <div className="mback" onClick={()=>setMenuAperto(false)}/>}
+      <aside className={"sidebar"+(menuAperto?" open":"")}>
         <div className="logo">Gestionale Creatio</div>
         <nav className="nav">
           {NAV_ITEMS.map(it=> puoModulo(perm,it.m)
-            ? <button key={it.m} className={modulo===it.m?"active":""} onClick={()=>setModulo(it.m)}>
+            ? <button key={it.m} className={modulo===it.m?"active":""} onClick={()=>{setModulo(it.m);setMenuAperto(false);}}>
                 <span className="ico">{it.ico}</span> {it.label}
               </button>
             : <button key={it.m} disabled title="Non disponibile per il tuo profilo">
@@ -885,6 +899,11 @@ function Gestionale({profilo}){
         </div>
       </aside>
       <div className="main">
+        <div className="mtop">
+          <button className="mbtn" onClick={()=>setMenuAperto(true)}>☰ Menu</button>
+          <div className="mtitle">{moduloLbl}</div>
+          <button className="mbtn" onClick={()=>{setMenuAperto(false);setForzaCompleto(false);}}>← Cruscotto</button>
+        </div>
         {modulo==="clienti" && <ModuloClienti profilo={profilo} perm={perm}/>}
         {modulo==="catalogo" && <ModuloCatalogo profilo={profilo} perm={perm}/>}
         {modulo==="magazzino" && <ModuloMagazzino profilo={profilo} perm={perm}/>}

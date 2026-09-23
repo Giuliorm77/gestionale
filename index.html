@@ -11015,6 +11015,21 @@ function AttivitaForm({profilo,clienti,attivita,clienteFisso,trattativaFissa,onC
           <div className="field"><label>Quando</label>
             <input type="datetime-local" value={f.data_ora} onChange={e=>set("data_ora",e.target.value)}/></div>
         </div>
+        <div className="field"><label>⏰ Promemoria — giorno e ora dell'avviso</label>
+          <div className="row">
+            <input type="date" value={(f.promemoria_il||"").slice(0,10)}
+              onChange={e=>{ const t=(f.promemoria_il||"").slice(11,16)||"09:00"; set("promemoria_il", e.target.value? e.target.value+"T"+t : ""); }}/>
+            <input type="time" value={(f.promemoria_il||"").slice(11,16)}
+              onChange={e=>{ const d=(f.promemoria_il||"").slice(0,10)||new Date().toISOString().slice(0,10); set("promemoria_il", d+"T"+(e.target.value||"00:00")); }}/>
+          </div>
+          <div className="muted" style={{fontSize:11,marginTop:3}}>Quando vuoi essere avvisato: compare in 📅 Agenda e (se attivo) ti arriva una mail a quell'ora.</div>
+          {f.promemoria_il && <button type="button" className="btn small" style={{marginTop:8}}
+            onClick={()=>{ const cn=(clienti||[]).find(c=>c.id===f.cliente_id); const T=TIPI_ATTIVITA[f.tipo];
+              scaricaICS({ titolo:"CRM · "+((T?T.l:f.tipo))+(cn?" — "+cn.ragione_sociale:""),
+                note:[f.esito&&("Esito: "+f.esito), f.note].filter(Boolean).join("\n"),
+                inizioISO:fromLocalDT(f.promemoria_il) }); }}>
+            📅 Aggiungi al calendario del telefono</button>}
+        </div>
         {!clienteFisso && <div className="field"><label>Cliente</label>
           <select value={f.cliente_id} onChange={e=>set("cliente_id",e.target.value)}>
             <option value="">— nessuno —</option>
@@ -11026,17 +11041,6 @@ function AttivitaForm({profilo,clienti,attivita,clienteFisso,trattativaFissa,onC
           <textarea rows={2} value={f.note} onChange={e=>set("note",e.target.value)}/></div>
         <label style={{display:"flex",alignItems:"center",gap:8,margin:"6px 0"}}>
           <input type="checkbox" checked={f.completata} onChange={e=>set("completata",e.target.checked)} style={{width:"auto"}}/> Già svolta (se tolgi la spunta = da fare)</label>
-        <div className="field" style={{maxWidth:320}}><label>Promemoria (Agenda)</label>
-          <input type="datetime-local" value={f.promemoria_il} onChange={e=>set("promemoria_il",e.target.value)}/>
-          <div className="muted" style={{fontSize:11,marginTop:3}}>Se lo imposti e l'attività è "da fare", compare in 📅 Agenda{" "}
-            e (se attivo) ti arriva una mail all'ora indicata.</div>
-          {f.promemoria_il && <button type="button" className="btn small" style={{marginTop:8}}
-            onClick={()=>{ const cn=(clienti||[]).find(c=>c.id===f.cliente_id); const T=TIPI_ATTIVITA[f.tipo];
-              scaricaICS({ titolo:"CRM · "+((T?T.l:f.tipo))+(cn?" — "+cn.ragione_sociale:""),
-                note:[f.esito&&("Esito: "+f.esito), f.note].filter(Boolean).join("\n"),
-                inizioISO:fromLocalDT(f.promemoria_il) }); }}>
-            📅 Aggiungi al calendario del telefono</button>}
-        </div>
       </div>
       <footer>
         <button type="button" className="btn" style={{marginLeft:"auto"}} onClick={onClose}>Annulla</button>

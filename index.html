@@ -10849,6 +10849,28 @@ function InterventoEditor({intervento,commessa,profilo,perm,articoli,operatori,n
 function toLocalDT(iso){ if(!iso) return ""; const d=new Date(iso); if(isNaN(d)) return "";
   const p=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes()); }
 function fromLocalDT(v){ if(!v) return null; const d=new Date(v); return isNaN(d)?null:d.toISOString(); }
+// --- Calendario (.ics): genera un evento con sveglia nativa del telefono ---
+function icsDate(iso){ const d=new Date(iso); if(isNaN(d)) return ""; const p=n=>String(n).padStart(2,"0");
+  return d.getUTCFullYear()+p(d.getUTCMonth()+1)+p(d.getUTCDate())+"T"+p(d.getUTCHours())+p(d.getUTCMinutes())+p(d.getUTCSeconds())+"Z"; }
+function icsEsc(s){ return String(s||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n"); }
+function scaricaICS({titolo,note,inizioISO,durataMin}){
+  if(!inizioISO){ alert("Imposta prima il promemoria (giorno e ora)."); return; }
+  durataMin=durataMin||30;
+  const dt=icsDate(inizioISO);
+  const fine=icsDate(new Date(new Date(inizioISO).getTime()+durataMin*60000).toISOString());
+  const uid="crm-"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+"@creatiogroup.it";
+  const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Creatio//Gestionale//IT","CALSCALE:GREGORIAN","METHOD:PUBLISH",
+    "BEGIN:VEVENT","UID:"+uid,"DTSTAMP:"+icsDate(new Date().toISOString()),
+    "DTSTART:"+dt,"DTEND:"+fine,"SUMMARY:"+icsEsc(titolo||"Promemoria CRM"),"DESCRIPTION:"+icsEsc(note||""),
+    "BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc(titolo||"Promemoria CRM"),"TRIGGER:-PT0M","END:VALARM",
+    "END:VEVENT","END:VCALENDAR"].join("\r\n");
+  const blob=new Blob([ics],{type:"text/calendar;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url;
+  a.download=(titolo||"promemoria").replace(/[^\wàèéìòù]+/gi,"_").slice(0,40)+".ics";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
 
 /* --- Form Trattativa --- */
 function TrattativaForm({profilo,perm,clienti,trattativa,clienteFisso,onClose,onSalvato}){
@@ -11004,9 +11026,17 @@ function AttivitaForm({profilo,clienti,attivita,clienteFisso,trattativaFissa,onC
           <textarea rows={2} value={f.note} onChange={e=>set("note",e.target.value)}/></div>
         <label style={{display:"flex",alignItems:"center",gap:8,margin:"6px 0"}}>
           <input type="checkbox" checked={f.completata} onChange={e=>set("completata",e.target.checked)} style={{width:"auto"}}/> Già svolta (se tolgi la spunta = da fare)</label>
-        <div className="field" style={{maxWidth:250}}><label>Promemoria (Agenda)</label>
+        <div className="field" style={{maxWidth:320}}><label>Promemoria (Agenda)</label>
           <input type="datetime-local" value={f.promemoria_il} onChange={e=>set("promemoria_il",e.target.value)}/>
-          <div className="muted" style={{fontSize:11,marginTop:3}}>Se lo imposti e l'attività è "da fare", compare in 📅 Agenda.</div></div>
+          <div className="muted" style={{fontSize:11,marginTop:3}}>Se lo imposti e l'attività è "da fare", compare in 📅 Agenda{" "}
+            e (se attivo) ti arriva una mail all'ora indicata.</div>
+          {f.promemoria_il && <button type="button" className="btn small" style={{marginTop:8}}
+            onClick={()=>{ const cn=(clienti||[]).find(c=>c.id===f.cliente_id); const T=TIPI_ATTIVITA[f.tipo];
+              scaricaICS({ titolo:"CRM · "+((T?T.l:f.tipo))+(cn?" — "+cn.ragione_sociale:""),
+                note:[f.esito&&("Esito: "+f.esito), f.note].filter(Boolean).join("\n"),
+                inizioISO:fromLocalDT(f.promemoria_il) }); }}>
+            📅 Aggiungi al calendario del telefono</button>}
+        </div>
       </div>
       <footer>
         <button type="button" className="btn" style={{marginLeft:"auto"}} onClick={onClose}>Annulla</button>

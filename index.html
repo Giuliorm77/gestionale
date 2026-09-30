@@ -3305,6 +3305,7 @@ function ArticoloForm({articolo,perm,profilo,fornitori,onClose,onSalvato,onDupli
       foto_urls:Array.isArray(articolo?.foto_urls)?articolo.foto_urls:[],
       da_ripristinare:articolo?.da_ripristinare===true,
       nota_ripristino:articolo?.nota_ripristino||"",
+      traccia_avanzo:articolo?.traccia_avanzo===true,
       peso_kg:articolo?.peso_kg ?? "", peso_um:articolo?.peso_um||"pz", peso_eccedenza_pct:articolo?.peso_eccedenza_pct ?? "", ...init };
   });
   const [busy,setBusy]=useState(false);
@@ -3668,9 +3669,15 @@ function ArticoloForm({articolo,perm,profilo,fornitori,onClose,onSalvato,onDupli
               <input type="checkbox" checked={f.attivo} onChange={e=>set("attivo",e.target.checked)} style={{width:"auto"}}/>
               Articolo attivo
             </label>
-            <label style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 12px"}}>
+            <label style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px"}}>
               <input type="checkbox" checked={f.vendibile} onChange={e=>set("vendibile",e.target.checked)} style={{width:"auto"}}/>
               Vendibile online (e-commerce)
+            </label>
+            <label style={{display:"flex",alignItems:"flex-start",gap:8,margin:"4px 0 12px",padding:"8px 10px",borderRadius:8,
+              background:f.traccia_avanzo?"#e7f6ec":"transparent",border:f.traccia_avanzo?"1px solid #bfe6cd":"1px solid transparent"}}>
+              <input type="checkbox" checked={f.traccia_avanzo} onChange={e=>set("traccia_avanzo",e.target.checked)} style={{width:"auto",marginTop:2}}/>
+              <span>♻ Materiale a lastra/foglio (traccia avanzo)
+                <div className="muted" style={{fontSize:11,fontWeight:400}}>Solo per lastre, rigidi, carta… Se attivo, nel preventivo il commerciale deve indicare chi paga il materiale (tutta la lastra → avanzo €0, oppure solo l'usato). Per gadget/penne lascialo spento.</div></span>
             </label>
             <div className="field"><label>Note</label>
               <textarea rows={2} value={f.note||""} onChange={e=>set("note",e.target.value)}/></div>
@@ -7181,7 +7188,7 @@ function ModuloPreventivi({profilo,perm}){
     const [p,c,a,i,t,pc,imb,co]=await Promise.all([
       sb.from("preventivi").select("*, preventivi_righe(*)").order("creato_il",{ascending:false}),
       sb.from("clienti").select("id,ragione_sociale,categoria,sconto_pct, clienti_sconti(categoria,sconto_pct)").order("ragione_sociale"),
-      caricaArticoliTutti("id,codice,nome_articolo,unita,categoria,costo,prezzo_pubblico,giacenza,impegnato,peso_kg,peso_um,peso_eccedenza_pct"),
+      caricaArticoliTutti("id,codice,nome_articolo,unita,categoria,costo,prezzo_pubblico,giacenza,impegnato,peso_kg,peso_um,peso_eccedenza_pct,traccia_avanzo"),
       sb.from("impostazioni").select("*").eq("id",1).maybeSingle(),
       sb.from("impostazioni_lavorazioni").select("*"),
       sb.from("prodotti_config").select("*, prodotti_config_varianti(*), prodotti_config_voci(*), prodotti_config_fasce(*)").eq("attivo",true).order("nome"),
@@ -7358,6 +7365,10 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
   // imballo PER RIGA (ricette livello prodotto) sulle righe materiale semplice
   const imballiProdPrev=(imballi||[]).filter(x=>x.livello==="prodotto");
   const bobinePrev=React.useMemo(()=>bobinePluriball(articoli),[articoli]);
+  // mappa articoli + flag "materiale a lastra/foglio": la scelta "chi paga l'avanzo"
+  // compare SOLO per questi (lastre, carta), non per gadget/penne.
+  const artMap=React.useMemo(()=>{ const m={}; (articoli||[]).forEach(a=>m[a.id]=a); return m; },[articoli]);
+  const tracciaAvanzo=r=> !!(r && r.articolo_id && artMap[r.articolo_id] && artMap[r.articolo_id].traccia_avanzo);
   // pluriball di una riga: calcolato dalle misure della riga (serve un prodotto configurato con misure)
   const pluriballRiga=r=>{ const mis=(r.config&&r.config.mis)||{}; const pa=calcolaPluriball(mis,bobinePrev); if(!pa) return null;
     const N=Number(r.quantita)||0; const bob=pa.bobina;
@@ -7393,7 +7404,7 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
   async function persisti(){
     if(!f.cliente_id){ throw new Error("Scegli un cliente."); }
     // OBBLIGATORIO per il magazzino: ogni materiale deve avere la scelta "paga tutta la lastra / solo l'usato"
-    const senzaScelta=righe.filter(r=>(r.tipo==="materiale"||r.tipo==="altro") && r.articolo_id && r.pagato_intero!==true && r.pagato_intero!==false);
+    const senzaScelta=righe.filter(r=>(r.tipo==="materiale"||r.tipo==="altro") && tracciaAvanzo(r) && r.pagato_intero!==true && r.pagato_intero!==false);
     if(senzaScelta.length){ throw new Error("Per ogni materiale scegli se il cliente paga tutta la lastra o solo la parte usata (obbligatorio, serve al magazzino): "+senzaScelta.map(r=>r.descrizione||"materiale").join(", ")); }
     const cli=clienti.find(c=>c.id===f.cliente_id);
     const isMarg=f.tipo_provvigione==="margine";
@@ -7561,7 +7572,7 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
                                   color:(MODALITA_CONSEGNA[r.modalita_consegna||"corriere"]||MODALITA_CONSEGNA.corriere).c,fontWeight:600}}>
                                 {Object.keys(MODALITA_CONSEGNA).map(m=><option key={m} value={m}>{MODALITA_CONSEGNA[m].l}</option>)}
                               </select>
-                              {(()=>{ const scelto=(r.pagato_intero===true||r.pagato_intero===false);
+                              {tracciaAvanzo(r) && (()=>{ const scelto=(r.pagato_intero===true||r.pagato_intero===false);
                                 return <select value={r.pagato_intero===true?"si":r.pagato_intero===false?"no":""}
                                   onChange={e=>setRiga(i,"pagato_intero", e.target.value===""?null:e.target.value==="si")}
                                   title="OBBLIGATORIO: serve al magazzino. Se il cliente paga l'intera lastra, l'avanzo torna a €0; se paga solo la parte usata, l'avanzo rientra a costo d'acquisto."

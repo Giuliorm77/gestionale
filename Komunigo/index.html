@@ -130,6 +130,42 @@
   /* carrello */
   .cart-line{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow);}
   .cart-line .g{flex:1;} .cart-line h4{margin:0 0 2px;font-size:15px;} .cart-line p{margin:0;font-size:12.5px;color:var(--ink-soft);}
+  .b2b-note{background:#eef4fb;border:1px solid #cfe0f2;color:#1C2A44;border-radius:10px;padding:10px 14px;font-size:14px;}
+  .listino-old{text-decoration:line-through;color:var(--ink-soft,#8a8a8a);font-weight:600;font-size:.82em;margin-left:8px;}
+  .b2b-badge{display:inline-block;background:#e7f0fa;color:var(--blu,#2E6FB0);border:1px solid #cfe0f2;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:700;}
+  .btn.small{padding:6px 12px;font-size:13px;}
+  .ft-links{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0 6px;}
+  .ft-lnk{background:none;border:none;color:#C7D2E4;cursor:pointer;font:inherit;font-size:14px;padding:0;text-decoration:underline;text-underline-offset:3px;}
+  .ft-lnk:hover{color:#fff;}
+  /* --- Linee guida file di stampa --- */
+  .lg-hero{background:var(--navy);color:#fff;border-radius:16px;padding:32px 28px;margin-bottom:28px;}
+  .lg-hero h1{margin:0 0 8px;font-size:30px;letter-spacing:.5px;}
+  .lg-hero p{margin:0;color:#C7D2E4;max-width:720px;line-height:1.55;}
+  .lg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;}
+  .lg-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow);}
+  .lg-card .lg-ico{font-size:26px;}
+  .lg-card h3{margin:8px 0 8px;font-size:18px;color:var(--ink);}
+  .lg-card p, .lg-card li{color:var(--ink-soft);font-size:14px;line-height:1.5;}
+  .lg-card ul{margin:8px 0 0;padding-left:18px;}
+  .lg-card b{color:var(--ink);}
+  .lg-diagram{width:100%;height:auto;border-radius:10px;margin-top:6px;}
+  .lg-progress{display:flex;align-items:center;gap:14px;margin:0 0 20px;}
+  .lg-bar{flex:1;height:10px;background:var(--line);border-radius:6px;overflow:hidden;}
+  .lg-bar span{display:block;height:100%;background:#1e7d34;border-radius:6px;transition:width .25s;}
+  .lg-progress-lbl{font-size:13px;color:var(--ink-soft);white-space:nowrap;}
+  .lg-items{margin-top:12px;display:flex;flex-direction:column;gap:2px;}
+  .lg-item{display:flex;gap:10px;align-items:flex-start;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:13.5px;color:var(--ink);line-height:1.45;}
+  .lg-item:hover{background:rgba(46,111,176,.06);}
+  .lg-item input{margin-top:2px;width:17px;height:17px;flex:0 0 auto;accent-color:#1e7d34;cursor:pointer;}
+  .lg-item.on span{color:var(--ink-soft);text-decoration:line-through;}
+  .lg-done{background:#eef7ee;border:1px solid #cfe6cf;color:#1e5b2a;border-radius:12px;padding:16px 20px;margin-top:22px;font-size:15px;}
+  .lg-check{background:#f3f8f2;border:1px solid #cfe6cf;border-radius:14px;padding:22px 24px;margin-top:30px;}
+  .lg-check h2{margin:0 0 14px;font-size:20px;color:var(--ink);}
+  .lg-check li{list-style:none;margin:8px 0;padding-left:30px;position:relative;color:var(--ink);font-size:15px;}
+  .lg-check li::before{content:"✓";position:absolute;left:0;top:0;color:#1e7d34;font-weight:800;}
+  .lg-cta{display:flex;gap:20px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-top:24px;box-shadow:var(--shadow);}
+  .lg-cta h2{margin:0 0 6px;font-size:19px;color:var(--ink);}
+  .lg-cta p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.5;flex:1;min-width:260px;}
   .cart-tot{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow);}
   .cart-tot .r{display:flex;justify-content:space-between;font-size:14px;margin:5px 0;color:var(--ink-soft);}
   .cart-tot .r.big{font-size:19px;font-weight:800;color:var(--ink);margin-top:10px;padding-top:10px;border-top:1px solid var(--line);}
@@ -232,6 +268,20 @@ const CART_KEY="komunigo_cart";
 const leggiCart=()=>{try{return JSON.parse(localStorage.getItem(CART_KEY))||[];}catch(e){return [];}};
 const scriviCart=c=>{try{localStorage.setItem(CART_KEY,JSON.stringify(c));}catch(e){}};
 
+// ---- sconto B2B (mirror lato client della logica server) ----
+const clampPct=n=>{ n=Number(n)||0; return n<0?0:n>100?100:n; };
+const eur2=x=>Math.round((Number(x)||0)*100)/100;
+function scontoPerCat(profilo, categoria){
+  if(!profilo || !profilo.b2b) return 0;
+  const cat=String(categoria||"").trim().toLowerCase();
+  if(cat){ const e=(profilo.sconti_cat||[]).find(x=>String(x.categoria||"").trim().toLowerCase()===cat);
+    if(e && e.sconto_pct!=null && e.sconto_pct!=="") return clampPct(e.sconto_pct); }
+  if(profilo.sconto_std!=null && profilo.sconto_std!=="") return clampPct(profilo.sconto_std);
+  if((profilo.cliente_categoria||"")==="Rivenditore") return clampPct(profilo.sconto_riv_std);
+  return 0;
+}
+const prezzoNet=(listino, profilo, categoria)=>eur2(Number(listino||0)*(1-scontoPerCat(profilo,categoria)/100));
+
 const ORD_KEY="komunigo_ordine_token";   // ultimo ordine del cliente (per "I miei ordini")
 const leggiOrdToken=()=>{try{return localStorage.getItem(ORD_KEY)||"";}catch(e){return "";}};
 const scriviOrdToken=t=>{try{ if(t) localStorage.setItem(ORD_KEY,t); }catch(e){}};
@@ -262,8 +312,28 @@ function App(){
     if(!sess){ setAccount(null); return; }
     try{ const {data}=await sb.from("komunigo_account").select("*").eq("id",sess.user.id).maybeSingle(); setAccount(data||null); }catch(e){ setAccount(null); }
   })(); },[sess]);
-  const logout=async()=>{ await sb.auth.signOut(); setAccount(null); setVista("home"); };
+  const logout=async()=>{ await sb.auth.signOut(); setAccount(null); setProfiloB2b(null); setVista("home"); };
   const nomeAcc = (account&&(account.ragione_sociale||account.nome||account.azienda)) || (sess&&sess.user.email) || "Account";
+
+  // profilo sconti B2B del cliente loggato (per prezzi riservati a magazzino)
+  const [profiloB2b,setProfiloB2b]=useState(null);
+  useEffect(()=>{ (async()=>{
+    if(!account || account.stato!=="b2b"){ setProfiloB2b(null); return; }
+    try{ const {data}=await sb.functions.invoke("komunigo-ordine",{body:{action:"profilo-prezzi"}}); setProfiloB2b(data&&data.b2b?data:null); }
+    catch(e){ setProfiloB2b(null); }
+  })(); },[account]);
+
+  // riordino rapido: ricarica le righe di un ordine passato nel carrello
+  const riordina=async(token)=>{
+    try{
+      const {data}=await sb.functions.invoke("komunigo-ordine",{body:{action:"dettaglio",token}});
+      const righe=(data&&data.righe)||[];
+      righe.forEach(r=>addCart(r.tipo==="configurabile"
+        ? {tipo:"configurabile",prodotto_config_id:r.prodotto_config_id,descrizione:r.descrizione,config:r.config||{},quantita:Number(r.quantita)||1,prezzo_unitario:Number(r.prezzo_unitario)||0,prezzo_totale:Number(r.prezzo_totale)||0}
+        : {tipo:"prodotto",articolo_id:r.articolo_id,descrizione:r.descrizione,quantita:Number(r.quantita)||1,prezzo_unitario:Number(r.prezzo_unitario)||0,prezzo_totale:Number(r.prezzo_totale)||0}));
+      if(righe.length) setVista("carrello");
+    }catch(e){}
+  };
 
   return (
     <div>
@@ -288,10 +358,11 @@ function App(){
 
       {vista==="home"     && <Home vaiCatalogo={vaiCat}/>}
       {vista!=="home" && <div className="wrap">
-        {vista==="catalogo" && <Catalogo addCart={addCart} catInit={catFiltro}/>}
-        {vista==="carrello" && <Carrello cart={cart} delCart={delCart} vaiCatalogo={()=>setVista("catalogo")} onOrdineCreato={onOrdineCreato} account={account}/>}
+        {vista==="catalogo" && <Catalogo addCart={addCart} catInit={catFiltro} profilo={profiloB2b} vaiGuida={()=>setVista("guida")}/>}
+        {vista==="carrello" && <Carrello cart={cart} delCart={delCart} vaiCatalogo={()=>setVista("catalogo")} onOrdineCreato={onOrdineCreato} account={account} profilo={profiloB2b}/>}
         {vista==="ordine" && <OrdinePagina token={ordineToken||ultimoOrd} vaiCatalogo={()=>setVista("catalogo")}/>}
-        {vista==="account" && <AccountPagina account={account} sess={sess} onLogout={logout} vaiCatalogo={()=>vaiCat("")} apriOrdine={apriOrdine} onAccountChange={setAccount}/>}
+        {vista==="account" && <AccountPagina account={account} sess={sess} onLogout={logout} vaiCatalogo={()=>vaiCat("")} apriOrdine={apriOrdine} onAccountChange={setAccount} riordina={riordina}/>}
+        {vista==="guida" && <LineeGuida vaiCatalogo={()=>setVista("catalogo")}/>}
       </div>}
 
       {authOpen && <AuthModal onClose={()=>setAuthOpen(false)}/>}
@@ -299,6 +370,10 @@ function App(){
       <footer className="ft">
         <div className="ft-in">
           <div className="brand disp">Komuni<span style={{color:"var(--blu)"}}>go</span></div>
+          <div className="ft-links">
+            <button className="ft-lnk" onClick={()=>setVista("guida")}>📄 Linee guida file di stampa</button>
+            <button className="ft-lnk" onClick={()=>vaiCat("")}>Catalogo</button>
+          </div>
           <div>Creatio Group · Stampa &amp; Allestimenti — komunigo.it · Catalogo e prezzi dal gestionale.</div>
         </div>
       </footer>
@@ -439,7 +514,7 @@ function Home({vaiCatalogo}){
 // =====================================================================
 //  CATALOGO
 // =====================================================================
-function Catalogo({addCart, catInit}){
+function Catalogo({addCart, catInit, profilo, vaiGuida}){
   const [prodotti,setProdotti]=useState(null);
   const [conf,setConf]=useState(null);
   const [errore,setErrore]=useState("");
@@ -464,7 +539,7 @@ function Catalogo({addCart, catInit}){
       <code> komunigo-v1.sql </code> in Supabase (crea le viste pubbliche). Dettaglio: {errore}</div>
   );
   if(prodotti===null || conf===null) return <div className="empty">Carico il catalogo…</div>;
-  if(dettaglio) return <ProdottoDettaglio tipo={dettaglio.tipo} prod={dettaglio.prod} addCart={addCart} onBack={()=>setDettaglio(null)}/>;
+  if(dettaglio) return <ProdottoDettaglio tipo={dettaglio.tipo} prod={dettaglio.prod} addCart={addCart} onBack={()=>setDettaglio(null)} profilo={profilo} vaiGuida={vaiGuida}/>;
 
   const catList=[...new Set([...conf,...prodotti].map(x=>x.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   const matchCat = x => !cat || String(x.categoria||"").toLowerCase()===cat.toLowerCase();
@@ -484,6 +559,7 @@ function Catalogo({addCart, catInit}){
 
   return (
     <div>
+      {profilo && profilo.b2b && <div className="b2b-note">🤝 <b>Prezzi riservati B2B{profilo.cliente_nome?" · "+profilo.cliente_nome:""}</b> — lo sconto del tuo listino è già applicato ai prezzi qui sotto.</div>}
       {catList.length>0 && <div className="catbar">
         <button className={!cat?"on":""} onClick={()=>setCat("")}>Tutti</button>
         {catList.map(cc=><button key={cc} className={cat.toLowerCase()===cc.toLowerCase()?"on":""} onClick={()=>setCat(cc)}>{cc}</button>)}
@@ -504,12 +580,12 @@ function Catalogo({addCart, catInit}){
       {stock.length>0 && <>
         <h2 className="sec" style={{marginTop:(gadget.length||misura.length)?40:0}}>Pronti a magazzino</h2>
         <p className="sec-sub">Disponibilità reale dal nostro magazzino.</p>
-        <div className="grid">{stock.map(p=>{ const disp=Number(p.disponibile)||0; return (
+        <div className="grid">{stock.map(p=>{ const disp=Number(p.disponibile)||0; const sc=scontoPerCat(profilo,p.categoria); const net=prezzoNet(p.prezzo,profilo,p.categoria); return (
           <div className="card" key={p.id} style={{cursor:"pointer"}} onClick={()=>setDettaglio({tipo:"articolo",prod:p})}>
             <div className="ph">{Array.isArray(p.foto_urls)&&p.foto_urls[0]?<img src={p.foto_urls[0]} alt={p.nome}/>:"📦"}</div>
             <div className="bd">{p.categoria && <span className="cat-l">{p.categoria}</span>}<h3>{p.nome}</h3>
               <div className="desc">{p.descrizione||""}</div>
-              <div className="row"><span className="price">{eur(p.prezzo)}</span>
+              <div className="row"><span className="price">{eur(net)}{sc>0 && <span className="listino-old">{eur(p.prezzo)}</span>}</span>
                 <span className={"avail "+(disp>0?"ok":"no")}>{disp>0?disp+" disp.":"Esaurito"}</span></div>
               <button className="add" onClick={e=>{e.stopPropagation();setDettaglio({tipo:"articolo",prod:p});}}>Vedi prodotto</button></div>
           </div>); })}</div>
@@ -526,7 +602,7 @@ function Catalogo({addCart, catInit}){
 // =====================================================================
 const kPubShop = path => path ? sb.storage.from("komunigo-public").getPublicUrl(path).data.publicUrl : "";
 
-function ProdottoDettaglio({tipo, prod, addCart, onBack}){
+function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida}){
   const [scheda,setScheda]=useState(null);   // null = sto caricando
   const [cfgOpen,setCfgOpen]=useState(false);
   const [imgSel,setImgSel]=useState(0);
@@ -561,13 +637,14 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack}){
           {scheda.sottotitolo && <p className="pdp-sub">{scheda.sottotitolo}</p>}
           {scheda.descrizione && <div className="pdp-desc">{scheda.descrizione}</div>}
 
-          {tipo==="articolo" && <div className="pdp-buy">
-            <span className="price">{eur(prod.prezzo)}</span>
+          {tipo==="articolo" && (()=>{ const sc=scontoPerCat(profilo,prod.categoria); const net=prezzoNet(prod.prezzo,profilo,prod.categoria); return <div className="pdp-buy">
+            <span className="price">{eur(net)}{sc>0 && <span className="listino-old">{eur(prod.prezzo)}</span>}</span>
+            {sc>0 && <span className="b2b-badge">−{sc}% riservato</span>}
             <span className={"avail "+(disp>0?"ok":"no")}>{disp>0?disp+" disp.":"Esaurito"}</span>
             <button className="add" disabled={disp<=0}
-              onClick={()=>addCart({tipo:"prodotto",articolo_id:prod.id,descrizione:prod.nome,quantita:1,prezzo_unitario:Number(prod.prezzo)||0,prezzo_totale:Number(prod.prezzo)||0})}>
+              onClick={()=>addCart({tipo:"prodotto",articolo_id:prod.id,descrizione:prod.nome,quantita:1,prezzo_unitario:net,prezzo_totale:net})}>
               {disp>0?"Aggiungi al carrello":"Non disponibile"}</button>
-          </div>}
+          </div>; })()}
           {tipo==="configuratore" && <div className="pdp-buy">
             <span className="muted">Prezzo calcolato sulla tua configurazione</span>
             <button className="add" onClick={()=>setCfgOpen(true)}>Configura e ordina</button>
@@ -582,6 +659,8 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack}){
             <p className="muted" style={{margin:"4px 0 10px",fontSize:13}}>{scheda.template_note||"Scarica il file, posiziona la tua grafica nell'area indicata ed esporta in PDF."}</p>
             <a className="btn-tpl" href={kPubShop(scheda.template_path)} target="_blank" rel="noopener noreferrer" download>⬇ Scarica il template ({scheda.template_nome||"PDF"})</a>
           </div>}
+
+          {vaiGuida && <p className="muted" style={{fontSize:13,marginTop:12}}>📄 Come preparare il file? <button className="lnk" onClick={vaiGuida}>Leggi le linee guida di stampa →</button></p>}
         </div>
       </div>
 
@@ -599,15 +678,18 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack}){
 // =====================================================================
 //  CONFIGURATORE
 // =====================================================================
+const FORMATI_STAMPA_SHOP=[{nome:"32×44"},{nome:"33×48,8"}];
 function Configuratore({prod,chiudi,addCart}){
   const gadget = prod.tipo==="gadget";
+  const isStampa = prod.tipo==="stampa";
   const [varianti,setVarianti]=useState([]);
   const [voci,setVoci]=useState([]);
   const [stampe,setStampe]=useState([]);
   const [stSel,setStSel]=useState({});   // {stampa_id: n_colori}
   const [variante,setVariante]=useState("");
-  const [larg,setLarg]=useState(100), [alt,setAlt]=useState(70), [qta,setQta]=useState(gadget?(Number(prod.minimo)||1):1);
+  const [larg,setLarg]=useState(isStampa?8.5:100), [alt,setAlt]=useState(isStampa?5.5:70), [qta,setQta]=useState(gadget?(Number(prod.minimo)||1):isStampa?100:1);
   const [opzioni,setOpzioni]=useState({});
+  const [stMacchina,setStMacchina]=useState("piccolo"), [stFmt,setStFmt]=useState("auto"), [stColore,setStColore]=useState(true), [stFr,setStFr]=useState(false);
   const [prezzo,setPrezzo]=useState(null);
   const [stato,setStato]=useState("");
 
@@ -628,24 +710,29 @@ function Configuratore({prod,chiudi,addCart}){
     try{
       const body = gadget
         ? { prodotto_id:prod.id, variante_id:variante, quantita:Number(qta), stampe:stArr() }
-        : { prodotto_id:prod.id, variante_id:variante, larghezza_cm:Number(larg), altezza_cm:Number(alt), quantita:Number(qta), opzioni:Object.keys(opzioni).filter(k=>opzioni[k]) };
+        : { prodotto_id:prod.id, variante_id:variante, larghezza_cm:Number(larg), altezza_cm:Number(alt), quantita:Number(qta), opzioni:Object.keys(opzioni).filter(k=>opzioni[k]),
+            ...(isStampa?{st_macchina:stMacchina, st_fmt:stFmt, st_colore:stColore, st_fr:stFr}:{}) };
       const {data,error}=await sb.functions.invoke("hyper-endpoint",{body});
       if(error) throw error;
       setPrezzo(data); setStato("");
     }catch(e){ setStato("errore"); }
   };
 
-  const prezzoOk = prezzo && Number(prezzo.prezzo_totale) > 0 && !prezzo.sotto_costo;
+  const prezzoOk = prezzo && Number(prezzo.prezzo_totale) > 0 && !prezzo.sotto_costo
+    && !(isStampa && prezzo.impaginazione && !prezzo.impaginazione.valido);
 
   const aggiungi=()=>{
     if(!prezzoOk) return;
     const va=varianti.find(x=>x.id===variante);
     const config = gadget
       ? {variante_id:variante, quantita:Number(qta), stampe:stArr()}
-      : {variante_id:variante, larghezza_cm:Number(larg), altezza_cm:Number(alt), opzioni:Object.keys(opzioni).filter(k=>opzioni[k])};
+      : {variante_id:variante, larghezza_cm:Number(larg), altezza_cm:Number(alt), opzioni:Object.keys(opzioni).filter(k=>opzioni[k]),
+         ...(isStampa?{st_macchina:stMacchina, st_fmt:stFmt, st_colore:stColore, st_fr:stFr}:{})};
     const descr = gadget
       ? prod.nome+(va?" · "+va.nome:"")+` · ${qta} pz`
-      : prod.nome+(va?" · "+va.nome:"")+` · ${larg}×${alt}cm`;
+      : isStampa
+        ? prod.nome+(va?" · "+va.nome:"")+` · ${larg}×${alt}cm · ${qta} pz`
+        : prod.nome+(va?" · "+va.nome:"")+` · ${larg}×${alt}cm`;
     addCart({ tipo:"configurabile", prodotto_config_id:prod.id, descrizione:descr, config,
       quantita:Number(qta), prezzo_unitario:Number(prezzo.prezzo_unitario)||0, prezzo_totale:Number(prezzo.prezzo_totale)||0});
     chiudi();
@@ -657,18 +744,34 @@ function Configuratore({prod,chiudi,addCart}){
         <div className="mh"><h3>{prod.nome}</h3><button className="x" onClick={chiudi}>×</button></div>
         <div className="mb">
           {varianti.length>0 && <>
-            <label className="fld">{gadget?"Colore":"Materiale / variante"}</label>
+            <label className="fld">{gadget?"Colore":isStampa?"Carta":"Materiale / variante"}</label>
             <select value={variante} onChange={e=>{setVariante(e.target.value);setPrezzo(null);}}>
-              {varianti.map(v=><option key={v.id} value={v.id}>{v.nome}{(!gadget&&v.spessore)?` (${v.spessore}mm)`:""}</option>)}
+              {varianti.map(v=><option key={v.id} value={v.id}>{v.nome}{(!gadget&&!isStampa&&v.spessore)?` (${v.spessore}mm)`:""}</option>)}
             </select></>}
           {!gadget && <div className="two">
-            <div><label className="fld">Larghezza (cm)</label>
-              <input type="number" value={larg} min="1" onChange={e=>{setLarg(e.target.value);setPrezzo(null);}}/></div>
-            <div><label className="fld">Altezza (cm)</label>
-              <input type="number" value={alt} min="1" onChange={e=>{setAlt(e.target.value);setPrezzo(null);}}/></div>
+            <div><label className="fld">{isStampa?"Larghezza pezzo (cm)":"Larghezza (cm)"}</label>
+              <input type="number" step="0.1" value={larg} min="0.1" onChange={e=>{setLarg(e.target.value);setPrezzo(null);}}/></div>
+            <div><label className="fld">{isStampa?"Altezza pezzo (cm)":"Altezza (cm)"}</label>
+              <input type="number" step="0.1" value={alt} min="0.1" onChange={e=>{setAlt(e.target.value);setPrezzo(null);}}/></div>
           </div>}
           <label className="fld">Quantità (pezzi){gadget&&prod.minimo?` · minimo ${prod.minimo}`:""}</label>
           <input type="number" value={qta} min={gadget?(prod.minimo||1):1} onChange={e=>{setQta(e.target.value);setPrezzo(null);}}/>
+          {isStampa && <div className="opts" style={{marginTop:12}}>
+            <label className="fld">Stampa</label>
+            <div className="two">
+              <div><label className="fld" style={{fontWeight:400}}>Macchina</label>
+                <select value={stMacchina} onChange={e=>{setStMacchina(e.target.value);setPrezzo(null);}}>
+                  <option value="piccolo">Piccolo formato</option>
+                  <option value="grande">Grande formato</option>
+                </select></div>
+              {stMacchina==="piccolo" && <div><label className="fld" style={{fontWeight:400}}>Colori</label>
+                <select value={stColore?"col":"bn"} onChange={e=>{setStColore(e.target.value==="col");setPrezzo(null);}}>
+                  <option value="col">A colori</option><option value="bn">Bianco e nero</option>
+                </select></div>}
+            </div>
+            {stMacchina==="piccolo" && <label style={{display:"flex",gap:8,alignItems:"center",marginTop:8}}>
+              <input type="checkbox" checked={stFr} onChange={e=>{setStFr(e.target.checked);setPrezzo(null);}}/> Fronte/retro</label>}
+          </div>}
           {gadget && stampe.length>0 && <div className="opts"><label className="fld">Dove stampare</label>
             {stampe.map(s=>{ const col=stSel[s.id]||0; return (
               <div key={s.id} style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:4}}>
@@ -693,6 +796,13 @@ function Configuratore({prod,chiudi,addCart}){
                 <div className="r" key={i}><span>Stampa {s.nome} · {s.colori} {s.colori>1?"colori":"colore"}</span><span>{eur(s.prezzo)}</span></div>))}
               {prezzo.dettaglio.impianto>0 && <div className="r"><span>Impianto stampa (una tantum)</span><span>{eur(prezzo.dettaglio.impianto)}</span></div>}
             </>}
+            {isStampa && prezzo.impaginazione && prezzo.impaginazione.valido && <div className="r" style={{fontSize:12,opacity:.85}}>
+              <span>🖨️ {prezzo.impaginazione.grande?"Grande formato":prezzo.impaginazione.formato+" cm"} · {prezzo.impaginazione.pose} pose/foglio</span>
+              <span>{prezzo.impaginazione.fogliAcquisto} fogli</span></div>}
+            {Number(prezzo.sconto_pct)>0 && <>
+              <div className="r"><span>Prezzo di listino</span><span className="listino-old" style={{marginLeft:0}}>{eur(prezzo.prezzo_listino_totale)}</span></div>
+              <div className="r" style={{color:"var(--blu)",fontWeight:700}}><span>Sconto riservato B2B</span><span>−{prezzo.sconto_pct}%</span></div>
+            </>}
             <div className="r"><span>Prezzo unitario</span><span>{eur(prezzo.prezzo_unitario)}</span></div>
             <div className="r big"><span>Totale ({qta} pz)</span><span>{eur(prezzo.prezzo_totale)}</span></div></div>}
           {prezzo && !prezzoOk && <div className="warn" style={{marginTop:14}}>
@@ -712,7 +822,7 @@ function Configuratore({prod,chiudi,addCart}){
 // =====================================================================
 //  CARRELLO
 // =====================================================================
-function Carrello({cart,delCart,vaiCatalogo,onOrdineCreato,account}){
+function Carrello({cart,delCart,vaiCatalogo,onOrdineCreato,account,profilo}){
   const [invio,setInvio]=useState("");
   const [err,setErr]=useState("");
   const [spedOpts,setSpedOpts]=useState(null);
@@ -812,6 +922,7 @@ function Carrello({cart,delCart,vaiCatalogo,onOrdineCreato,account}){
             </label>))}
       </div>
 
+      {profilo && profilo.b2b && <div className="b2b-note" style={{marginTop:12}}>🤝 <b>Prezzi riservati B2B applicati.</b> Gli importi vengono ricalcolati con il tuo sconto alla conferma dell'ordine.</div>}
       <div className="cart-tot" style={{marginTop:16}}>
         <div className="r"><span>Imponibile merce</span><span>{eur(imponibileMerce)}</span></div>
         {sped && <div className="r"><span>Trasporto — {sped.nome}</span><span>{spedCosto===0?"Gratis":eur(spedCosto)}</span></div>}
@@ -1099,7 +1210,7 @@ function AuthModal({onClose}){
 // =====================================================================
 //  AREA ACCOUNT (dati cliente + storico ordini)
 // =====================================================================
-function AccountPagina({account,sess,onLogout,vaiCatalogo,apriOrdine,onAccountChange}){
+function AccountPagina({account,sess,onLogout,vaiCatalogo,apriOrdine,onAccountChange,riordina}){
   const [ordini,setOrdini]=useState(null);
   const [f,setF]=useState(()=>accToForm(account));
   const [salvato,setSalvato]=useState(false);
@@ -1141,8 +1252,120 @@ function AccountPagina({account,sess,onLogout,vaiCatalogo,apriOrdine,onAccountCh
        : <div style={{marginTop:8}}>{ordini.map(o=>(
           <div className="cart-line" key={o.numero} style={{cursor:"pointer"}} onClick={()=>apriOrdine(o.token)}>
             <div className="g"><h4>Ordine {o.numero}</h4><p>{o.creato_il?new Date(o.creato_il).toLocaleDateString("it-IT"):""} · {o.pagamento_stato==="pagato"?"pagato ✅":"pagamento in attesa"}</p></div>
-            <div className="price">{eur(o.totale)}</div>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <span className="price">{eur(o.totale)}</span>
+              {riordina && <button className="btn ghost small" onClick={e=>{e.stopPropagation();riordina(o.token);}}>🔁 Riordina</button>}
+            </div>
           </div>))}</div>}
+    </div>
+  );
+}
+
+// =====================================================================
+//  LINEE GUIDA FILE DI STAMPA  (pagina informativa, stile FlyerAlarm)
+// =====================================================================
+function DiagrammaRifilo(){
+  return (
+    <svg className="lg-diagram" viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Abbondanza, linea di taglio e margine di sicurezza">
+      <rect x="10" y="10" width="300" height="180" fill="#e9eef5"/>
+      <rect x="28" y="28" width="264" height="144" fill="#ffffff" stroke="#2E6FB0" strokeWidth="2" strokeDasharray="6 4"/>
+      <rect x="46" y="46" width="228" height="108" fill="none" stroke="#1e7d34" strokeWidth="1.5" strokeDasharray="4 4"/>
+      <text x="160" y="22" textAnchor="middle" fontSize="11" fill="#8a4b00">Abbondanza +3 mm (sfondo fin qui)</text>
+      <text x="160" y="41" textAnchor="middle" fontSize="11" fill="#2E6FB0">Linea di taglio (formato finito)</text>
+      <text x="160" y="104" textAnchor="middle" fontSize="11" fill="#1e7d34">Area sicura</text>
+      <text x="160" y="120" textAnchor="middle" fontSize="10" fill="#1e7d34">testi e loghi qui dentro</text>
+    </svg>
+  );
+}
+const LG_SEZIONI=[
+  {ico:"📐", t:"Formato e taglio", extra:"diagramma", voci:[
+    "Imposta il file nel formato del prodotto, inclusi i 3 mm di abbondanza per lato (es. biglietto 8,5×5,5 cm → file da 8,7×5,7 cm).",
+    "Tieni testi, loghi ed elementi importanti entro l'area sicura, ad almeno 3 mm dal taglio.",
+    "Estendi sfondi e immagini a vivo fino al bordo del file, coprendo tutta l'abbondanza.",
+    "Nessun crocino di taglio, piega o registro nel file: li generiamo noi.",
+    "Usa il template della scheda prodotto: ha già taglio, abbondanza e area sicura.",
+  ]},
+  {ico:"🎨", t:"Colore", voci:[
+    "Lavora in CMYK (stampa 4/4 o 4/0). In RGB i colori vengono convertiti e possono cambiare tonalità.",
+    "Per colori esatti usa Pantone / tinte piatte (HKS/PANTONE) coi nomi canale corretti; indicali nelle note dell'ordine.",
+    "Nero dei testi: C0 M0 Y0 K100. Nero profondo per grandi fondi: C40 M0 Y0 K100.",
+    "Grigi: K50 (grigio caldo +C10, grigio freddo +M10).",
+    "Apporto totale di colore tra il 10% e il 300%.",
+    "Elementi bianchi mai in sovrastampa (sparirebbero).",
+    "Profilo colore consigliato: ISO Coated V2 300% (ECI), impostato come output intent.",
+  ]},
+  {ico:"🔍", t:"Immagini e risoluzione", voci:[
+    "Risoluzione 300 dpi (fino a 356) alla dimensione reale di stampa.",
+    "Grande formato (da A2 in su): 100–150 dpi sono sufficienti.",
+    "Immagini in CMYK; evita immagini piccole ingrandite dal web (vengono sgranate).",
+    "Se impagini, i collegamenti alle immagini devono essere presenti e aggiornati.",
+  ]},
+  {ico:"🔤", t:"Scritte e linee", voci:[
+    "Corpo del testo minimo 6 pt.",
+    "Font incorporati nel PDF oppure testi convertiti in tracciati / curve.",
+    "Spessore minimo linee: 0,25 pt in positivo, 0,5 pt in negativo (chiaro su scuro).",
+    "Niente cornici/outline a filo: se le usi, tienile ad almeno 4 mm dal bordo.",
+  ]},
+  {ico:"📄", t:"Formato file", voci:[
+    "Invia in PDF (ideale PDF/X-3 o PDF/X-4), oppure TIFF / JPG ad alta risoluzione.",
+    "Niente password o cifratura sul file.",
+    "Testi neri piccoli e linee sottili nere meglio in sovrastampa: evitano bordi bianchi.",
+    "Evita grafiche vettoriali troppo complesse: in caso, esporta in raster (JPG).",
+  ]},
+  {ico:"🧩", t:"Pagine e livelli (multipagina)", voci:[
+    "Sequenza e orientamento delle pagine corretti; numero facciate giusto.",
+    "Riduci tutti i livelli a un unico livello di fondo (PDF/TIF da Photoshop/GIMP).",
+  ]},
+];
+function LineeGuida({vaiCatalogo}){
+  const [ok,setOk]=useState(()=>{ try{return new Set(JSON.parse(localStorage.getItem("komunigo_lg")||"[]"));}catch(e){return new Set();} });
+  const totale=LG_SEZIONI.reduce((s,z)=>s+z.voci.length,0);
+  const fatti=ok.size;
+  const toggle=(k)=>setOk(p=>{ const n=new Set(p); n.has(k)?n.delete(k):n.add(k); try{localStorage.setItem("komunigo_lg",JSON.stringify([...n]));}catch(e){} return n; });
+  const reset=()=>{ setOk(new Set()); try{localStorage.removeItem("komunigo_lg");}catch(e){} };
+  const completo=fatti===totale;
+  return (
+    <div>
+      <div className="lg-hero">
+        <h1>Linee guida per i file di stampa</h1>
+        <p>Prepara correttamente il tuo file e ottieni una stampa fedele, senza brutte sorprese. Spunta le caselle mentre controlli il file. Dopo l'ordine lo carichi e ti inviamo una <b>bozza di stampa da approvare</b> prima di andare in produzione. Ogni prodotto ha il suo <b>template</b> scaricabile dalla scheda.</p>
+      </div>
+
+      <div className="lg-actions no-print">
+        <div className="lg-progress">
+          <div className="lg-bar"><span style={{width:(totale?Math.round(fatti/totale*100):0)+"%"}}/></div>
+          <div className="lg-progress-lbl">{fatti}/{totale} controlli {fatti>0 && <button className="lnk" onClick={reset}>azzera</button>}</div>
+        </div>
+        <button className="btn ghost" onClick={()=>window.print()}>⬇ Scarica la checklist (PDF)</button>
+      </div>
+      <div className="lg-print-note">Checklist file di stampa — komunigo.it · info@komunigo.it</div>
+
+      <div className="lg-grid">
+        {LG_SEZIONI.map((z,i)=>(
+          <div className="lg-card" key={i}>
+            <div className="lg-ico">{z.ico}</div>
+            <h3>{z.t}</h3>
+            {z.extra==="diagramma" && <DiagrammaRifilo/>}
+            <div className="lg-items">
+              {z.voci.map((v,j)=>{ const k=i+"-"+j; return (
+                <label key={j} className={"lg-item"+(ok.has(k)?" on":"")}>
+                  <input type="checkbox" checked={ok.has(k)} onChange={()=>toggle(k)}/>
+                  <span>{v}</span>
+                </label>); })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {completo && <div className="lg-done">🎉 <b>Hai spuntato tutto!</b> Il tuo file è pronto: procedi con l'ordine e caricalo dalla pagina «I miei ordini».</div>}
+
+      <div className="lg-cta">
+        <div>
+          <h2>Controllo file &amp; assistenza grafica</h2>
+          <p>Verifichiamo il tuo file prima della stampa e ti mandiamo la bozza da approvare. Hai bisogno di aiuto con la grafica o non hai un file pronto? Scrivici a <a href="mailto:info@komunigo.it">info@komunigo.it</a> e ti diamo una mano.</p>
+        </div>
+        <button className="btn" onClick={vaiCatalogo}>Vai al catalogo</button>
+      </div>
     </div>
   );
 }

@@ -158,7 +158,8 @@
   .lg-item:hover{background:rgba(46,111,176,.06);}
   .lg-item input{margin-top:2px;width:17px;height:17px;flex:0 0 auto;accent-color:#1e7d34;cursor:pointer;}
   .lg-item.on span{color:var(--ink-soft);text-decoration:line-through;}
-  .lg-done{background:#eef7ee;border:1px solid #cfe6cf;color:#1e5b2a;border-radius:12px;padding:16px 20px;margin-top:22px;font-size:15px;}
+  .lg-done{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;background:#eef7ee;border:1px solid #cfe6cf;color:#1e5b2a;border-radius:12px;padding:16px 20px;margin-top:22px;font-size:15px;}
+  .lg-done > div{flex:1;min-width:240px;}
   .lg-check{background:#f3f8f2;border:1px solid #cfe6cf;border-radius:14px;padding:22px 24px;margin-top:30px;}
   .lg-check h2{margin:0 0 14px;font-size:20px;color:var(--ink);}
   .lg-check li{list-style:none;margin:8px 0;padding-left:30px;position:relative;color:var(--ink);font-size:15px;}
@@ -708,12 +709,14 @@ const FORMATI_STAMPA_SHOP=[{nome:"32×44"},{nome:"33×48,8"}];
 function Configuratore({prod,chiudi,addCart}){
   const gadget = prod.tipo==="gadget";
   const isStampa = prod.tipo==="stampa";
+  const shopQta = Array.isArray(prod.shop_quantita)? prod.shop_quantita.map(n=>Number(n)).filter(n=>n>0) : [];
+  const misMin = Number(prod.shop_mis_min)||0, misMax = Number(prod.shop_mis_max)||0;
   const [varianti,setVarianti]=useState([]);
   const [voci,setVoci]=useState([]);
   const [stampe,setStampe]=useState([]);
   const [stSel,setStSel]=useState({});   // {stampa_id: n_colori}
   const [variante,setVariante]=useState("");
-  const [larg,setLarg]=useState(isStampa?8.5:100), [alt,setAlt]=useState(isStampa?5.5:70), [qta,setQta]=useState(gadget?(Number(prod.minimo)||1):isStampa?100:1);
+  const [larg,setLarg]=useState(isStampa?8.5:100), [alt,setAlt]=useState(isStampa?5.5:70), [qta,setQta]=useState(shopQta.length?shopQta[0]:(gadget?(Number(prod.minimo)||1):isStampa?100:1));
   const [opzioni,setOpzioni]=useState({});
   const [stMacchina,setStMacchina]=useState("piccolo"), [stFmt,setStFmt]=useState("auto"), [stColore,setStColore]=useState(true), [stFr,setStFr]=useState(false);
   const [prezzo,setPrezzo]=useState(null);
@@ -774,14 +777,19 @@ function Configuratore({prod,chiudi,addCart}){
             <select value={variante} onChange={e=>{setVariante(e.target.value);setPrezzo(null);}}>
               {varianti.map(v=><option key={v.id} value={v.id}>{v.nome}{(!gadget&&!isStampa&&v.spessore)?` (${v.spessore}mm)`:""}</option>)}
             </select></>}
-          {!gadget && <div className="two">
+          {!gadget && <><div className="two">
             <div><label className="fld">{isStampa?"Larghezza pezzo (cm)":"Larghezza (cm)"}</label>
-              <input type="number" step="0.1" value={larg} min="0.1" onChange={e=>{setLarg(e.target.value);setPrezzo(null);}}/></div>
+              <input type="number" step="0.1" value={larg} min={misMin||0.1} max={misMax||undefined} onChange={e=>{setLarg(e.target.value);setPrezzo(null);}}/></div>
             <div><label className="fld">{isStampa?"Altezza pezzo (cm)":"Altezza (cm)"}</label>
-              <input type="number" step="0.1" value={alt} min="0.1" onChange={e=>{setAlt(e.target.value);setPrezzo(null);}}/></div>
-          </div>}
-          <label className="fld">Quantità (pezzi){gadget&&prod.minimo?` · minimo ${prod.minimo}`:""}</label>
-          <input type="number" value={qta} min={gadget?(prod.minimo||1):1} onChange={e=>{setQta(e.target.value);setPrezzo(null);}}/>
+              <input type="number" step="0.1" value={alt} min={misMin||0.1} max={misMax||undefined} onChange={e=>{setAlt(e.target.value);setPrezzo(null);}}/></div>
+          </div>
+          {(misMin>0||misMax>0) && <div className="muted" style={{fontSize:12}}>Misura {misMin>0?`da ${misMin}`:""}{misMax>0?` fino a ${misMax}`:""} cm per lato.</div>}</>}
+          <label className="fld">Quantità{gadget&&prod.minimo?` · minimo ${prod.minimo}`:""}</label>
+          {shopQta.length
+            ? <select value={qta} onChange={e=>{setQta(e.target.value);setPrezzo(null);}}>
+                {shopQta.map(n=><option key={n} value={n}>{n} pz</option>)}
+              </select>
+            : <input type="number" value={qta} min={gadget?(prod.minimo||1):1} onChange={e=>{setQta(e.target.value);setPrezzo(null);}}/>}
           {isStampa && <div className="opts" style={{marginTop:12}}>
             <label className="fld">Stampa</label>
             <div className="two">
@@ -811,12 +819,6 @@ function Configuratore({prod,chiudi,addCart}){
           {stato==="errore" && <div className="warn" style={{marginTop:14}}>
             <b>Motore prezzi non ancora collegato.</b> Serve la Edge Function <code>prezzo-configuratore</code>. Fino ad allora il preventivo si fa dal gestionale.</div>}
           {prezzoOk && <div className="cart-tot" style={{marginTop:14}}>
-            {prezzo.dettaglio && <>
-              <div className="r"><span>Prodotto ({qta} pz)</span><span>{eur(prezzo.dettaglio.prodotto)}</span></div>
-              {(prezzo.dettaglio.stampe||[]).map((s,i)=>(
-                <div className="r" key={i}><span>Stampa {s.nome} · {s.colori} {s.colori>1?"colori":"colore"}</span><span>{eur(s.prezzo)}</span></div>))}
-              {prezzo.dettaglio.impianto>0 && <div className="r"><span>Impianto stampa (una tantum)</span><span>{eur(prezzo.dettaglio.impianto)}</span></div>}
-            </>}
             {Number(prezzo.sconto_pct)>0 && <>
               <div className="r"><span>Prezzo di listino</span><span className="listino-old" style={{marginLeft:0}}>{eur(prezzo.prezzo_listino_totale)}</span></div>
               <div className="r" style={{color:"var(--blu)",fontWeight:700}}><span>Sconto riservato B2B</span><span>−{prezzo.sconto_pct}%</span></div>
@@ -1375,7 +1377,10 @@ function LineeGuida({vaiCatalogo}){
         ))}
       </div>
 
-      {completo && <div className="lg-done">🎉 <b>Hai spuntato tutto!</b> Il tuo file è pronto: procedi con l'ordine e caricalo dalla pagina «I miei ordini».</div>}
+      {completo && <div className="lg-done">
+        <div><span style={{fontSize:20}}>🎉</span> <b>Hai spuntato tutto!</b> Il tuo file è pronto. Scegli il prodotto, completa l'ordine e poi carica il file dalla pagina «I tuoi ordini».</div>
+        <button className="btn no-print" onClick={vaiCatalogo}>Vai al catalogo e ordina →</button>
+      </div>}
 
       <div className="lg-cta">
         <div>

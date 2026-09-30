@@ -7818,6 +7818,10 @@ function ConfiguratoreRiga({prodotti,imballi,articoli,modiLabel,iniziale,abbDefa
   const u=prod?prod.unita_calcolo:"mq";
   const isStampa = !!(prod && prod.tipo==="stampa");
   const modoL=v=>(modiLabel.find(m=>m.v===v)||{}).l||v;
+  // Le misure si INSERISCONO e si MOSTRANO in mm; internamente il motore resta in cm.
+  const toMmIn = cm => (cm===""||cm==null)? "" : (Math.round(Number(cm)*10*1000)/1000);   // cm -> mm (per il campo input)
+  const setMisMm=(k,v)=> setMis(p=>({...p,[k]: v===""?"":Number(v)/10}));                   // mm input -> cm in stato
+  const mmTx = cm => { const n=Number(cm)||0; return Math.round(n*10*100)/100; };           // cm -> mm (testo)
 
   useEffect(()=>{ if(primo.current){ primo.current=false; return; } // al primo mount non resettare (prefill in modifica)
     if(prod){ const vv=(prod.prodotti_config_varianti||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0));
@@ -7850,8 +7854,8 @@ function ConfiguratoreRiga({prodotti,imballi,articoli,modiLabel,iniziale,abbDefa
     if(!prod) return;
     if(sottoCosto && !window.confirm("⚠️ Attenzione: questo prodotto è SOTTO COSTO — vendi in perdita di "+eur(costoFinale-prezzoFinale)+" (prezzo "+eur(prezzoFinale)+" < costo "+eur(costoFinale)+").\n\nAggiungere comunque al preventivo?")) return;
     const nPez=Math.max(1,Number(N)||1);
-    const misDesc = isStampa ? ((mis.L&&mis.H)?mis.L+"×"+mis.H+" cm":"")
-      : ((u==="mq"||u==="mc")?(mis.L+"×"+mis.H+" cm"):(u==="mtl"?mis.L+" cm":""));
+    const misDesc = isStampa ? ((mis.L&&mis.H)?mmTx(mis.L)+"×"+mmTx(mis.H)+" mm":"")
+      : ((u==="mq"||u==="mc")?(mmTx(mis.L)+"×"+mmTx(mis.H)+" mm"):(u==="mtl"?mmTx(mis.L)+" mm":""));
     const desc=[prod.nome, va.nome, misDesc, "q.tà "+nPez].filter(Boolean).join(" · ");
     const artId=selArt||va.articolo_id||null;
     const config={prodotto_id:selProd, variante_id:selVar||va.id, mis, N:nPez, vInput, articolo_id:artId, abbondanza_cm:abbUsata};
@@ -7904,7 +7908,7 @@ function ConfiguratoreRiga({prodotti,imballi,articoli,modiLabel,iniziale,abbDefa
                   <div className="field" style={{maxWidth:190}}><label>Formato macchina</label>
                     <select value={vInput.st_fmt||"auto"} onChange={e=>setV("st_fmt",e.target.value)}>
                       <option value="auto">Auto (consigliato)</option>
-                      {FORMATI_STAMPA.map(F=><option key={F.nome} value={F.nome}>{F.nome} cm</option>)}
+                      {FORMATI_STAMPA.map(F=><option key={F.nome} value={F.nome}>{Math.round(F.l*10)}×{Math.round(F.h*10)} mm</option>)}
                     </select></div>
                   <div className="field" style={{maxWidth:150}}><label>Colori</label>
                     <select value={vInput.st_colore?"col":"bn"} onChange={e=>setV("st_colore",e.target.value==="col")}>
@@ -7921,23 +7925,23 @@ function ConfiguratoreRiga({prodotti,imballi,articoli,modiLabel,iniziale,abbDefa
               <h3>{isStampa?"Misura del pezzo finito":"Misure"}</h3>
               <div className="row">
                 {(u==="mq"||u==="mtl"||u==="mc"||isStampa) &&
-                  <div className="field" style={{maxWidth:150}}><label>Larghezza (cm)</label>
-                    <input type="number" step="0.1" value={mis.L} onChange={e=>setMis(p=>({...p,L:e.target.value}))} autoFocus/></div>}
+                  <div className="field" style={{maxWidth:150}}><label>Larghezza (mm)</label>
+                    <input type="number" step="1" value={toMmIn(mis.L)} onChange={e=>setMisMm("L",e.target.value)} autoFocus/></div>}
                 {(u==="mq"||u==="mc"||isStampa) &&
-                  <div className="field" style={{maxWidth:150}}><label>Altezza (cm)</label>
-                    <input type="number" step="0.1" value={mis.H} onChange={e=>setMis(p=>({...p,H:e.target.value}))}/></div>}
+                  <div className="field" style={{maxWidth:150}}><label>Altezza (mm)</label>
+                    <input type="number" step="1" value={toMmIn(mis.H)} onChange={e=>setMisMm("H",e.target.value)}/></div>}
                 {u==="mc" &&
                   <div className="field" style={{maxWidth:150}}><label>Spessore (mm)</label>
                     <input type="number" value={va.spessore||0} disabled/></div>}
                 <div className="field" style={{maxWidth:130}}><label>Quantità (pz)</label>
                   <input type="number" min="1" value={N} onChange={e=>setN(e.target.value)}/></div>
                 {abbAttiva &&
-                  <div className="field" style={{maxWidth:160}}><label title="Rifilo/abbondanza aggiunta a ogni lato per smarginatura e crocini. Non cambia la misura mostrata al cliente, solo il consumo di materiale.">Abbondanza per lato (cm)</label>
-                    <input type="number" step="0.1" min="0" value={abb} onChange={e=>setAbb(e.target.value)}/></div>}
+                  <div className="field" style={{maxWidth:160}}><label title="Rifilo/abbondanza aggiunta a ogni lato per smarginatura e crocini. Non cambia la misura mostrata al cliente, solo il consumo di materiale.">Abbondanza per lato (mm)</label>
+                    <input type="number" step="1" min="0" value={toMmIn(abb)} onChange={e=>setAbb(e.target.value===""?"":Number(e.target.value)/10)}/></div>}
               </div>
               {abbAttiva && abbUsata>0 && (()=>{ const L=Number(mis.L)||0, H=Number(mis.H)||0;
-                const magg = u==="mtl" ? (L>0?(L+abbUsata)+" cm":"") : ((L>0&&H>0)?((L+abbUsata)+"×"+(H+abbUsata)+" cm"):"");
-                return <div className="muted" style={{fontSize:12}}>Misura netta (cliente): <b>{u==="mtl"?(L||"—")+" cm":(L&&H?L+"×"+H+" cm":"—")}</b> → di lavorazione: <b>{magg||"—"}</b>{magg&&<> · sfrido <b style={{color:"#b26a00"}}>+{sfridoPct.toFixed(2)}%</b></>}</div>; })()}
+                const magg = u==="mtl" ? (L>0?mmTx(L+abbUsata)+" mm":"") : ((L>0&&H>0)?(mmTx(L+abbUsata)+"×"+mmTx(H+abbUsata)+" mm"):"");
+                return <div className="muted" style={{fontSize:12}}>Misura netta (cliente): <b>{u==="mtl"?(L?mmTx(L):"—")+" mm":(L&&H?mmTx(L)+"×"+mmTx(H)+" mm":"—")}</b> → di lavorazione: <b>{magg||"—"}</b>{magg&&<> · sfrido <b style={{color:"#b26a00"}}>+{sfridoPct.toFixed(2)}%</b></>}</div>; })()}
               {risultato && u!=="pz" && <div className="muted" style={{fontSize:12}}>Materiale (con abbondanza) — totale {u}: {risultato.baseTot.toFixed(3)}</div>}
             </div>
 
@@ -7968,10 +7972,10 @@ function ConfiguratoreRiga({prodotti,imballi,articoli,modiLabel,iniziale,abbDefa
                 <div style={{fontWeight:700,marginBottom:6}}>🖨️ Impaginazione</div>
                 {!s.valido ? <div className="banner err" style={{fontSize:12.5}}>Il pezzo non entra nel foglio scelto: controlla misura del pezzo / formato carta.</div>
                 : <div className="kv" style={{gridTemplateColumns:"1fr auto",fontSize:13}}>
-                    {!s.grande && <><span className="k">Formato macchina</span><span style={{textAlign:"right"}}>{s.fmtNome} cm{(vInput.st_fmt||"auto")==="auto"?" (consigliato)":""}</span></>}
+                    {!s.grande && <><span className="k">Formato macchina</span><span style={{textAlign:"right"}}>{Math.round((s.pressL||0)*10)}×{Math.round((s.pressH||0)*10)} mm{(vInput.st_fmt||"auto")==="auto"?" (consigliato)":""}</span></>}
                     <span className="k">Pose per foglio {s.grande?"":"macchina"}</span><span style={{textAlign:"right"}}><b>{s.pose}</b></span>
-                    {!s.grande && <><span className="k">Fogli macchina (32×44/33×48,8)</span><span style={{textAlign:"right"}}>{s.fogliMacchina} <span className="muted">({s.perStock}/foglio d'acquisto)</span></span></>}
-                    <span className="k">Fogli d'acquisto ({(va&&va.foglio_l_cm)||"?"}×{(va&&va.foglio_h_cm)||"?"} cm)</span><span style={{textAlign:"right",fontWeight:700}}>{s.fogliAcq}</span>
+                    {!s.grande && <><span className="k">Fogli macchina</span><span style={{textAlign:"right"}}>{s.fogliMacchina} <span className="muted">({s.perStock}/foglio d'acquisto)</span></span></>}
+                    <span className="k">Fogli d'acquisto ({mmTx((va&&va.foglio_l_cm)||0)}×{mmTx((va&&va.foglio_h_cm)||0)} mm)</span><span style={{textAlign:"right",fontWeight:700}}>{s.fogliAcq}</span>
                     <span className="k">Costo carta</span><span style={{textAlign:"right"}}>{eur(s.costoCarta)}</span>
                     <span className="k">Costo stampa {s.grande?"(a mq)":"(a passaggio)"}</span><span style={{textAlign:"right"}}>{eur(s.costoStampa)}</span>
                   </div>}
@@ -8068,28 +8072,76 @@ function ImballoOrdine({imballi,modiLabel,onClose,onAdd}){
    + download dei file grafici caricati dai clienti. Separato dalle commesse.
    ===================================================================== */
 // ---- ACCOUNT KOMUNIGO (clienti registrati sul negozio) -> collega ad anagrafica + B2B ----
+// editor fido / pagamento differito di un singolo account (riga espandibile)
+function FidoEditorKomunigo({a, esposizione, onSalva}){
+  const [dif,setDif]=useState(!!a.pagamento_differito);
+  const [fido,setFido]=useState(a.fido_massimo!=null?String(a.fido_massimo):"0");
+  const [gg,setGg]=useState(a.giorni_pagamento||30);
+  const [busy,setBusy]=useState(false);
+  useEffect(()=>{ setDif(!!a.pagamento_differito); setFido(a.fido_massimo!=null?String(a.fido_massimo):"0"); setGg(a.giorni_pagamento||30); },[a.id]);
+  const fidoN=Number(fido)||0;
+  const perc=fidoN>0? Math.min(100, Math.round(esposizione/fidoN*100)) : 0;
+  const sfora=dif && fidoN>0 && esposizione>fidoN;
+  return (
+    <div style={{background:"var(--bg-soft,#f7f8fa)",borderRadius:10,padding:"14px 16px",margin:"4px 0"}}>
+      <div style={{display:"flex",gap:20,flexWrap:"wrap",alignItems:"flex-end"}}>
+        <label style={{display:"flex",gap:8,alignItems:"center",fontWeight:600}}>
+          <input type="checkbox" checked={dif} onChange={e=>setDif(e.target.checked)}/> Pagamento differito (conto aperto)
+        </label>
+        {dif && <>
+          <div className="field" style={{maxWidth:150}}><label>Fido massimo €</label>
+            <input type="number" step="0.01" min="0" value={fido} onChange={e=>setFido(e.target.value)}/></div>
+          <div className="field" style={{maxWidth:120}}><label>Giorni</label>
+            <select value={gg} onChange={e=>setGg(Number(e.target.value))}>
+              <option value={30}>30 gg</option><option value={60}>60 gg</option><option value={90}>90 gg</option>
+            </select></div>
+        </>}
+        <button className="btn small" disabled={busy} onClick={async()=>{ setBusy(true); await onSalva({pagamento_differito:dif, fido_massimo:fidoN, giorni_pagamento:gg}); setBusy(false); }}>{busy?"…":"Salva fido"}</button>
+      </div>
+      {dif && <div style={{marginTop:10,fontSize:13}}>
+        <span className="muted">Utilizzo: </span><b>{eur(esposizione)}</b> <span className="muted">su {eur(fidoN)} di fido</span>
+        <div style={{height:8,background:"var(--line,#e3e3e3)",borderRadius:5,overflow:"hidden",maxWidth:320,marginTop:4}}>
+          <div style={{height:"100%",width:perc+"%",background:sfora?"#c0392b":"#1e7d34"}}/></div>
+        {sfora && <div style={{color:"#c0392b",fontWeight:600,marginTop:4}}>⚠️ Fido superato di {eur(esposizione-fidoN)} — il negozio avvisa ma consente comunque l'ordine.</div>}
+      </div>}
+      <div className="muted" style={{fontSize:11,marginTop:8}}>Il tetto del fido lo decidi tu (es. in base alla copertura dell'assicurazione sul credito). L'ordine a conto aperto parte subito in produzione; l'incasso lo confermi a fattura scaduta in «Ordini Komunigo».</div>
+    </div>
+  );
+}
 function ModuloAccountKomunigo({profilo,perm}){
   const [acc,setAcc]=useState(null);
   const [clienti,setClienti]=useState([]);
+  const [ordini,setOrdini]=useState([]);
   const [err,setErr]=useState("");
   const [msg,setMsg]=useState("");
   const [cerca,setCerca]=useState("");
+  const [aperto,setAperto]=useState(null); // account id espanso
   const carica=useCallback(async()=>{
     setErr("");
-    const [a,c]=await Promise.all([
+    const [a,c,o]=await Promise.all([
       sb.from("komunigo_account").select("*").order("creato_il",{ascending:false}),
       sb.from("clienti").select("id,ragione_sociale,sconto_pct,categoria").order("ragione_sociale"),
+      sb.from("komunigo_ordini").select("account_id,totale,pagamento_metodo,pagamento_stato"),
     ]);
     if(a.error){ setErr(a.error.message); setAcc([]); return; }
-    setAcc(a.data||[]); setClienti(c.data||[]);
+    setAcc(a.data||[]); setClienti(c.data||[]); setOrdini(o.data||[]);
   },[]);
   useEffect(()=>{ carica(); },[carica]);
   const cliMap={}; clienti.forEach(c=>cliMap[c.id]=c);
-  // sconto standard mostrato: sconto del cliente, oppure "rivenditori" se categoria Rivenditore
   const scontoStd=(cli)=> !cli? 0 : (cli.sconto_pct!=null&&cli.sconto_pct!==""? Number(cli.sconto_pct) : (cli.categoria==="Rivenditore"? "riv." : 0));
-  async function salva(a, patch){
+  // esposizione = somma ordini differiti NON ancora saldati del cliente
+  const esposizione=(accId)=> (ordini||[]).filter(o=>o.account_id===accId && o.pagamento_metodo==="differito" && !["pagato","annullato"].includes(o.pagamento_stato)).reduce((s,o)=>s+(Number(o.totale)||0),0);
+  // salva i campi sensibili SOLO via RPC (il cliente non può toccarli)
+  async function salvaB2b(a, patch){
     setErr(""); setMsg("");
-    const {error}=await sb.from("komunigo_account").update(patch).eq("id",a.id);
+    const {error}=await sb.rpc("komunigo_account_set_b2b",{
+      p_id:a.id,
+      p_cliente_id:('cliente_id' in patch? patch.cliente_id : a.cliente_id)||null,
+      p_stato:('stato' in patch? patch.stato : a.stato),
+      p_differito:('pagamento_differito' in patch? patch.pagamento_differito : a.pagamento_differito),
+      p_fido:('fido_massimo' in patch? patch.fido_massimo : a.fido_massimo),
+      p_giorni:('giorni_pagamento' in patch? patch.giorni_pagamento : a.giorni_pagamento),
+    });
     if(error){ setErr(error.message); return; }
     setMsg("Salvato ✓"); await carica();
   }
@@ -8102,7 +8154,7 @@ function ModuloAccountKomunigo({profilo,perm}){
       <div className="content">
         {err && <div className="banner err">{err}</div>}
         {msg && <div className="banner info">{msg}</div>}
-        <div className="banner info">Clienti registrati sul <b>negozio Komunigo</b>. Collega un account all'<b>anagrafica cliente</b> e mettilo su <b>B2B</b> per applicargli in automatico il suo <b>sconto</b> (listino unico + sconto del cliente) anche nel negozio online.</div>
+        <div className="banner info">Clienti registrati sul <b>negozio Komunigo</b>. Collega un account all'<b>anagrafica cliente</b> e mettilo su <b>B2B</b> per applicargli il suo <b>sconto</b>; con <b>⚙️ Fido</b> attivi il <b>pagamento differito</b> (conto aperto a X giorni) e il tetto di credito.</div>
         <div className="toolbar">
           <div className="search"><span className="mag">🔍</span><input placeholder="Cerca nome, email, azienda…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
           <span className="muted">{lista.length} account</span>
@@ -8111,29 +8163,38 @@ function ModuloAccountKomunigo({profilo,perm}){
          : lista.length===0? <div className="card empty">Nessun account registrato dal negozio.</div>
          : <div className="card" style={{overflow:"auto"}}>
             <table>
-              <thead><tr><th>Cliente</th><th>Contatti</th><th>Anagrafica collegata</th><th>Stato</th><th>Sconto B2B</th></tr></thead>
-              <tbody>{lista.map(a=>{ const cli=cliMap[a.cliente_id]; const s=scontoStd(cli); return (
-                <tr key={a.id}>
+              <thead><tr><th>Cliente</th><th>Contatti</th><th>Anagrafica collegata</th><th>Stato</th><th>Sconto B2B</th><th>Conto aperto</th></tr></thead>
+              <tbody>{lista.map(a=>{ const cli=cliMap[a.cliente_id]; const s=scontoStd(cli); const esp=esposizione(a.id); const espanso=aperto===a.id; return (
+                <React.Fragment key={a.id}>
+                <tr>
                   <td className="rs">{a.ragione_sociale||a.nome||"—"}
                     {a.azienda&&a.azienda!==a.ragione_sociale?<div className="muted" style={{fontSize:12}}>{a.azienda}</div>:null}
                     <div className="muted" style={{fontSize:11}}>{a.tipo_cliente==="azienda"?"Azienda":"Privato"}{a.partita_iva?" · P.IVA "+a.partita_iva:""}</div></td>
                   <td className="muted" style={{fontSize:13}}>{a.email}<div>{a.telefono}</div></td>
                   <td>{perm.scrivi
-                    ? <select value={a.cliente_id||""} onChange={e=>salva(a,{cliente_id:e.target.value||null})} style={{maxWidth:230}}>
+                    ? <select value={a.cliente_id||""} onChange={e=>salvaB2b(a,{cliente_id:e.target.value||null})} style={{maxWidth:230}}>
                         <option value="">— non collegato —</option>
                         {clienti.map(c=><option key={c.id} value={c.id}>{c.ragione_sociale}</option>)}
                       </select>
                     : (cli? cli.ragione_sociale : "—")}</td>
                   <td>{perm.scrivi
-                    ? <select value={a.stato} onChange={e=>salva(a,{stato:e.target.value})}>{STATI.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</select>
+                    ? <select value={a.stato} onChange={e=>salvaB2b(a,{stato:e.target.value})}>{STATI.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</select>
                     : a.stato}</td>
                   <td>{a.stato==="b2b" && cli
                     ? <b style={{color:"var(--brand-d)"}}>{s==="riv."?"rivenditori":("−"+s+"%")}</b>
                     : <span className="muted">{a.stato==="b2b"?"collega un cliente":"—"}</span>}</td>
-                </tr>); })}</tbody>
+                  <td>{a.pagamento_differito
+                    ? <span className="tag" style={{background:esp>Number(a.fido_massimo||0)&&Number(a.fido_massimo)>0?"#fde8e8":"#e6f4ea",color:esp>Number(a.fido_massimo||0)&&Number(a.fido_massimo)>0?"#c0392b":"#1e7d34"}}>{eur(esp)}/{eur(a.fido_massimo)} · {a.giorni_pagamento}gg</span>
+                    : <span className="muted">no</span>}
+                    {perm.scrivi && <button className="btn small ghost" style={{marginLeft:8}} onClick={()=>setAperto(espanso?null:a.id)}>{espanso?"chiudi":"⚙️ Fido"}</button>}</td>
+                </tr>
+                {espanso && perm.scrivi && <tr><td colSpan={6} style={{padding:0}}>
+                  <FidoEditorKomunigo a={a} esposizione={esp} onSalva={(patch)=>salvaB2b(a,patch)}/>
+                </td></tr>}
+                </React.Fragment>); })}</tbody>
             </table>
           </div>}
-        <div className="muted" style={{fontSize:12,marginTop:10}}>Lo sconto nel negozio segue le regole dell'anagrafica: <b>eccezione per categoria articolo → sconto standard del cliente → sconto rivenditori</b>. Vale su prodotti a magazzino e configuratori. Attivo solo con stato <b>B2B</b> e cliente collegato.</div>
+        <div className="muted" style={{fontSize:12,marginTop:10}}>Lo sconto segue le regole dell'anagrafica (eccezione categoria → sconto cliente → rivenditori), su magazzino e configuratori, solo con stato <b>B2B</b> e cliente collegato. Il <b>conto aperto</b> fa partire l'ordine senza pagamento anticipato: l'incasso lo confermi a scadenza in «Ordini Komunigo».</div>
       </div>
     </>
   );
@@ -8967,18 +9028,18 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
 
           <div className="section">
             <h3>{gadget?"Colori disponibili":stampa?"Carta (formati d'acquisto)":"Varianti (materiale + spessore)"}</h3>
-            <div className="muted" style={{fontSize:12,marginBottom:8}}>{gadget?"Es. Bianco, Nero, Blu… ogni colore col suo costo per pezzo (o articolo di magazzino).":stampa?"Es. Patinata 300g 70×100, Uso mano 100×140… ogni carta col suo formato d'acquisto (cm) e costo a foglio (o articolo di magazzino).":"Es. Forex 3mm, Forex 5mm, Alluminio 3mm… ognuna col suo costo materiale (€/"+f.unita_calcolo+")."}</div>
+            <div className="muted" style={{fontSize:12,marginBottom:8}}>{gadget?"Es. Bianco, Nero, Blu… ogni colore col suo costo per pezzo (o articolo di magazzino).":stampa?"Es. Patinata 300g 700×1000, Uso mano 1000×1400… ogni carta col suo formato d'acquisto (mm) e costo a foglio (o articolo di magazzino).":"Es. Forex 3mm, Forex 5mm, Alluminio 3mm… ognuna col suo costo materiale (€/"+f.unita_calcolo+")."}</div>
             {varianti.map((v,i)=>{
               const artSel=(articoli||[]).find(a=>a.id===v.articolo_id)||null;
               const agganciato=!!v.articolo_id;
               return <div className="subrow" key={i}>
                 <div className="row">
                   <div className="field" style={{flex:2}}><label>{gadget?"Colore":stampa?"Nome carta":"Nome variante"}</label>
-                    <input value={v.nome} onChange={e=>setVar(i,"nome",e.target.value)} placeholder={gadget?"es. Bianco":stampa?"es. Patinata 300g 70×100":"es. Forex 3mm"}/></div>
-                  {stampa && <><div className="field" style={{maxWidth:110}}><label>Foglio L (cm)</label>
-                    <input type="number" step="0.1" value={v.foglio_l_cm} onChange={e=>setVar(i,"foglio_l_cm",e.target.value)} placeholder="70"/></div>
-                  <div className="field" style={{maxWidth:110}}><label>Foglio H (cm)</label>
-                    <input type="number" step="0.1" value={v.foglio_h_cm} onChange={e=>setVar(i,"foglio_h_cm",e.target.value)} placeholder="100"/></div></>}
+                    <input value={v.nome} onChange={e=>setVar(i,"nome",e.target.value)} placeholder={gadget?"es. Bianco":stampa?"es. Patinata 300g":"es. Forex 3mm"}/></div>
+                  {stampa && <><div className="field" style={{maxWidth:120}}><label>Foglio L (mm)</label>
+                    <input type="number" step="1" value={v.foglio_l_cm===""||v.foglio_l_cm==null?"":Math.round(Number(v.foglio_l_cm)*10*100)/100} onChange={e=>setVar(i,"foglio_l_cm",e.target.value===""?"":Number(e.target.value)/10)} placeholder="700"/></div>
+                  <div className="field" style={{maxWidth:120}}><label>Foglio H (mm)</label>
+                    <input type="number" step="1" value={v.foglio_h_cm===""||v.foglio_h_cm==null?"":Math.round(Number(v.foglio_h_cm)*10*100)/100} onChange={e=>setVar(i,"foglio_h_cm",e.target.value===""?"":Number(e.target.value)/10)} placeholder="1000"/></div></>}
                   {!gadget && !stampa && <div className="field" style={{maxWidth:110}}><label>Spessore mm</label>
                     <input type="number" step="0.1" value={v.spessore} onChange={e=>setVar(i,"spessore",e.target.value)}/></div>}
                   {!gadget && <div className="field" style={{maxWidth:100}}><label>Sfrido %</label>
@@ -9065,10 +9126,10 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
             <h3>🛒 Vendita online (negozio Komunigo)</h3>
             <div className="muted" style={{fontSize:12,marginBottom:8}}>Cosa vede e sceglie il cliente sul sito. Il prezzo viene mostrato senza dati interni (fogli, formati macchina, costi).</div>
             <div className="row">
-              {!gadget && <><div className="field" style={{maxWidth:170}}><label>Misura min (cm/lato)</label>
-                <input type="number" step="0.1" value={f.shop_mis_min} onChange={e=>set("shop_mis_min",e.target.value)} placeholder="0 = nessun limite"/></div>
-              <div className="field" style={{maxWidth:170}}><label>Misura max (cm/lato)</label>
-                <input type="number" step="0.1" value={f.shop_mis_max} onChange={e=>set("shop_mis_max",e.target.value)} placeholder="0 = nessun limite"/></div></>}
+              {!gadget && <><div className="field" style={{maxWidth:180}}><label>Misura min (mm/lato)</label>
+                <input type="number" step="1" value={f.shop_mis_min===""||f.shop_mis_min==null?"":Math.round(Number(f.shop_mis_min)*10*100)/100} onChange={e=>set("shop_mis_min",e.target.value===""?"":Number(e.target.value)/10)} placeholder="0 = nessun limite"/></div>
+              <div className="field" style={{maxWidth:180}}><label>Misura max (mm/lato)</label>
+                <input type="number" step="1" value={f.shop_mis_max===""||f.shop_mis_max==null?"":Math.round(Number(f.shop_mis_max)*10*100)/100} onChange={e=>set("shop_mis_max",e.target.value===""?"":Number(e.target.value)/10)} placeholder="0 = nessun limite"/></div></>}
               <div className="field" style={{flex:1,minWidth:220}}><label>Quantità vendibili (scaglioni)</label>
                 <input value={f.shop_quantita} onChange={e=>set("shop_quantita",e.target.value)} placeholder="es. 100, 250, 500, 1000 — vuoto = quantità libera"/></div>
             </div>

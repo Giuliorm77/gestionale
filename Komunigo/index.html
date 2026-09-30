@@ -710,13 +710,14 @@ function Configuratore({prod,chiudi,addCart}){
   const gadget = prod.tipo==="gadget";
   const isStampa = prod.tipo==="stampa";
   const shopQta = Array.isArray(prod.shop_quantita)? prod.shop_quantita.map(n=>Number(n)).filter(n=>n>0) : [];
-  const misMin = Number(prod.shop_mis_min)||0, misMax = Number(prod.shop_mis_max)||0;
+  const misMin = Number(prod.shop_mis_min)||0, misMax = Number(prod.shop_mis_max)||0;   // cm (dal DB)
+  const misMinMm = misMin*10, misMaxMm = misMax*10;                                     // mm (per l'utente)
   const [varianti,setVarianti]=useState([]);
   const [voci,setVoci]=useState([]);
   const [stampe,setStampe]=useState([]);
   const [stSel,setStSel]=useState({});   // {stampa_id: n_colori}
   const [variante,setVariante]=useState("");
-  const [larg,setLarg]=useState(isStampa?8.5:100), [alt,setAlt]=useState(isStampa?5.5:70), [qta,setQta]=useState(shopQta.length?shopQta[0]:(gadget?(Number(prod.minimo)||1):isStampa?100:1));
+  const [larg,setLarg]=useState(isStampa?85:1000), [alt,setAlt]=useState(isStampa?55:700), [qta,setQta]=useState(shopQta.length?shopQta[0]:(gadget?(Number(prod.minimo)||1):isStampa?100:1));
   const [opzioni,setOpzioni]=useState({});
   const [stMacchina,setStMacchina]=useState("piccolo"), [stFmt,setStFmt]=useState("auto"), [stColore,setStColore]=useState(true), [stFr,setStFr]=useState(false);
   const [prezzo,setPrezzo]=useState(null);
@@ -739,7 +740,7 @@ function Configuratore({prod,chiudi,addCart}){
     try{
       const body = gadget
         ? { prodotto_id:prod.id, variante_id:variante, quantita:Number(qta), stampe:stArr() }
-        : { prodotto_id:prod.id, variante_id:variante, larghezza_cm:Number(larg), altezza_cm:Number(alt), quantita:Number(qta), opzioni:Object.keys(opzioni).filter(k=>opzioni[k]),
+        : { prodotto_id:prod.id, variante_id:variante, larghezza_cm:Number(larg)/10, altezza_cm:Number(alt)/10, quantita:Number(qta), opzioni:Object.keys(opzioni).filter(k=>opzioni[k]),
             ...(isStampa?{st_macchina:stMacchina, st_fmt:stFmt, st_colore:stColore, st_fr:stFr}:{}) };
       const {data,error}=await sb.functions.invoke("hyper-endpoint",{body});
       if(error) throw error;
@@ -755,13 +756,13 @@ function Configuratore({prod,chiudi,addCart}){
     const va=varianti.find(x=>x.id===variante);
     const config = gadget
       ? {variante_id:variante, quantita:Number(qta), stampe:stArr()}
-      : {variante_id:variante, larghezza_cm:Number(larg), altezza_cm:Number(alt), opzioni:Object.keys(opzioni).filter(k=>opzioni[k]),
+      : {variante_id:variante, larghezza_cm:Number(larg)/10, altezza_cm:Number(alt)/10, opzioni:Object.keys(opzioni).filter(k=>opzioni[k]),
          ...(isStampa?{st_macchina:stMacchina, st_fmt:stFmt, st_colore:stColore, st_fr:stFr}:{})};
     const descr = gadget
       ? prod.nome+(va?" · "+va.nome:"")+` · ${qta} pz`
       : isStampa
-        ? prod.nome+(va?" · "+va.nome:"")+` · ${larg}×${alt}cm · ${qta} pz`
-        : prod.nome+(va?" · "+va.nome:"")+` · ${larg}×${alt}cm`;
+        ? prod.nome+(va?" · "+va.nome:"")+` · ${larg}×${alt}mm · ${qta} pz`
+        : prod.nome+(va?" · "+va.nome:"")+` · ${larg}×${alt}mm`;
     addCart({ tipo:"configurabile", prodotto_config_id:prod.id, descrizione:descr, config,
       quantita:Number(qta), prezzo_unitario:Number(prezzo.prezzo_unitario)||0, prezzo_totale:Number(prezzo.prezzo_totale)||0});
     chiudi();
@@ -778,12 +779,12 @@ function Configuratore({prod,chiudi,addCart}){
               {varianti.map(v=><option key={v.id} value={v.id}>{v.nome}{(!gadget&&!isStampa&&v.spessore)?` (${v.spessore}mm)`:""}</option>)}
             </select></>}
           {!gadget && <><div className="two">
-            <div><label className="fld">{isStampa?"Larghezza pezzo (cm)":"Larghezza (cm)"}</label>
-              <input type="number" step="0.1" value={larg} min={misMin||0.1} max={misMax||undefined} onChange={e=>{setLarg(e.target.value);setPrezzo(null);}}/></div>
-            <div><label className="fld">{isStampa?"Altezza pezzo (cm)":"Altezza (cm)"}</label>
-              <input type="number" step="0.1" value={alt} min={misMin||0.1} max={misMax||undefined} onChange={e=>{setAlt(e.target.value);setPrezzo(null);}}/></div>
+            <div><label className="fld">{isStampa?"Larghezza pezzo (mm)":"Larghezza (mm)"}</label>
+              <input type="number" step="1" value={larg} min={misMinMm||1} max={misMaxMm||undefined} onChange={e=>{setLarg(e.target.value);setPrezzo(null);}}/></div>
+            <div><label className="fld">{isStampa?"Altezza pezzo (mm)":"Altezza (mm)"}</label>
+              <input type="number" step="1" value={alt} min={misMinMm||1} max={misMaxMm||undefined} onChange={e=>{setAlt(e.target.value);setPrezzo(null);}}/></div>
           </div>
-          {(misMin>0||misMax>0) && <div className="muted" style={{fontSize:12}}>Misura {misMin>0?`da ${misMin}`:""}{misMax>0?` fino a ${misMax}`:""} cm per lato.</div>}</>}
+          {(misMin>0||misMax>0) && <div className="muted" style={{fontSize:12}}>Misura {misMinMm>0?`da ${misMinMm}`:""}{misMaxMm>0?` fino a ${misMaxMm}`:""} mm per lato.</div>}</>}
           <label className="fld">Quantità{gadget&&prod.minimo?` · minimo ${prod.minimo}`:""}</label>
           {shopQta.length
             ? <select value={qta} onChange={e=>{setQta(e.target.value);setPrezzo(null);}}>
@@ -849,6 +850,7 @@ function Carrello({cart,delCart,vaiCatalogo,onOrdineCreato,account,profilo}){
   const [spedSel,setSpedSel]=useState("");
   const [pagOpts,setPagOpts]=useState(null);
   const [pagSel,setPagSel]=useState("");
+  const [espos,setEspos]=useState(0);   // esposizione differita già in corso del cliente
   const [cli,setCli]=useState(()=>{
     const a=account;
     const addr = a ? (a.consegna_uguale===false
@@ -866,6 +868,13 @@ function Carrello({cart,delCart,vaiCatalogo,onOrdineCreato,account,profilo}){
       const po=p.data||[]; setPagOpts(po); if(po.length) setPagSel(po[0].metodo);
     }catch(e){ setSpedOpts([]); setPagOpts([]); }
   })(); },[]);
+  // esposizione differita già in corso (ordini a conto aperto non ancora saldati)
+  useEffect(()=>{ (async()=>{
+    if(!(account && account.pagamento_differito)){ setEspos(0); return; }
+    try{ const {data}=await sb.from("komunigo_ordini").select("totale,pagamento_metodo,pagamento_stato").eq("account_id",account.id);
+      setEspos((data||[]).filter(o=>o.pagamento_metodo==="differito" && !["pagato","annullato"].includes(o.pagamento_stato)).reduce((s,o)=>s+(Number(o.totale)||0),0));
+    }catch(e){ setEspos(0); }
+  })(); },[account]);
 
   const imponibileMerce=cart.reduce((s,r)=>s+(Number(r.prezzo_totale)||0),0);
   const sped=(spedOpts||[]).find(o=>o.id===spedSel)||null;
@@ -878,7 +887,14 @@ function Carrello({cart,delCart,vaiCatalogo,onOrdineCreato,account,profilo}){
   const serveIndirizzo = sped && !sped.ritiro;
   // il "pagamento al ritiro" si offre solo se la consegna è il ritiro in sede
   const pagDisponibili=(pagOpts||[]).filter(p=> p.metodo!=="ritiro" || (sped&&sped.ritiro));
-  const pagOk = pagSel && pagDisponibili.some(p=>p.metodo===pagSel);
+  // conto aperto (pagamento differito): solo per clienti B2B con differito attivo
+  const dif = !!(account && account.pagamento_differito);
+  const fido = Number(account && account.fido_massimo)||0;
+  const ggPag = (account && account.giorni_pagamento)||30;
+  const metodoDifferito = dif ? {metodo:"differito", nome:`Conto aperto — pagamento a ${ggPag} giorni`, descrizione:"Paghi a fattura, senza anticipo"} : null;
+  const metodiMostrati = [...pagDisponibili, ...(metodoDifferito?[metodoDifferito]:[])];
+  const sforaFido = pagSel==="differito" && fido>0 && (espos+totale)>fido;
+  const pagOk = pagSel && metodiMostrati.some(p=>p.metodo===pagSel);
   const puoConfermare = cli.nome.trim() && emailOk && (!serveIndirizzo || cli.indirizzo.trim()) && pagOk;
 
   const conferma=async()=>{
@@ -934,12 +950,13 @@ function Carrello({cart,delCart,vaiCatalogo,onOrdineCreato,account,profilo}){
       <div className="ship" style={{marginTop:16}}>
         <h3 className="ship-h">Pagamento</h3>
         {pagOpts===null? <p className="muted">Carico i metodi di pagamento…</p>
-         : pagDisponibili.length===0? <p className="muted">Nessun metodo di pagamento attivo. (Nel gestionale: Impostazioni → Metodi di pagamento.)</p>
-         : pagDisponibili.map(p=>(
-            <label className={"ship-opt "+(p.metodo===pagSel?"on":"")} key={p.metodo}>
+         : metodiMostrati.length===0? <p className="muted">Nessun metodo di pagamento attivo. (Nel gestionale: Impostazioni → Metodi di pagamento.)</p>
+         : metodiMostrati.map(p=>(
+            <label className={"ship-opt "+(p.metodo===pagSel?"on":"")+(p.metodo==="differito"?" ship-b2b":"")} key={p.metodo}>
               <input type="radio" name="pag" checked={p.metodo===pagSel} onChange={()=>setPagSel(p.metodo)}/>
-              <span className="ship-txt"><b>{p.nome}</b>{p.descrizione?<span className="muted"> — {p.descrizione}</span>:null}</span>
+              <span className="ship-txt"><b>{p.nome}</b>{p.metodo==="differito"?<span className="b2b-badge" style={{marginLeft:8}}>B2B</span>:null}{p.descrizione?<span className="muted"> — {p.descrizione}</span>:null}</span>
             </label>))}
+        {sforaFido && <div className="warn" style={{marginTop:10}}>⚠️ Con questo ordine superi il <b>fido concordato</b> ({eur(espos+totale)} su {eur(fido)}). Puoi comunque procedere: ti contatteremo per l'importo eccedente.</div>}
       </div>
 
       {profilo && profilo.b2b && <div className="b2b-note" style={{marginTop:12}}>🤝 <b>Prezzi riservati B2B applicati.</b> Gli importi vengono ricalcolati con il tuo sconto alla conferma dell'ordine.</div>}
@@ -1052,10 +1069,13 @@ function OrdinePagina({token, vaiCatalogo}){
       {err && <div className="warn" style={{marginBottom:12}}>{err}</div>}
 
       {o.pagamento_metodo && <div className="warn" style={{marginBottom:16, background:pagato?"var(--blu-wash)":"var(--sand-wash)", border:"1px solid "+(pagato?"var(--blu)":"var(--sand)")}}>
-        <b>Pagamento — {pag?pag.nome:o.pagamento_metodo}:</b> {pagato? "✅ ricevuto, grazie!" : "in attesa."}
-        {!pagato && pag && pag.istruzioni && <div style={{whiteSpace:"pre-wrap",marginTop:6,fontSize:13}}>{pag.istruzioni}</div>}
-        {!pagato && (o.pagamento_metodo==="bonifico"||o.pagamento_metodo==="ritiro") &&
-          <div style={{marginTop:6,fontSize:13.5}}>Importo: <b>{eur(o.totale)}</b>{o.pagamento_metodo==="bonifico"?<> · Causale: <b>{o.numero}</b></>:null}</div>}
+        {o.pagamento_metodo==="differito"
+         ? <><b>Pagamento — Conto aperto:</b> {pagato? "✅ saldato, grazie!" : `a ${o.pagamento_giorni||30} giorni dalla fattura.`}
+             {!pagato && <div style={{marginTop:6,fontSize:13.5}}>Importo: <b>{eur(o.totale)}</b> · nessun anticipo richiesto, riceverai fattura. L'ordine è già preso in carico.</div>}</>
+         : <><b>Pagamento — {pag?pag.nome:o.pagamento_metodo}:</b> {pagato? "✅ ricevuto, grazie!" : "in attesa."}
+             {!pagato && pag && pag.istruzioni && <div style={{whiteSpace:"pre-wrap",marginTop:6,fontSize:13}}>{pag.istruzioni}</div>}
+             {!pagato && (o.pagamento_metodo==="bonifico"||o.pagamento_metodo==="ritiro") &&
+               <div style={{marginTop:6,fontSize:13.5}}>Importo: <b>{eur(o.totale)}</b>{o.pagamento_metodo==="bonifico"?<> · Causale: <b>{o.numero}</b></>:null}</div>}</>}
       </div>}
 
       {o.bozza_stato && <div className="warn" style={{marginBottom:16, background:o.bozza_stato==="approvata"?"var(--blu-wash)":"var(--sand-wash)", border:"1px solid "+(o.bozza_stato==="approvata"?"var(--blu)":"var(--sand)")}}>

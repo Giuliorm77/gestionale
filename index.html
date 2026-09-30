@@ -493,7 +493,7 @@ const MODULO_REQ = {
   fornitori:"economici", agenti:"economici", impostazioni:"economici", preventivi:"economici", prodotticfg:"economici",
   imballi:"economici", commesse:"commesse", postazione:"commesse", ordinifor:"economici", trasporti:"economici",
   report:"economici", utenti:"utenti", crm:"crm", agenda:"crm", mezzi:"commesse", ddt:"magazzino",
-  vetrina:"economici", ordinishop:"commesse", qualita:"economici",
+  vetrina:"economici", ordinishop:"commesse", clientikomunigo:"economici", qualita:"economici",
 };
 const PERM_FLAGS = ["scrivi","elimina","economici","fiscali","utenti","commesse","magazzino","crm"];
 // permessi EFFETTIVI = default del ruolo + deroghe per-utente (profiles.permessi)
@@ -533,6 +533,7 @@ const NAV_ITEMS = [
   {m:"trasporti", ico:"🚚", label:"Trasporti"},
   {m:"ddt", ico:"📄", label:"DDT"},
   {m:"ordinishop", ico:"🌐", label:"Ordini Komunigo"},
+  {m:"clientikomunigo", ico:"🤝", label:"Account Komunigo"},
   {m:"report", ico:"📊", label:"Report"},
   {m:"qualita", ico:"✅", label:"Qualità (ISO)"},
   {m:"utenti", ico:"🔑", label:"Utenti & Ruoli"},
@@ -916,6 +917,7 @@ function Gestionale({profilo}){
         {modulo==="prodotticfg" && <ModuloProdottiConfig profilo={profilo} perm={perm}/>}
         {modulo==="vetrina" && <ModuloVetrina profilo={profilo} perm={perm}/>}
         {modulo==="ordinishop" && <ModuloOrdiniShop profilo={profilo} perm={perm}/>}
+        {modulo==="clientikomunigo" && <ModuloAccountKomunigo profilo={profilo} perm={perm}/>}
         {modulo==="imballi" && <ModuloImballi profilo={profilo} perm={perm}/>}
         {modulo==="commesse" && <ModuloCommesse profilo={profilo} perm={perm}/>}
         {modulo==="ddt" && <ModuloDDT profilo={profilo} perm={perm}/>}
@@ -6959,44 +6961,66 @@ function DDTEditor({ddt,commessaId,profilo,perm,onClose,onSalvato}){
   }));
   const [righe,setRighe]=useState(()=> (ddt?.ddt_righe||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0)).map(r=>({...r})) );
   const [dest,setDest]=useState(ddt?.destinatario||{});
+  const [sediCli,setSediCli]=useState([]);           // sedi del cliente scelto
+  const [selSede,setSelSede]=useState("");           // "" = sede principale (righe senza sede)
+  const [autoDest,setAutoDest]=useState({});         // indirizzo della sede principale
+  const [sediInComm,setSediInComm]=useState([]);     // sede_id distinti presenti nella commessa
   const [busy,setBusy]=useState(false);
   const [err,setErr]=useState("");
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
 
+  const autoSede=sedi=>{ const s=(sedi||[]).find(x=>x.tipo==="destinazione_merce")||(sedi||[]).find(x=>x.tipo==="operativa")||(sedi||[]).find(x=>x.tipo==="legale")||(sedi||[])[0]||{}; return {indirizzo:s.indirizzo||"",cap:s.cap||"",citta:s.citta||"",provincia:s.provincia||""}; };
+  const destDaSede=(sede,sedi,auto)=>{ if(!sede) return auto||{}; const s=(sedi||[]).find(x=>x.id===sede); return s?{indirizzo:s.indirizzo||"",cap:s.cap||"",citta:s.citta||"",provincia:s.provincia||""}:(auto||{}); };
+  const res=r=>(Number(r.quantita)||0)-(Number(r.quantita_consegnata)||0);
+
   useEffect(()=>{ (async()=>{
     const [c,co,a]=await Promise.all([
-      sb.from("clienti").select("id,ragione_sociale,partita_iva").order("ragione_sociale"),
-      sb.from("commesse").select("id,numero,cliente_id,cliente_nome, commesse_righe(id,descrizione,articolo_id,quantita,unita,stato,quantita_consegnata)").order("creato_il",{ascending:false}).limit(200),
+      sb.from("clienti").select("id,ragione_sociale,partita_iva, clienti_sedi(*)").order("ragione_sociale"),
+      sb.from("commesse").select("id,numero,cliente_id,cliente_nome, commesse_righe(id,descrizione,articolo_id,quantita,unita,stato,quantita_consegnata,sede_id)").order("creato_il",{ascending:false}).limit(200),
       sb.from("azienda_info").select("*").maybeSingle(),
     ]);
-    setClienti(c.data||[]); const coData=co.data||[]; setCommesse(coData); if(a.data) setAz(a.data);
+    const cData=c.data||[]; setClienti(cData); const coData=co.data||[]; setCommesse(coData); if(a.data) setAz(a.data);
     if(nuovo){ const {data:dd}=await sb.from("ddt").select("numero"); setF(p=>p.numero?p:{...p,numero:prossimoNumeroDDT(dd||[])}); }
-    if(commessaId && nuovo) importaCommessa(commessaId, coData);
+    if(commessaId && nuovo) importaCommessa(commessaId, coData, cData);
   })(); },[]);
 
-  async function pickCliente(id, nome){
+  function pickCliente(id, nome, cliList){
+    const list=cliList||clienti;
     set("cliente_id",id);
-    set("cliente_nome", nome || ((clienti.find(x=>x.id===id)||{}).ragione_sociale) || "");
-    if(id){ const {data}=await sb.from("clienti").select("clienti_sedi(*)").eq("id",id).maybeSingle();
-      const sedi=(data&&data.clienti_sedi)||[];
-      const s=sedi.find(x=>x.tipo==="destinazione_merce")||sedi.find(x=>x.tipo==="operativa")||sedi.find(x=>x.tipo==="legale")||sedi[0]||{};
-      setDest({indirizzo:s.indirizzo||"",cap:s.cap||"",citta:s.citta||"",provincia:s.provincia||""}); }
-    else setDest({});
+    set("cliente_nome", nome || ((list.find(x=>x.id===id)||{}).ragione_sociale) || "");
+    if(id){ const sedi=((list.find(x=>x.id===id)||{}).clienti_sedi)||[];
+      setSediCli(sedi); const auto=autoSede(sedi); setAutoDest(auto); setSelSede(""); setDest(auto); }
+    else { setSediCli([]); setAutoDest({}); setSelSede(""); setDest({}); }
   }
-  function importaCommessa(id, list){
+  function applicaRighe(daSpedire, sede){
+    const perSede=daSpedire.filter(r=>(r.sede_id||"")===sede);
+    let pool=perSede.filter(r=>r.stato==="pronto");   // prima i pronti (spedizione parziale)
+    let msg="";
+    if(!pool.length && perSede.length){ pool=perSede; msg="⚠ Nessun articolo ancora \"pronto\" per questa destinazione: importati tutti quelli da spedire — controlla lo stato prima di emettere."; }
+    if(!pool.length){ setErr("Nessun articolo da spedire per questa destinazione (già consegnati)."); setRighe(p=>p.filter(x=>!x.commessa_riga_id)); return; }
+    setErr(msg);
+    const nuove=pool.map(r=>({descrizione:r.descrizione,articolo_id:r.articolo_id||null,quantita:res(r),unita:r.unita||"",commessa_riga_id:r.id,sede_id:r.sede_id||null,_stato:r.stato}));
+    setRighe(p=>[...p.filter(x=>!x.commessa_riga_id),...nuove]);
+  }
+  function importaCommessa(id, list, cliList){
     set("commessa_id",id);
     const c=(list||commesse).find(x=>x.id===id);
     if(!c) return;
-    if(c.cliente_id) pickCliente(c.cliente_id, c.cliente_nome);
-    const res=r=>(Number(r.quantita)||0)-(Number(r.quantita_consegnata)||0);
+    const sedi=((cliList||clienti).find(x=>x.id===c.cliente_id)||{}).clienti_sedi||[];
+    if(c.cliente_id) pickCliente(c.cliente_id, c.cliente_nome, cliList);
     const daSpedire=(c.commesse_righe||[]).filter(r=>res(r)>0 && r.stato!=="consegnato");
-    let pool=daSpedire.filter(r=>r.stato==="pronto");   // prima i pronti (spedizione parziale)
-    let msg="";
-    if(!pool.length && daSpedire.length){ pool=daSpedire; msg="⚠ Nessun articolo ancora \"pronto\": importati tutti quelli da spedire — controlla lo stato prima di emettere."; }
-    if(!pool.length){ setErr("Questa commessa non ha articoli da spedire (tutti già consegnati)."); setRighe(p=>p.filter(x=>!x.commessa_riga_id)); return; }
-    setErr(msg);
-    const nuove=pool.map(r=>({descrizione:r.descrizione,articolo_id:r.articolo_id||null,quantita:res(r),unita:r.unita||"",commessa_riga_id:r.id,_stato:r.stato}));
-    setRighe(p=>[...p.filter(x=>!x.commessa_riga_id),...nuove]);
+    const presenti=[...new Set(daSpedire.map(r=>r.sede_id||""))];
+    setSediInComm(presenti);
+    const sede=presenti.length?presenti[0]:"";
+    setSelSede(sede);
+    setDest(sede? destDaSede(sede,sedi,autoSede(sedi)) : autoSede(sedi));
+    applicaRighe(daSpedire, sede);
+  }
+  function cambiaSede(sede){
+    setSelSede(sede);
+    setDest(sede? destDaSede(sede,sediCli,autoDest) : autoDest);
+    const c=commesse.find(x=>x.id===f.commessa_id);
+    if(c){ const daSpedire=(c.commesse_righe||[]).filter(r=>res(r)>0 && r.stato!=="consegnato"); applicaRighe(daSpedire, sede); }
   }
   const setRiga=(i,k,v)=>setRighe(p=>p.map((r,j)=>j===i?{...r,[k]:v}:r));
   const addRiga=()=>setRighe(p=>[...p,{descrizione:"",articolo_id:null,quantita:1,unita:""}]);
@@ -7065,7 +7089,13 @@ function DDTEditor({ddt,commessaId,profilo,perm,onClose,onSalvato}){
             <div className="field"><label>Cliente</label>
               <select value={f.cliente_id} onChange={e=>pickCliente(e.target.value)}>
                 <option value="">— scegli —</option>{clienti.map(c=><option key={c.id} value={c.id}>{c.ragione_sociale}</option>)}</select></div>
+            {f.cliente_id && sediCli.length>0 && <div className="field" style={{maxWidth:460}}><label>Sede di consegna</label>
+              <select value={selSede} onChange={e=>cambiaSede(e.target.value)}>
+                <option value="">Sede principale{[autoDest.citta,autoDest.indirizzo].filter(Boolean).length?" · "+[autoDest.citta,autoDest.indirizzo].filter(Boolean).join(" "):""}</option>
+                {sediCli.map(s=><option key={s.id} value={s.id}>{((TIPI_SEDE.find(t=>t.v===s.tipo)||{}).label||s.tipo)+((s.citta||s.indirizzo)?" · "+[s.citta,s.indirizzo].filter(Boolean).join(" "):"")}</option>)}
+              </select></div>}
             {f.cliente_id && <div className="muted" style={{fontSize:13}}>Consegna a: {[dest.indirizzo,dest.cap,dest.citta,dest.provincia&&"("+dest.provincia+")"].filter(Boolean).join(" ")||"— nessuna sede consegna in anagrafica —"}</div>}
+            {sediInComm.length>1 && <div className="banner info" style={{marginTop:8,fontSize:12.5}}>Questa commessa ha righe per <b>{sediInComm.length} destinazioni</b> diverse: genera <b>un DDT per ciascuna</b> cambiando la “Sede di consegna” qui sopra. Ora stai spedendo gli articoli della sede selezionata.</div>}
           </div>
           <div className="section">
             <h3>Trasporto</h3>
@@ -7909,6 +7939,78 @@ function ImballoOrdine({imballi,modiLabel,onClose,onAdd}){
    ORDINI KOMUNIGO (e-commerce) — pannello staff: ordini dal negozio online
    + download dei file grafici caricati dai clienti. Separato dalle commesse.
    ===================================================================== */
+// ---- ACCOUNT KOMUNIGO (clienti registrati sul negozio) -> collega ad anagrafica + B2B ----
+function ModuloAccountKomunigo({profilo,perm}){
+  const [acc,setAcc]=useState(null);
+  const [clienti,setClienti]=useState([]);
+  const [err,setErr]=useState("");
+  const [msg,setMsg]=useState("");
+  const [cerca,setCerca]=useState("");
+  const carica=useCallback(async()=>{
+    setErr("");
+    const [a,c]=await Promise.all([
+      sb.from("komunigo_account").select("*").order("creato_il",{ascending:false}),
+      sb.from("clienti").select("id,ragione_sociale,sconto_pct,categoria").order("ragione_sociale"),
+    ]);
+    if(a.error){ setErr(a.error.message); setAcc([]); return; }
+    setAcc(a.data||[]); setClienti(c.data||[]);
+  },[]);
+  useEffect(()=>{ carica(); },[carica]);
+  const cliMap={}; clienti.forEach(c=>cliMap[c.id]=c);
+  // sconto standard mostrato: sconto del cliente, oppure "rivenditori" se categoria Rivenditore
+  const scontoStd=(cli)=> !cli? 0 : (cli.sconto_pct!=null&&cli.sconto_pct!==""? Number(cli.sconto_pct) : (cli.categoria==="Rivenditore"? "riv." : 0));
+  async function salva(a, patch){
+    setErr(""); setMsg("");
+    const {error}=await sb.from("komunigo_account").update(patch).eq("id",a.id);
+    if(error){ setErr(error.message); return; }
+    setMsg("Salvato ✓"); await carica();
+  }
+  const STATI=[["nuovo","Nuovo"],["attivo","Attivo"],["b2b","B2B (prezzi riservati)"],["sospeso","Sospeso"]];
+  const q=cerca.trim().toLowerCase();
+  const lista=(acc||[]).filter(a=>!q || [a.nome,a.email,a.ragione_sociale,a.azienda].join(" ").toLowerCase().includes(q));
+  return (
+    <>
+      <div className="topbar"><h1>🤝 Account Komunigo</h1></div>
+      <div className="content">
+        {err && <div className="banner err">{err}</div>}
+        {msg && <div className="banner info">{msg}</div>}
+        <div className="banner info">Clienti registrati sul <b>negozio Komunigo</b>. Collega un account all'<b>anagrafica cliente</b> e mettilo su <b>B2B</b> per applicargli in automatico il suo <b>sconto</b> (listino unico + sconto del cliente) anche nel negozio online.</div>
+        <div className="toolbar">
+          <div className="search"><span className="mag">🔍</span><input placeholder="Cerca nome, email, azienda…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
+          <span className="muted">{lista.length} account</span>
+        </div>
+        {acc===null? <div className="empty">Caricamento…</div>
+         : lista.length===0? <div className="card empty">Nessun account registrato dal negozio.</div>
+         : <div className="card" style={{overflow:"auto"}}>
+            <table>
+              <thead><tr><th>Cliente</th><th>Contatti</th><th>Anagrafica collegata</th><th>Stato</th><th>Sconto B2B</th></tr></thead>
+              <tbody>{lista.map(a=>{ const cli=cliMap[a.cliente_id]; const s=scontoStd(cli); return (
+                <tr key={a.id}>
+                  <td className="rs">{a.ragione_sociale||a.nome||"—"}
+                    {a.azienda&&a.azienda!==a.ragione_sociale?<div className="muted" style={{fontSize:12}}>{a.azienda}</div>:null}
+                    <div className="muted" style={{fontSize:11}}>{a.tipo_cliente==="azienda"?"Azienda":"Privato"}{a.partita_iva?" · P.IVA "+a.partita_iva:""}</div></td>
+                  <td className="muted" style={{fontSize:13}}>{a.email}<div>{a.telefono}</div></td>
+                  <td>{perm.scrivi
+                    ? <select value={a.cliente_id||""} onChange={e=>salva(a,{cliente_id:e.target.value||null})} style={{maxWidth:230}}>
+                        <option value="">— non collegato —</option>
+                        {clienti.map(c=><option key={c.id} value={c.id}>{c.ragione_sociale}</option>)}
+                      </select>
+                    : (cli? cli.ragione_sociale : "—")}</td>
+                  <td>{perm.scrivi
+                    ? <select value={a.stato} onChange={e=>salva(a,{stato:e.target.value})}>{STATI.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</select>
+                    : a.stato}</td>
+                  <td>{a.stato==="b2b" && cli
+                    ? <b style={{color:"var(--brand-d)"}}>{s==="riv."?"rivenditori":("−"+s+"%")}</b>
+                    : <span className="muted">{a.stato==="b2b"?"collega un cliente":"—"}</span>}</td>
+                </tr>); })}</tbody>
+            </table>
+          </div>}
+        <div className="muted" style={{fontSize:12,marginTop:10}}>Lo sconto nel negozio segue le regole dell'anagrafica: <b>eccezione per categoria articolo → sconto standard del cliente → sconto rivenditori</b>. Vale su prodotti a magazzino e configuratori. Attivo solo con stato <b>B2B</b> e cliente collegato.</div>
+      </div>
+    </>
+  );
+}
+
 function ModuloOrdiniShop({profilo,perm}){
   const [ordini,setOrdini]=useState(null);
   const [righe,setRighe]=useState([]);
@@ -9191,6 +9293,15 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const [interventi,setInterventi]=useState([]);
   const [intEditor,setIntEditor]=useState(null);
   const [persi,setPersi]=useState([]);
+  // sedi del cliente (per destinazione riga: ordine unico consegnato a più sedi)
+  const [sediCli,setSediCli]=useState([]);
+  useEffect(()=>{ let vivo=true; (async()=>{
+    if(!f.cliente_id){ setSediCli([]); return; }
+    const {data}=await sb.from("clienti").select("clienti_sedi(*)").eq("id",f.cliente_id).maybeSingle();
+    if(vivo) setSediCli((data&&data.clienti_sedi)||[]);
+  })(); return ()=>{vivo=false;}; },[f.cliente_id]);
+  const hasSedi = sediCli.length>1;
+  const sedeLabel=s=>{ const t=(TIPI_SEDE.find(x=>x.v===s.tipo)||{}); return (t.ico?t.ico+" ":"")+(t.label||s.tipo)+((s.citta||s.indirizzo)?" · "+[s.citta,s.indirizzo].filter(Boolean).join(" "):""); };
   const caricaInterventi=useCallback(async()=>{
     if(!commessa?.id){ setInterventi([]); return; }
     const {data}=await sb.from("interventi").select("*, interventi_righe(*)").eq("commessa_id",commessa.id).order("creato_il");
@@ -9468,7 +9579,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         data_consegna:r.data_consegna||null, stato:r.stato||"da_produrre", note:r.note||"", config:r.config||null,
         imballo_id:null, imballo_ids:(Array.isArray(r.imballo_ids)&&r.imballo_ids.length? r.imballo_ids : (r.imballo_id?[r.imballo_id]:[])),
         imballo_pluriball:r.imballo_pluriball||null, imballo_costo:Math.round(costoImballoRiga(r)*100)/100,
-        modalita_consegna:r.modalita_consegna||"corriere", evasione:r.evasione||"interna"}));
+        modalita_consegna:r.modalita_consegna||"corriere", evasione:r.evasione||"interna", sede_id:r.sede_id||null}));
       if(rowsR.length){ const {error}=await sb.from("commesse_righe").insert(rowsR); if(error) throw error; }
       try{ await sb.rpc("ricalcola_impegni"); }catch(e){}
       onSalvato();
@@ -9634,11 +9745,12 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               <table>
                 <thead><tr>
                   <th>Descrizione</th><th style={{width:80}}>Q.tà</th><th style={{width:80}}>Unità</th>
+                  {hasSedi && <th style={{width:170}}>Destinazione</th>}
                   {perm.economici && <th style={{width:200}}>Imballo</th>}
                   <th style={{width:170}}>Data consegna *</th><th style={{width:150}}>Stato</th><th style={{width:150}}>Consegna</th><th style={{width:160}}>Evasione</th><th></th>
                 </tr></thead>
                 <tbody>
-                  {righe.length===0 && <tr><td colSpan={perm.economici?9:8} className="muted" style={{padding:14}}>Nessun articolo. Di solito arrivano dal preventivo; puoi aggiungerne con “+ Aggiungi articolo”.</td></tr>}
+                  {righe.length===0 && <tr><td colSpan={(perm.economici?9:8)+(hasSedi?1:0)} className="muted" style={{padding:14}}>Nessun articolo. Di solito arrivano dal preventivo; puoi aggiungerne con “+ Aggiungi articolo”.</td></tr>}
                   {righe.map((r,i)=>{
                     if(filtroConsegna && (r.modalita_consegna||"corriere")!==filtroConsegna) return null;
                     const st=STATI_RIGA_COMMESSA[r.stato]||STATI_RIGA_COMMESSA.da_produrre;
@@ -9651,6 +9763,11 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                         style={{width:72,padding:"6px",border:"1px solid var(--line)",borderRadius:7,textAlign:"right"}}/></td>
                       <td><input value={r.unita||""} onChange={e=>setRiga(i,"unita",e.target.value)}
                         style={{width:72,padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></td>
+                      {hasSedi && <td><select value={r.sede_id||""} onChange={e=>setRiga(i,"sede_id",e.target.value||null)}
+                        style={{width:"100%",padding:"6px",borderRadius:7,border:"1px solid var(--line)",fontSize:12}}>
+                        <option value="">Sede principale</option>
+                        {sediCli.map(s=><option key={s.id} value={s.id}>{sedeLabel(s)}</option>)}
+                      </select></td>}
                       {perm.economici && (()=>{
                         const sel=imballiSelC(r);
                         return <td>

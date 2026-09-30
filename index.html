@@ -1462,8 +1462,9 @@ function DettaglioLavorazioneOp({commessa,onClose}){
     return ()=>{vivo=false;};
   },[commessa.id]);
   const fmt=d=>d?new Date(d).toLocaleDateString("it-IT"):"—";
-  const mis=r=>{ const m=r&&r.config&&r.config.mis; return m&&(m.L||m.H)?[m.L,m.H].filter(Boolean).join("×")+" cm":""; };
-  const misP=p=>[p.larghezza_cm,p.altezza_cm].filter(v=>v!=null&&v!=="").join("×");
+  const _mm=v=>Math.round(Number(v)*10*100)/100;
+  const mis=r=>{ const m=r&&r.config&&r.config.mis; return m&&(m.L||m.H)?[m.L,m.H].filter(Boolean).map(_mm).join("×")+" mm":""; };
+  const misP=p=>[p.larghezza_cm,p.altezza_cm].filter(v=>v!=null&&v!=="").map(_mm).join("×");
   const STLP={uscito:"in lavorazione",in_magazzino:"a magazzino",consumato:"consumato",perso:"perso"};
   async function stampaScheda(){
     if(!c) return; let az={};
@@ -1507,7 +1508,7 @@ function DettaglioLavorazioneOp({commessa,onClose}){
                     <tbody>{pezzi.map((p,i)=><tr key={i}>
                       <td style={{fontFamily:"monospace",fontWeight:700}}>{p.codice}</td>
                       <td>{p.nome_articolo||"—"}</td>
-                      <td>{misP(p)?misP(p)+" cm":"—"}</td>
+                      <td>{misP(p)?misP(p)+" mm":"—"}</td>
                       <td className="muted">{p.ubicazione||"—"}</td>
                       <td>{STLP[p.stato]||p.stato}</td>
                     </tr>)}</tbody></table></div>}
@@ -4367,7 +4368,7 @@ function ModuloPezzi({profilo,perm}){
   },[pezzi,cerca,fStato]);
 
   const colStato=s=>({in_magazzino:"var(--ok)",uscito:"var(--warn)",consumato:"var(--muted)",rientrato:"var(--brand)",perso:"var(--danger)"}[s]||"var(--muted)");
-  const mis=p=>[p.larghezza_cm,p.altezza_cm].filter(v=>v!=null&&v!=="").join("×");
+  const mis=p=>[p.larghezza_cm,p.altezza_cm].filter(v=>v!=null&&v!=="").map(v=>Math.round(Number(v)*10*100)/100).join("×");
 
   return (
     <>
@@ -4407,7 +4408,7 @@ function ModuloPezzi({profilo,perm}){
                     <tr key={p.id}>
                       <td className="rs" style={{fontFamily:"monospace"}}>{p.codice}</td>
                       <td>{p.nome_articolo||"—"}<div className="muted" style={{fontSize:12}}>{p.articolo_codice||""}</div></td>
-                      <td>{mis(p)||"—"}{p.spessore_mm?(" · "+p.spessore_mm+"mm"):""}</td>
+                      <td>{mis(p)?mis(p)+" mm":"—"}{p.spessore_mm?(" · "+p.spessore_mm+"mm"):""}</td>
                       <td className="muted">{p.mq!=null?p.mq:"—"}</td>
                       <td><span style={{background:colStato(p.stato),color:"#fff",borderRadius:20,padding:"2px 9px",fontSize:12,fontWeight:700}}>{String(p.stato||"").replace("_"," ")}</span></td>
                       <td className="muted">{p.commessa_numero||"—"}</td>
@@ -4449,7 +4450,7 @@ function StoriaPezzo({pezzo,perm,onClose}){
     return ()=>{vivo=false;};
   },[pezzo.id]);
   const fmt=d=>d? new Date(d).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
-  const mis=p=>[p.larghezza_cm,p.altezza_cm].filter(v=>v!=null&&v!=="").join("×");
+  const mis=p=>[p.larghezza_cm,p.altezza_cm].filter(v=>v!=null&&v!=="").map(v=>Math.round(Number(v)*10*100)/100).join("×");
   const STL={uscito:{l:"in lavorazione",c:"#b26a00"},in_magazzino:{l:"a magazzino",c:"#1f9c68"},consumato:{l:"consumato",c:"#5b6773"},perso:{l:"perso",c:"#c0392b"}};
   const origine=(catena||[]).find(n=>n.commessa_numero);
   const nodo=(p,corrente)=>{ const s=STL[p.stato]||{l:p.stato,c:"#333"};
@@ -4460,7 +4461,7 @@ function StoriaPezzo({pezzo,perm,onClose}){
         <span className="tag" style={{background:"#f2f4f7",color:s.c}}>{s.l}</span>
       </div>
       <div className="muted" style={{fontSize:12.5,marginTop:2}}>
-        {p.nome_articolo||"—"}{mis(p)?" · "+mis(p)+" cm":""}{p.mq!=null?" · "+p.mq+" mq":""}
+        {p.nome_articolo||"—"}{mis(p)?" · "+mis(p)+" mm":""}{p.mq!=null?" · "+p.mq+" mq":""}
         {p.commessa_numero?<> · commessa <b>{p.commessa_numero}</b></>:""}
       </div>
       <div className="muted" style={{fontSize:11,marginTop:2}}>📅 {fmt(p.creato_il)}{p.ubicazione?" · 📍 "+p.ubicazione:""}</div>
@@ -4535,13 +4536,13 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
     setBusy(true); setErr("");
     const {data,error}=await sb.rpc("preleva_per_commessa",{
       p_articolo_id:art.id, p_commessa_id:commessaId,
-      p_larghezza:larg===""?null:Number(larg), p_altezza:alt===""?null:Number(alt),
+      p_larghezza:larg===""?null:Number(larg)/10, p_altezza:alt===""?null:Number(alt)/10,
       p_spessore:sp===""?null:Number(sp), p_quantita:Number(qta)||1,
       p_ubicazione:ubic, p_note:note, p_pagato_intero:pagatoScelto,
     });
     if(error){ setErr(error.message); setBusy(false); return; }
     const com=commesse.find(c=>c.id===commessaId);
-    setFatto({codice:data, articolo:art.nome_articolo, larghezza_cm:larg, altezza_cm:alt, spessore_mm:sp, commessa: com?("Commessa "+com.numero):""});
+    setFatto({codice:data, articolo:art.nome_articolo, larghezza_cm:larg===""?"":Number(larg)/10, altezza_cm:alt===""?"":Number(alt)/10, spessore_mm:sp, commessa: com?("Commessa "+com.numero):""});
     setBusy(false);
   }
 
@@ -4610,8 +4611,8 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
           <div className="section">
             <h3>Misure del pezzo che mandi in produzione</h3>
             <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-              <div className="field" style={{maxWidth:130}}><label>Larghezza (cm)</label><input type="number" step="0.1" min="0" value={larg} onChange={e=>setLarg(e.target.value)}/></div>
-              <div className="field" style={{maxWidth:130}}><label>Altezza (cm)</label><input type="number" step="0.1" min="0" value={alt} onChange={e=>setAlt(e.target.value)}/></div>
+              <div className="field" style={{maxWidth:130}}><label>Larghezza (mm)</label><input type="number" step="1" min="0" value={larg} onChange={e=>setLarg(e.target.value)}/></div>
+              <div className="field" style={{maxWidth:130}}><label>Altezza (mm)</label><input type="number" step="1" min="0" value={alt} onChange={e=>setAlt(e.target.value)}/></div>
               <div className="field" style={{maxWidth:130}}><label>Spessore (mm)</label><input type="number" step="0.01" min="0" value={sp} onChange={e=>setSp(e.target.value)}/></div>
               <div className="field" style={{maxWidth:100}}><label>Quantità</label><input type="number" min="1" value={qta} onChange={e=>setQta(e.target.value)}/></div>
             </div>
@@ -4639,7 +4640,7 @@ function RientroForm({pezzoIniziale,onClose,onFatto}){
   const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
   const [fatto,setFatto]=useState(null);
 
-  const mis=p=>[p.larghezza_cm,p.altezza_cm].filter(v=>v!=null&&v!=="").join("×");
+  const mis=p=>[p.larghezza_cm,p.altezza_cm].filter(v=>v!=null&&v!=="").map(v=>Math.round(Number(v)*10*100)/100).join("×");
 
   async function cerca(e){
     if(e) e.preventDefault();
@@ -4657,13 +4658,13 @@ function RientroForm({pezzoIniziale,onClose,onFatto}){
     setBusy(true); setErr("");
     const {data,error}=await sb.rpc("registra_rientro",{
       p_pezzo_id:pezzo.id, p_esito:esito,
-      p_larghezza:larg===""?null:Number(larg), p_altezza:alt===""?null:Number(alt),
+      p_larghezza:larg===""?null:Number(larg)/10, p_altezza:alt===""?null:Number(alt)/10,
       p_spessore:sp===""?null:Number(sp), p_quantita:Number(qta)||1,
       p_ubicazione:ubic, p_note:note,
     });
     if(error){ setErr(error.message); setBusy(false); return; }
     if(esito==="avanzo" && data){
-      setFatto({codice:data, articolo:pezzo.nome_articolo, larghezza_cm:larg, altezza_cm:alt, spessore_mm:sp, commessa:""});
+      setFatto({codice:data, articolo:pezzo.nome_articolo, larghezza_cm:larg===""?"":Number(larg)/10, altezza_cm:alt===""?"":Number(alt)/10, spessore_mm:sp, commessa:""});
       setBusy(false);
     } else { setBusy(false); onFatto(); }
   }
@@ -4700,7 +4701,7 @@ function RientroForm({pezzoIniziale,onClose,onFatto}){
             : <>
                 <div className="subrow"><div className="hd">
                   <div><b>{pezzo.codice}</b> · {pezzo.nome_articolo||"—"}
-                    <div className="muted" style={{fontSize:13}}>{mis(pezzo)?mis(pezzo)+" cm":""}{pezzo.commessa_numero?(" · commessa "+pezzo.commessa_numero):""}</div></div>
+                    <div className="muted" style={{fontSize:13}}>{mis(pezzo)?mis(pezzo)+" mm":""}{pezzo.commessa_numero?(" · commessa "+pezzo.commessa_numero):""}</div></div>
                 </div></div>
                 <div className="section">
                   <h3>Cosa è successo</h3>
@@ -4713,8 +4714,8 @@ function RientroForm({pezzoIniziale,onClose,onFatto}){
                   {esito==="avanzo" && <>
                     <p className="muted" style={{fontSize:13,margin:"0 0 8px"}}>Misura il ritaglio: nasce un nuovo pezzo con la sua etichetta.</p>
                     <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-                      <div className="field" style={{maxWidth:130}}><label>Larghezza (cm)</label><input type="number" step="0.1" min="0" value={larg} onChange={e=>setLarg(e.target.value)} autoFocus/></div>
-                      <div className="field" style={{maxWidth:130}}><label>Altezza (cm)</label><input type="number" step="0.1" min="0" value={alt} onChange={e=>setAlt(e.target.value)}/></div>
+                      <div className="field" style={{maxWidth:130}}><label>Larghezza (mm)</label><input type="number" step="1" min="0" value={larg} onChange={e=>setLarg(e.target.value)} autoFocus/></div>
+                      <div className="field" style={{maxWidth:130}}><label>Altezza (mm)</label><input type="number" step="1" min="0" value={alt} onChange={e=>setAlt(e.target.value)}/></div>
                       <div className="field" style={{maxWidth:130}}><label>Spessore (mm)</label><input type="number" step="0.01" min="0" value={sp} onChange={e=>setSp(e.target.value)}/></div>
                       <div className="field" style={{maxWidth:100}}><label>Quantità</label><input type="number" min="1" value={qta} onChange={e=>setQta(e.target.value)}/></div>
                     </div>
@@ -5130,8 +5131,8 @@ function ModuloImpostazioni({profilo,perm}){
               <input type="number" step="0.1" value={gen.margine_minimo_pct} onChange={e=>setG("margine_minimo_pct",e.target.value)}/></div>
             <div className="field"><label>IVA (%)</label>
               <input type="number" step="0.1" value={gen.iva_pct} onChange={e=>setG("iva_pct",e.target.value)}/></div>
-            <div className="field"><label title="Rifilo/abbondanza aggiunta a OGNI LATO per smarginatura e crocini (materiali a mq/ml). Default globale, modificabile sulla singola riga di preventivo.">Abbondanza per lato (cm)</label>
-              <input type="number" step="0.1" min="0" value={gen.abbondanza_cm ?? 3} onChange={e=>setG("abbondanza_cm",e.target.value)}/></div>
+            <div className="field"><label title="Rifilo/abbondanza aggiunta a OGNI LATO per smarginatura e crocini (materiali a mq/ml). Default globale, modificabile sulla singola riga di preventivo.">Abbondanza per lato (mm)</label>
+              <input type="number" step="1" min="0" value={gen.abbondanza_cm==null||gen.abbondanza_cm===""?30:Math.round(Number(gen.abbondanza_cm)*10*100)/100} onChange={e=>setG("abbondanza_cm",e.target.value===""?"":Number(e.target.value)/10)}/></div>
             <div className="field"><label>Sconto standard rivenditori (%)</label>
               <input type="number" step="0.1" min="0" max="100" value={gen.sconto_rivenditori_pct ?? 0}
                      onChange={e=>setG("sconto_rivenditori_pct",e.target.value)}/></div>
@@ -6315,7 +6316,8 @@ function code128SVG(text,mw,h){
   return '<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+h+'" viewBox="0 0 '+W+' '+h+'">'+rects+'</svg>';
 }
 function htmlEtichetta(p){
-  const mis=[p.larghezza_cm,p.altezza_cm].filter(v=>v!=null&&v!=="").join("×");
+  const mm=v=>Math.round(Number(v)*10*100)/100;
+  const mis=[p.larghezza_cm,p.altezza_cm].filter(v=>v!=null&&v!=="").map(mm).join("×");
   const sp=p.spessore_mm?(" · sp "+p.spessore_mm+"mm"):"";
   return '<!doctype html><html><head><meta charset="utf-8"><style>'+
     '@page{size:70mm 40mm;margin:3mm;} *{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;} body{margin:0;}'+
@@ -6324,7 +6326,7 @@ function htmlEtichetta(p){
     '.com{font-size:9px;color:#555;margin:3px 0 0;} svg{max-width:100%;}'+
     '</style></head><body><div class="lab">'+
     '<div class="art">'+escHtml(p.articolo||"")+'</div>'+
-    '<div class="mis">'+(mis?escHtml(mis)+" cm":"")+escHtml(sp)+'</div>'+
+    '<div class="mis">'+(mis?escHtml(mis)+" mm":"")+escHtml(sp)+'</div>'+
     code128SVG(p.codice,2,56)+
     '<div class="cod">'+escHtml(p.codice||"")+'</div>'+
     '<div class="com">'+escHtml(p.commessa||"")+'</div>'+
@@ -8291,7 +8293,7 @@ function OrdineShopDettaglio({ordine,righe,files,commessa,perm,profilo,stati,onS
   const [commFatta,setCommFatta]=useState(!!ordine.commessa_id);
   const [pagState,setPagState]=useState(ordine.pagamento_stato);
   const [pagBusy,setPagBusy]=useState(false);
-  const PAG_LAB={carta:"Carta di credito", bonifico:"Bonifico anticipato", ritiro:"Pagamento al ritiro", paypal:"PayPal"};
+  const PAG_LAB={carta:"Carta di credito", bonifico:"Bonifico anticipato", ritiro:"Pagamento al ritiro", paypal:"PayPal", differito:"Conto aperto"};
   async function confermaIncasso(){
     setPagBusy(true);
     try{
@@ -8398,7 +8400,7 @@ function OrdineShopDettaglio({ordine,righe,files,commessa,perm,profilo,stati,onS
           </div>
 
           <div style={{marginTop:12,padding:12,borderRadius:10,background: pagState==="pagato"?"#f3faf6":"#fff8ec",border:"1px solid "+(pagState==="pagato"?"#bfe3cf":"#f0d8a8"),display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-            <div style={{flex:1,minWidth:200,fontSize:13}}>💳 <b>Pagamento:</b> {PAG_LAB[ordine.pagamento_metodo]||ordine.pagamento_metodo||"—"} — {pagState==="pagato"? <b style={{color:"#1e7d34"}}>incassato ✅</b> : <b style={{color:"#c47a1e"}}>in attesa</b>}</div>
+            <div style={{flex:1,minWidth:200,fontSize:13}}>💳 <b>Pagamento:</b> {ordine.pagamento_metodo==="differito"? `Conto aperto — a ${ordine.pagamento_giorni||30} gg` : (PAG_LAB[ordine.pagamento_metodo]||ordine.pagamento_metodo||"—")} — {pagState==="pagato"? <b style={{color:"#1e7d34"}}>incassato ✅</b> : (ordine.pagamento_metodo==="differito"? <b style={{color:"#c47a1e"}}>da fatturare</b> : <b style={{color:"#c47a1e"}}>in attesa</b>)}</div>
             {perm.scrivi && pagState!=="pagato" && <button type="button" className="btn small primary" disabled={pagBusy} onClick={confermaIncasso}>{pagBusy?"…":"Conferma incasso"}</button>}
           </div>
 
@@ -8428,7 +8430,7 @@ function OrdineShopDettaglio({ordine,righe,files,commessa,perm,profilo,stati,onS
                 <div style={{display:"flex",justifyContent:"space-between",gap:10}}>
                   <b>{r.descrizione}</b><span className="muted">{r.quantita} pz · {eur(r.prezzo_totale)}</span></div>
                 {r.config && (r.config.larghezza_cm||r.config.variante_id) &&
-                  <div className="muted" style={{fontSize:12,marginTop:2}}>{r.config.larghezza_cm?`${r.config.larghezza_cm}×${r.config.altezza_cm} cm`:""}</div>}
+                  <div className="muted" style={{fontSize:12,marginTop:2}}>{r.config.larghezza_cm?`${Math.round(Number(r.config.larghezza_cm)*10*100)/100}×${Math.round(Number(r.config.altezza_cm)*10*100)/100} mm`:""}</div>}
                 <div style={{marginTop:8}}>
                   {ff.length===0? <span className="muted" style={{fontSize:13}}>⚠ Nessun file caricato dal cliente</span>
                    : ff.map(f=> <div key={f.id} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,marginTop:3}}>

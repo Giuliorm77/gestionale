@@ -3676,8 +3676,8 @@ function ArticoloForm({articolo,perm,profilo,fornitori,onClose,onSalvato,onDupli
             <label style={{display:"flex",alignItems:"flex-start",gap:8,margin:"4px 0 12px",padding:"8px 10px",borderRadius:8,
               background:f.traccia_avanzo?"#e7f6ec":"transparent",border:f.traccia_avanzo?"1px solid #bfe6cd":"1px solid transparent"}}>
               <input type="checkbox" checked={f.traccia_avanzo} onChange={e=>set("traccia_avanzo",e.target.checked)} style={{width:"auto",marginTop:2}}/>
-              <span>♻ Materiale a lastra/foglio (traccia avanzo)
-                <div className="muted" style={{fontSize:11,fontWeight:400}}>Solo per lastre, rigidi, carta… Se attivo, nel preventivo il commerciale deve indicare chi paga il materiale (tutta la lastra → avanzo €0, oppure solo l'usato). Per gadget/penne lascialo spento.</div></span>
+              <span>♻ Materiale a lastra/bobina (traccia avanzo)
+                <div className="muted" style={{fontSize:11,fontWeight:400}}>Solo per lastre rigide (forex, plexi…) e bobine (vinile), dove resta un avanzo riutilizzabile: nel preventivo il commerciale indica chi paga il materiale (tutta la lastra → avanzo €0, oppure solo l'usato). Per carta/fogli (si lavora a pezzi/fogli), gadget e penne: lascialo spento.</div></span>
             </label>
             <div className="field"><label>Note</label>
               <textarea rows={2} value={f.note||""} onChange={e=>set("note",e.target.value)}/></div>

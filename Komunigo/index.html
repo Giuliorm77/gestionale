@@ -166,6 +166,32 @@
   .lg-cta{display:flex;gap:20px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-top:24px;box-shadow:var(--shadow);}
   .lg-cta h2{margin:0 0 6px;font-size:19px;color:var(--ink);}
   .lg-cta p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.5;flex:1;min-width:260px;}
+  .lg-actions{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin:0 0 20px;}
+  .lg-actions .lg-progress{flex:1;margin:0;min-width:220px;}
+  .lg-print-note{display:none;}
+  @media print{
+    .top, .band-panna, footer.ft, .no-print, .lg-cta button{display:none !important;}
+    body{background:#fff !important;}
+    .wrap{max-width:100% !important;padding:0 !important;}
+    .lg-print-note{display:block !important;text-align:right;font-size:11px;color:#555;margin:0 0 6px;}
+    .lg-hero{background:#fff !important;color:#000 !important;padding:0 0 10px !important;border:0;border-bottom:2px solid #1C2A44;border-radius:0;margin-bottom:14px;}
+    .lg-hero h1{color:#1C2A44 !important;font-size:22px;}
+    .lg-hero p{color:#333 !important;font-size:12px;}
+    .lg-grid{display:block !important;}
+    .lg-card{break-inside:avoid;border:0 !important;box-shadow:none !important;padding:4px 0 8px !important;}
+    .lg-card h3{font-size:15px;border-bottom:1px solid #bbb;padding-bottom:3px;margin:10px 0 6px;}
+    .lg-ico{display:none;}
+    .lg-items{gap:0;}
+    .lg-item{color:#000 !important;font-size:11.5px;padding:2px 0 !important;break-inside:avoid;}
+    .lg-item:hover{background:none;}
+    .lg-item input{-webkit-appearance:none;appearance:none;width:11px;height:11px;border:1px solid #333;border-radius:2px;background:#fff !important;}
+    .lg-item.on span{text-decoration:none !important;color:#000 !important;}
+    .lg-diagram{max-width:230px;}
+    .lg-done{display:none !important;}
+    .lg-cta{border:0 !important;box-shadow:none !important;background:#fff !important;padding:10px 0 0 !important;margin-top:14px;border-top:1px solid #bbb;border-radius:0;}
+    .lg-cta h2{font-size:14px;color:#000 !important;} .lg-cta p{font-size:11.5px;color:#333 !important;}
+    a{color:#000 !important;text-decoration:none;}
+  }
   .cart-tot{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow);}
   .cart-tot .r{display:flex;justify-content:space-between;font-size:14px;margin:5px 0;color:var(--ink-soft);}
   .cart-tot .r.big{font-size:19px;font-weight:800;color:var(--ink);margin-top:10px;padding-top:10px;border-top:1px solid var(--line);}
@@ -759,18 +785,13 @@ function Configuratore({prod,chiudi,addCart}){
           {isStampa && <div className="opts" style={{marginTop:12}}>
             <label className="fld">Stampa</label>
             <div className="two">
-              <div><label className="fld" style={{fontWeight:400}}>Macchina</label>
-                <select value={stMacchina} onChange={e=>{setStMacchina(e.target.value);setPrezzo(null);}}>
-                  <option value="piccolo">Piccolo formato</option>
-                  <option value="grande">Grande formato</option>
-                </select></div>
-              {stMacchina==="piccolo" && <div><label className="fld" style={{fontWeight:400}}>Colori</label>
+              <div><label className="fld" style={{fontWeight:400}}>Colori</label>
                 <select value={stColore?"col":"bn"} onChange={e=>{setStColore(e.target.value==="col");setPrezzo(null);}}>
                   <option value="col">A colori</option><option value="bn">Bianco e nero</option>
-                </select></div>}
+                </select></div>
             </div>
-            {stMacchina==="piccolo" && <label style={{display:"flex",gap:8,alignItems:"center",marginTop:8}}>
-              <input type="checkbox" checked={stFr} onChange={e=>{setStFr(e.target.checked);setPrezzo(null);}}/> Fronte/retro</label>}
+            <label style={{display:"flex",gap:8,alignItems:"center",marginTop:8}}>
+              <input type="checkbox" checked={stFr} onChange={e=>{setStFr(e.target.checked);setPrezzo(null);}}/> Fronte/retro</label>
           </div>}
           {gadget && stampe.length>0 && <div className="opts"><label className="fld">Dove stampare</label>
             {stampe.map(s=>{ const col=stSel[s.id]||0; return (
@@ -796,9 +817,6 @@ function Configuratore({prod,chiudi,addCart}){
                 <div className="r" key={i}><span>Stampa {s.nome} · {s.colori} {s.colori>1?"colori":"colore"}</span><span>{eur(s.prezzo)}</span></div>))}
               {prezzo.dettaglio.impianto>0 && <div className="r"><span>Impianto stampa (una tantum)</span><span>{eur(prezzo.dettaglio.impianto)}</span></div>}
             </>}
-            {isStampa && prezzo.impaginazione && prezzo.impaginazione.valido && <div className="r" style={{fontSize:12,opacity:.85}}>
-              <span>🖨️ {prezzo.impaginazione.grande?"Grande formato":prezzo.impaginazione.formato+" cm"} · {prezzo.impaginazione.pose} pose/foglio</span>
-              <span>{prezzo.impaginazione.fogliAcquisto} fogli</span></div>}
             {Number(prezzo.sconto_pct)>0 && <>
               <div className="r"><span>Prezzo di listino</span><span className="listino-old" style={{marginLeft:0}}>{eur(prezzo.prezzo_listino_totale)}</span></div>
               <div className="r" style={{color:"var(--blu)",fontWeight:700}}><span>Sconto riservato B2B</span><span>−{prezzo.sconto_pct}%</span></div>

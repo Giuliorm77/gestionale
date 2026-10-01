@@ -7435,6 +7435,28 @@ function ModuloPreventivi({profilo,perm}){
   },[]);
   useEffect(()=>{ carica(); },[carica]);
 
+  // Nuova revisione: duplica il preventivo (testata + tutte le righe) in uno nuovo
+  // "… rev.N"; l'originale resta com'è (storico). Poi apre la revisione.
+  async function nuovaRevisione(p){
+    setErr("");
+    try{
+      const mm=String(p.numero||"").match(/^(.*?)(?:\s*rev\.?\s*(\d+))?\s*$/i);
+      const base=(mm&&mm[1]?mm[1].trim():String(p.numero||"").trim())||prossimoNumero(preventivi);
+      const esistenti=new Set((preventivi||[]).map(x=>String(x.numero||"").trim().toLowerCase()));
+      let n=(mm&&mm[2]?Number(mm[2]):1)+1, num;
+      do{ num=base+" rev."+n; n++; }while(esistenti.has(num.toLowerCase()));
+      const {id,creato_il,creato_da,aggiornato_il,preventivi_righe,numero,stato,...rest}=p;
+      const rec={...rest, data:new Date().toISOString().slice(0,10), numero:num, stato:"bozza",
+        creato_da:profilo.id, aggiornato_il:new Date().toISOString()};
+      const {data:np,error}=await sb.from("preventivi").insert(rec).select("id").single(); if(error) throw error;
+      const righe=(p.preventivi_righe||[]).map(r=>{ const {id,preventivo_id,...rr}=r; return {...rr, preventivo_id:np.id}; });
+      if(righe.length){ const {error:er}=await sb.from("preventivi_righe").insert(righe); if(er) throw er; }
+      await carica();
+      const {data:full}=await sb.from("preventivi").select("*, preventivi_righe(*)").eq("id",np.id).maybeSingle();
+      setEditBozza(null); setEditor(full||{id:np.id});
+    }catch(ex){ setErr("Revisione non riuscita: "+(ex.message||ex)); }
+  }
+
   const filtrati=useMemo(()=>{
     if(!preventivi) return [];
     const q=cerca.trim().toLowerCase();
@@ -7472,7 +7494,7 @@ function ModuloPreventivi({profilo,perm}){
           : filtrati.length===0 ? <div className="card empty">Nessun preventivo. Creane uno con "+ Nuovo preventivo".</div>
           : <div className="card" style={{overflow:"auto"}}>
               <table>
-                <thead><tr><th>Numero</th><th>Cliente</th><th>Descrizione</th><th>Data</th><th>Stato</th><th style={{textAlign:"right"}}>Totale</th></tr></thead>
+                <thead><tr><th>Numero</th><th>Cliente</th><th>Descrizione</th><th>Data</th><th>Stato</th><th style={{textAlign:"right"}}>Totale</th><th></th></tr></thead>
                 <tbody>
                   {filtrati.map(p=>{
                     const t=calcolaPreventivo(p.preventivi_righe,p);
@@ -7485,6 +7507,9 @@ function ModuloPreventivi({profilo,perm}){
                         <td className="muted">{p.data? new Date(p.data).toLocaleDateString("it-IT"):"—"}</td>
                         <td><span className="tag" style={{background:st.bg,color:st.c}}>{st.l}</span></td>
                         <td style={{textAlign:"right",fontWeight:700}}>{eur(t.totale)}</td>
+                        <td style={{whiteSpace:"nowrap"}} onClick={e=>e.stopPropagation()}>
+                          {perm.scrivi && <button type="button" className="btn small" title="Crea una nuova revisione copiando tutte le righe (l'originale resta come storico)" onClick={()=>nuovaRevisione(p)}>🔁 Revisione</button>}
+                        </td>
                       </tr>
                     );
                   })}

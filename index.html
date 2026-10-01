@@ -5587,6 +5587,7 @@ function ModuloFornitori({profilo,perm}){
   const [cerca,setCerca]=useState("");
   const [filtroLav,setFiltroLav]=useState("");
   const [editor,setEditor]=useState(null);
+  const [importOpen,setImportOpen]=useState(false);
 
   const carica=useCallback(async()=>{
     setErr("");
@@ -5675,6 +5676,7 @@ function ModuloFornitori({profilo,perm}){
         <h1>Anagrafica Fornitori</h1>
         <button className="btn" onClick={esporta} disabled={!filtrati.length} title="Esporta la lista filtrata in Excel">⬇️ Esporta Excel</button>
         {perm.economici && <button className="btn" onClick={esportaRegistroFornitori} title="Genera il registro ISO valutazione fornitori (Excel, con medie e qualifica)">📋 Registro fornitori ISO</button>}
+        {perm.scrivi && <button className="btn" onClick={()=>setImportOpen(true)} title="Importa fornitori da un file Excel (salta i duplicati)">⬆️ Importa Excel</button>}
         {perm.scrivi && <button className="btn primary" onClick={()=>setEditor({})}>+ Nuovo fornitore</button>}
       </div>
       <div className="content">
@@ -5717,7 +5719,144 @@ function ModuloFornitori({profilo,perm}){
       </div>
       {editor && <FornitoreForm fornitore={editor.id?editor:null} perm={perm} profilo={profilo}
         onClose={()=>setEditor(null)} onSalvato={()=>{setEditor(null);carica();}}/>}
+      {importOpen && <ImportFornitori esistenti={fornitori||[]} onClose={()=>setImportOpen(false)} onDone={()=>{setImportOpen(false);carica();}}/>}
     </>
+  );
+}
+
+/* ------------------------------------------------ import fornitori da Excel */
+function ImportFornitori({esistenti,onClose,onDone}){
+  // campi importabili (chiave DB + etichetta + sinonimi di intestazione)
+  const CAMPI=[
+    {k:"ragione_sociale",label:"Ragione sociale *",syn:["denominazione","ragionesociale","ragione","nome","fornitore","cliente"]},
+    {k:"partita_iva",label:"Partita IVA",syn:["piva","partitaiva","pivataxid","taxid","vat","pi"]},
+    {k:"codice_fiscale",label:"Codice fiscale",syn:["codicefiscale","cf","codfiscale"]},
+    {k:"indirizzo",label:"Indirizzo",syn:["indirizzo","via"]},
+    {k:"citta",label:"Città",syn:["comune","citta","città","localita","localita'"]},
+    {k:"cap",label:"CAP",syn:["cap"]},
+    {k:"provincia",label:"Provincia",syn:["provincia","prov","pr"]},
+    {k:"nazione",label:"Paese",syn:["paese","nazione","stato"]},
+    {k:"email",label:"Email",syn:["email","indirizzoemail","mail","posta","emailaddress","indirizzoe-mail"]},
+    {k:"pec",label:"PEC",syn:["pec","indirizzopec"]},
+    {k:"referente",label:"Referente",syn:["referente","contatto"]},
+    {k:"telefono",label:"Telefono",syn:["telefono","tel"]},
+    {k:"cellulare",label:"Cellulare",syn:["cellulare","cell","mobile"]},
+    {k:"whatsapp",label:"WhatsApp",syn:["whatsapp","wa"]},
+    {k:"codice_sdi",label:"Codice SDI",syn:["sdi","codicesdi","codicedestinatario"]},
+    {k:"iban",label:"IBAN",syn:["iban"]},
+    {k:"termini_pagamento",label:"Termini pagamento",syn:["terminipagamento","pagamento"]},
+    {k:"note",label:"Note",syn:["note","annotazioni"]},
+  ];
+  const norm=s=>String(s==null?"":s).toLowerCase().replace(/[^a-z0-9]/g,"");
+  const [cols,setCols]=useState([]);     // intestazioni del file
+  const [rows,setRows]=useState([]);     // righe (oggetti per intestazione)
+  const [map,setMap]=useState({});       // {campoK: colonnaExcel}
+  const [busy,setBusy]=useState(false);
+  const [err,setErr]=useState("");
+  const [esito,setEsito]=useState(null); // {ins,skip,errori}
+
+  const esistSet=useMemo(()=>{
+    const s={piva:new Set(), nome:new Set()};
+    (esistenti||[]).forEach(f=>{ if(f.partita_iva) s.piva.add(String(f.partita_iva).trim().toLowerCase()); if(f.ragione_sociale) s.nome.add(String(f.ragione_sociale).trim().toLowerCase()); });
+    return s;
+  },[esistenti]);
+
+  function leggiFile(e){
+    const file=e.target.files&&e.target.files[0]; e.target.value=""; if(!file) return;
+    setErr(""); setEsito(null);
+    const rd=new FileReader();
+    rd.onload=ev=>{ try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:"array"});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const json=XLSX.utils.sheet_to_json(ws,{defval:""});
+      if(!json.length){ setErr("Il file non contiene righe."); return; }
+      const intest=Object.keys(json[0]);
+      setCols(intest); setRows(json);
+      // auto-mappatura per nome intestazione
+      const m={};
+      CAMPI.forEach(c=>{ const hit=intest.find(h=>{ const nh=norm(h); return c.syn.some(sy=>nh===sy||nh.includes(sy)); }); if(hit) m[c.k]=hit; });
+      setMap(m);
+    }catch(ex){ setErr("Errore lettura file: "+ex.message); } };
+    rd.readAsArrayBuffer(file);
+  }
+
+  // anteprima: quanti nuovi vs già presenti
+  const prep=useMemo(()=>{
+    if(!rows.length || !map.ragione_sociale) return null;
+    const vistiPiva=new Set(), vistiNome=new Set(); let nuovi=0, gia=0, vuoti=0;
+    rows.forEach(r=>{
+      const rs=String(r[map.ragione_sociale]||"").trim();
+      if(!rs){ vuoti++; return; }
+      const piva=map.partita_iva?String(r[map.partita_iva]||"").trim().toLowerCase():"";
+      const nome=rs.toLowerCase();
+      const dup = (piva&&(esistSet.piva.has(piva)||vistiPiva.has(piva))) || esistSet.nome.has(nome) || vistiNome.has(nome);
+      if(dup){ gia++; } else { nuovi++; if(piva)vistiPiva.add(piva); vistiNome.add(nome); }
+    });
+    return {nuovi,gia,vuoti};
+  },[rows,map,esistSet]);
+
+  async function importa(){
+    if(!map.ragione_sociale){ setErr("Mappa almeno la Ragione sociale."); return; }
+    setBusy(true); setErr("");
+    const vistiPiva=new Set(), vistiNome=new Set(); const daIns=[];
+    for(const r of rows){
+      const rs=String(r[map.ragione_sociale]||"").trim(); if(!rs) continue;
+      const piva=map.partita_iva?String(r[map.partita_iva]||"").trim():"";
+      const pivaL=piva.toLowerCase(), nome=rs.toLowerCase();
+      if((pivaL&&(esistSet.piva.has(pivaL)||vistiPiva.has(pivaL))) || esistSet.nome.has(nome) || vistiNome.has(nome)) continue;
+      if(pivaL)vistiPiva.add(pivaL); vistiNome.add(nome);
+      const rec={ragione_sociale:rs, attivo:true};
+      CAMPI.forEach(c=>{ if(c.k==="ragione_sociale") return; if(map[c.k]!=null){ const v=String(r[map[c.k]]||"").trim(); if(v) rec[c.k]=v; } });
+      daIns.push(rec);
+    }
+    if(!daIns.length){ setBusy(false); setEsito({ins:0,gia:(prep&&prep.gia)||0,errori:[]}); return; }
+    let ins=0; const errori=[];
+    for(let i=0;i<daIns.length;i+=200){
+      const chunk=daIns.slice(i,i+200);
+      const {error}=await sb.from("fornitori").insert(chunk);
+      if(error){ errori.push(error.message); } else { ins+=chunk.length; }
+    }
+    setBusy(false); setEsito({ins,gia:(prep&&prep.gia)||0,errori});
+  }
+
+  return (
+    <div className="overlay"><div className="modal" style={{maxWidth:640}} onClick={e=>e.stopPropagation()}>
+      <header><h2>Importa fornitori da Excel</h2><button type="button" className="x" onClick={onClose}>×</button></header>
+      <div className="body">
+        {err && <div className="banner err">{err}</div>}
+        {!cols.length && <>
+          <p style={{marginTop:0}}>Carica un file <b>.xlsx</b> con una riga di intestazione. Le colonne vengono riconosciute da sole (Denominazione, Indirizzo, Comune, CAP, Provincia, P.IVA, ecc.); potrai correggerle prima di importare.</p>
+          <input type="file" accept=".xlsx,.xls" onChange={leggiFile}/>
+        </>}
+        {cols.length>0 && !esito && <>
+          <div className="muted" style={{fontSize:13,marginBottom:8}}>File letto: <b>{rows.length}</b> righe. Controlla l'abbinamento delle colonne:</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,maxHeight:"46vh",overflow:"auto"}}>
+            {CAMPI.map(c=>(
+              <div key={c.k} className="field" style={{margin:0}}>
+                <label style={{fontSize:12}}>{c.label}</label>
+                <select value={map[c.k]||""} onChange={e=>setMap(m=>({...m,[c.k]:e.target.value||undefined}))}
+                  style={{padding:"5px",borderRadius:7,border:"1px solid "+(c.k==="ragione_sociale"&&!map[c.k]?"var(--danger)":"var(--line)"),fontSize:12.5}}>
+                  <option value="">—</option>
+                  {cols.map(h=><option key={h} value={h}>{h}</option>)}
+                </select>
+              </div>))}
+          </div>
+          {prep && <div className="banner" style={{marginTop:10,background:"#eef4ff",border:"1px solid #cfe0ff"}}>
+            Verranno importati <b>{prep.nuovi} nuovi</b> fornitori{prep.gia>0?<> · <b>{prep.gia}</b> già presenti (saltati)</>:null}{prep.vuoti>0?<> · {prep.vuoti} righe vuote</>:null}.
+            <div className="muted" style={{fontSize:11,marginTop:3}}>Duplicati riconosciuti per Partita IVA o Ragione sociale.</div>
+          </div>}
+        </>}
+        {esito && <div className="banner" style={{background:"#e7f6ec",border:"1px solid #bfe6cd"}}>
+          ✅ Importati <b>{esito.ins}</b> fornitori{esito.gia>0?<> · {esito.gia} già presenti saltati</>:null}.
+          {esito.errori.length>0 && <div className="banner err" style={{marginTop:8}}>Errori: {esito.errori.join(" · ")}</div>}
+        </div>}
+      </div>
+      <footer>
+        <button type="button" className="btn" style={{marginLeft:"auto"}} onClick={onClose}>{esito?"Chiudi":"Annulla"}</button>
+        {cols.length>0 && !esito && <button type="button" className="btn primary" disabled={busy||!map.ragione_sociale||!(prep&&prep.nuovi)} onClick={importa}>{busy?<span className="spin"/>:"Importa "+((prep&&prep.nuovi)||0)+" fornitori"}</button>}
+        {esito && <button type="button" className="btn primary" onClick={onDone}>Fatto</button>}
+      </footer>
+    </div></div>
   );
 }
 

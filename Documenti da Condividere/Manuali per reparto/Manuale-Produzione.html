@@ -1,0 +1,174 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Produzione — Gestionale Creatio</title>
+<style>
+  :root{
+    --bg:#EAEEF0; --surface:#FFFFFF; --surface-2:#F3F6F7; --ink:#132029; --ink-soft:#51646F;
+    --ink-faint:#8698A2; --accent:#0B7A91; --accent-2:#0E93AE; --accent-wash:#E2F0F3; --line:#D6DEE2;
+    --ok:#2C7A54; --ok-wash:#E4F1EA; --warn:#9A6712; --warn-wash:#F6ECD8;
+    --tit:#6D4AA6; --tit-wash:#EEE8F6; --amm:#0B6E8F; --amm-wash:#E1F0F5;
+    --com:#0E7A56; --com-wash:#E1F1EA; --pro:#B5622A; --pro-wash:#F6E9DD;
+    --mag:#3F5B8C; --mag-wash:#E4E9F3;
+    --shadow:0 1px 2px rgba(19,32,41,.05), 0 8px 28px rgba(19,32,41,.06);
+    --mono:"Cascadia Code","Consolas",ui-monospace,"SFMono-Regular",Menlo,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:820px;margin:0 auto;padding:32px 22px 80px;}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:600;}
+  h2.sec{font-size:20px;font-weight:800;letter-spacing:-.01em;margin:34px 2px 4px;}
+  .sec-sub{font-size:14px;color:var(--ink-soft);margin:0 2px 16px;}
+  .hero{position:relative;padding:34px 30px 28px;margin-bottom:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
+  .hero h1{font-size:32px;line-height:1.06;font-weight:800;letter-spacing:-.02em;margin:12px 0 10px;}
+  .hero p.lead{font-size:16px;color:var(--ink-soft);margin:0;max-width:62ch;}
+  .crop{position:absolute;width:14px;height:14px;pointer-events:none;opacity:.5;}
+  .crop::before,.crop::after{content:"";position:absolute;background:var(--ink-faint);}
+  .crop::before{width:100%;height:1.5px;top:0;} .crop::after{width:1.5px;height:100%;left:0;}
+  .crop.tl{top:9px;left:9px;} .crop.tr{top:9px;right:9px;transform:scaleX(-1);}
+  .crop.bl{bottom:9px;left:9px;transform:scaleY(-1);} .crop.br{bottom:9px;right:9px;transform:scale(-1,-1);}
+  .note{background:var(--accent-wash);border:1px solid var(--accent);border-radius:11px;padding:14px 16px;font-size:14px;margin-top:16px;}
+  .warn{background:var(--warn-wash);border:1px solid var(--warn);border-radius:11px;padding:13px 15px;font-size:13.5px;margin-top:14px;}
+  .warn b{color:var(--warn);}
+
+  /* staffetta */
+  .relay{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow);}
+  .relay .rs{flex:1;min-width:140px;border-radius:10px;padding:11px 12px;color:#fff;overflow-wrap:break-word;word-break:break-word;hyphens:auto;}
+  .relay .rs small{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.85;}
+  .relay .rs b{font-size:15px;line-height:1.15;display:block;} .relay .rs span{display:block;font-size:12px;opacity:.92;margin-top:2px;}
+  .relay .ar{align-self:center;color:var(--ink-faint);font-weight:800;font-size:18px;}
+  .rs.t{background:var(--tit);} .rs.a{background:var(--amm);} .rs.c{background:var(--com);} .rs.p{background:var(--pro);} .rs.m{background:var(--mag);}
+
+  /* tabella proprietà */
+  table.own{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);font-size:13.5px;}
+  table.own th,table.own td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--line);}
+  table.own th{background:var(--surface-2);font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);}
+  table.own tr:last-child td{border-bottom:none;}
+  .badge{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap;}
+  .b-t{background:var(--tit-wash);color:var(--tit);} .b-a{background:var(--amm-wash);color:var(--amm);}
+  .b-c{background:var(--com-wash);color:var(--com);} .b-p{background:var(--pro-wash);color:var(--pro);}
+  .b-m{background:var(--mag-wash);color:var(--mag);}
+
+  /* tabella riassuntiva "tutto in una pagina" */
+  table.riepilogo{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);font-size:13.5px;margin-top:6px;}
+  table.riepilogo th,table.riepilogo td{text-align:left;padding:8px 13px;border-bottom:1px solid var(--line);}
+  table.riepilogo th{background:var(--surface-2);font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);}
+  table.riepilogo tr:last-child td{border-bottom:none;}
+  table.riepilogo td:last-child{color:var(--ink-soft);white-space:nowrap;font-family:var(--mono);font-size:12px;}
+  tr.grp td{font-weight:800;color:#fff;font-size:12.5px;letter-spacing:.03em;font-family:var(--sans);}
+  tr.grp.t td{background:var(--tit);} tr.grp.a td{background:var(--amm);} tr.grp.m td{background:var(--mag);}
+  tr.grp.c td{background:var(--com);} tr.grp.p td{background:var(--pro);}
+  @media(max-width:560px){table.riepilogo td:last-child{white-space:normal;}}
+
+  /* sezione reparto */
+  .dept{margin-top:30px;border-radius:14px;border:1px solid var(--line);overflow:hidden;box-shadow:var(--shadow);}
+  .dept-h{padding:20px 22px;color:#fff;}
+  .dept-h .k{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.9;}
+  .dept-h h3{margin:4px 0 2px;font-size:23px;}
+  .dept-h p{margin:0;font-size:13.5px;opacity:.93;}
+  .dept.t .dept-h{background:var(--tit);} .dept.a .dept-h{background:var(--amm);}
+  .dept.c .dept-h{background:var(--com);} .dept.p .dept-h{background:var(--pro);} .dept.m .dept-h{background:var(--mag);}
+  .dept-b{background:var(--surface);padding:20px 22px;}
+  .block-lbl{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin:6px 0 10px;}
+  .pre{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13.5px;margin-bottom:16px;}
+  .pre b{color:var(--ink);}
+
+  ol.load{list-style:none;counter-reset:s;margin:0 0 8px;padding:0;}
+  ol.load li{counter-increment:s;position:relative;padding:11px 12px 11px 46px;border:1px solid var(--line);border-radius:10px;margin-bottom:9px;font-size:14px;background:var(--surface);}
+  ol.load li::before{content:counter(s);position:absolute;left:11px;top:11px;width:24px;height:24px;border-radius:7px;background:var(--accent-wash);color:var(--accent);font-family:var(--mono);font-weight:700;font-size:13px;display:grid;place-items:center;}
+  ol.load li b{color:var(--ink);}
+  ol.load .mod{font-family:var(--mono);font-size:12px;background:var(--surface-2);padding:1px 6px;border-radius:5px;color:var(--ink);}
+  ol.load .fields{display:block;font-size:12.5px;color:var(--ink-soft);margin-top:3px;}
+
+  ul.test{list-style:none;margin:0;padding:0;}
+  ul.test li{position:relative;padding:8px 10px 8px 30px;font-size:14px;color:var(--ink-soft);}
+  ul.test li::before{content:"\2610";position:absolute;left:6px;top:7px;font-size:16px;color:var(--accent);}
+  ul.test li b{color:var(--ink);}
+
+  .keep-out{background:var(--warn-wash);border:1px solid var(--warn);border-radius:10px;padding:11px 14px;font-size:13px;margin-top:14px;}
+  .keep-out b{color:var(--warn);}
+
+  .foot{margin-top:34px;padding-top:20px;border-top:1px dashed var(--line);font-size:13px;color:var(--ink-soft);}
+  .foot .sig{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:10px;}
+  @media(max-width:620px){.hero h1{font-size:25px;} .relay .rs{min-width:100%;} .relay .ar{display:none;}}
+  @media print{
+    body{background:#fff;}
+    .hero,.relay,table.own,.dept,.note,.warn{box-shadow:none;}
+    .dept,ol.load li,ul.test li{break-inside:avoid;}
+    .dept{break-before:page;}
+    .no-print{display:none;}
+  }
+</style>
+</head><body>
+<div class="wrap">
+  <header class="hero">
+    <span class="crop tl"></span><span class="crop tr"></span><span class="crop bl"></span><span class="crop br"></span>
+    <span class="eyebrow">Gestionale Creatio · Collaudo verso il go-live</span>
+    <h1>Produzione</h1>
+    <p class="lead">Prende in carico le commesse, segue avanzamento e tempi, porta i lavori a “pronto”. E i controlli mezzi/strumenti.</p>
+  </header>
+  <div class="note" style="margin-top:8px">
+  <b>3 regole per non pestarsi i piedi.</b>
+  <b>1 · Un dato, un proprietario:</b> carichi solo la tua area; se ti serve un dato di un altro reparto, chiediglielo.
+  <b>2 · Si rispetta l'ordine</b> della staffetta. <b>3 · Dati di prova riconoscibili</b> (es. "PROVA – Rossi Srl").</div>
+  
+  <div class="dept p">
+    <div class="dept-h"><div class="k">Fase 3 · in officina</div><h3>Produzione</h3>
+      <p>Prende in carico le commesse, segue l'avanzamento e i tempi, porta i lavori a “pronto/consegnato”.</p></div>
+    <div class="dept-b">
+      <div class="pre">✅ <b>Prima di iniziare:</b> il Commerciale deve aver creato almeno una <b>commessa</b> di prova.
+        Nota: <b>non vedi prezzi né costi</b> — è normale, a te serve il lato operativo.</div>
+      <div class="block-lbl">Cosa fai / carichi</div>
+      <ol class="load">
+        <li><b>Completa la commessa</b> <span class="mod">🏭 Commesse</span>
+          <span class="fields">Apri la commessa e metti la <b>data di consegna per ogni riga</b> (è obbligatoria: senza,
+          la commessa non si salva). Controlla articoli, misure, priorità.</span></li>
+        <li><b>Avanzamento fasi</b> <span class="mod">🏭 Commesse</span>
+          <span class="fields">Aggiorna lo stato delle fasi (da fare / in corso / fatto), assegna gli <b>operatori</b> e le <b>ore</b>.</span></li>
+        <li><b>Aiuti imprevisti</b> <span class="mod">🏭 Commesse</span>
+          <span class="fields">Se qualcuno “tappa il buco” dando una mano, registralo (chi, ore, data): serve a far emergere gli imprevisti.</span></li>
+        <li><b>Cronometro di lavorazione</b> <span class="mod">⏱️ Postazione operatore</span>
+          <span class="fields">Su tablet: scegli il tuo nome e inserisci il tuo <b>PIN</b> (te lo dà il titolare), poi avvia / metti in pausa (con motivo) / chiudi il tempo su una fase. Senza PIN non si timbra — così nessuno timbra a nome tuo.</span></li>
+      </ol>
+      <div class="block-lbl">Come lo provi</div>
+      <ul class="test">
+        <li>Prendi la commessa di prova, metti le <b>date</b> mancanti e salvala: senza date <b>non deve</b> lasciarti salvare.</li>
+        <li>Porta una fase da “da fare” a “fatto” e segna le <b>ore</b> di un operatore.</li>
+        <li>Stampa la <b>Scheda di lavorazione</b> (senza prezzi) da dare in officina.</li>
+        <li>Segna gli articoli <b>pronti</b>; controlla il riepilogo “tutti pronti”. La <b>consegna</b> la chiude il Magazzino.</li>
+        <li>Fai una prova col <b>cronometro</b>: avvia, pausa con motivo, chiudi. Guarda il riepilogo tempi.</li>
+      </ul>
+      <div class="keep-out">🔒 <b>Non tuo:</b> prezzi, costi e tariffe; lo <b>scarico materiali</b> e la <b>spedizione</b> li fa il <b>Magazzino</b>.
+        Tu porti il lavoro fino a <b>“pronto”</b>. Per il cronometro entri col tuo <b>PIN</b>.</div>
+    </div>
+  </div>
+
+  
+<h2 class="sec">🔧 Manutenzioni — registro mezzi e strumenti (ISO)</h2>
+  <p class="sec-sub">Per <b>Produzione</b> e <b>Magazzino</b>. Serve per la certificazione: teniamo traccia di quando puliamo / tariamo / facciamo il tagliando ad attrezzature e mezzi.</p>
+  <div class="dept p">
+    <div class="dept-h"><div class="k">Modulo 🔧 Mezzi &amp; Strumenti</div><h3>Registrare un controllo fatto</h3>
+      <p>Un responsabile configura ogni strumento (che controllo serve, chi lo fa, ogni quanti mesi). A te operatore basta <b>un clic</b> quando l'hai fatto.</p></div>
+    <div class="dept-b">
+      <div class="block-lbl">Cosa fai</div>
+      <ol class="load">
+        <li><b>Guardi lo stato</b> <span class="mod">🔧 Mezzi &amp; Strumenti</span>
+          <span class="fields">Nell'elenco ogni strumento ha un colore: <b style="color:#1f9c68">Ok</b>, <b style="color:#b26a00">In scadenza</b> (entro 30 giorni), <b style="color:#c0392b">Scaduto</b>. Guarda soprattutto arancioni e rossi.</span></li>
+        <li><b>Registri il controllo</b> <span class="mod">🔧 Mezzi &amp; Strumenti</span>
+          <span class="fields">Sulla riga premi <b>✓ Controllo fatto</b>: metti la <b>data</b> (di default oggi), il tuo <b>nome</b> e una <b>nota</b> se serve (es. “sostituita lama”, “tarato ok”). Salvi e lo stato torna <b>verde</b> da solo.</span></li>
+        <li><b>Vedi lo storico</b> <span class="mod">🔧 Mezzi &amp; Strumenti</span>
+          <span class="fields">Il tasto <b>🕓</b> mostra tutti i controlli passati di quello strumento.</span></li>
+      </ol>
+      <div class="pre">🟠 Se uno strumento è <b>In scadenza</b> o <b>Scaduto</b>: fai il controllo e registralo: torna verde. Il <b>file Excel</b> per l'ente lo genera l'ufficio con un clic (pulsante <b>📋 Registro ISO</b>) — tu non devi compilare nessun foglio.</div>
+      <div class="keep-out">🔒 <b>Non tuo:</b> creare o modificare gli strumenti e la <b>frequenza</b> dei controlli — lo imposta un responsabile. Tu <b>registri i controlli</b> che esegui.</div>
+    </div>
+  </div>
+  <div class="note" style="margin-top:12px"><b>Altri due registri ISO</b> (li tiene l'ufficio, non gli operatori): <b>Feedback clienti</b> — nella scheda del cliente; <b>Valutazione fornitori</b> — nella scheda del fornitore. Anche questi generano l'Excel in automatico dai dati inseriti.</div>
+
+  
+  <div class="note" style="margin-top:22px"><b>Se trovi un intoppo</b> — annota <b>cosa stavi facendo</b>, <b>cosa ti aspettavi</b> e <b>cosa è successo</b>, fai uno <b>screenshot</b> e passa tutto a <b>Giulio</b>. Sono dati di prova: sbagliare qui è utile.</div>
+  <div class="foot"><p>Fai parte di una staffetta: <b>Titolari → Amministrazione → Magazzino → Commerciale → Produzione → Magazzino (spedizioni)</b>. Questo foglio è la <b>tua</b> parte.</p>
+  <p class="sig">Creatio Group · Stampa &amp; Allestimenti — manuale operativo</p></div>
+</div>
+</body></html>

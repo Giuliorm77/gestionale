@@ -6332,8 +6332,9 @@ function htmlEtichetta(p){
     '<div class="com">'+escHtml(p.commessa||"")+'</div>'+
     '</div></body></html>';
 }
-function htmlPreventivo(prev, righe, az, cli, tot){
+function htmlPreventivo(prev, righe, az, cli, tot, destinazione){
   const eurf=n=>Number(n||0).toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+  const destBanner = destinazione ? '<div style="margin:0 0 10px;padding:8px 12px;background:#eef4ff;border:1px solid #cfe0ff;border-radius:6px;font-size:13px"><b>📦 Consegna a:</b> '+escHtml(destinazione)+'</div>' : "";
   const dt=prev.data? new Date(prev.data):new Date();
   const scad=new Date(dt.getTime()+(Number(prev.validita_giorni)||0)*86400000);
   const fmt=d=>d.toLocaleDateString("it-IT");
@@ -6390,6 +6391,7 @@ ${cartaImg}
     : `<div class="az"><div class="nm">${escHtml(az.azienda_nome||"La tua azienda")}</div>${escHtml(az.azienda_indirizzo||"")}${az.azienda_citta?"<br>"+escHtml(az.azienda_citta):""}${az.azienda_piva?"<br>P.IVA "+escHtml(az.azienda_piva):""}${az.azienda_tel?"<br>Tel "+escHtml(az.azienda_tel):""}${az.azienda_email?" · "+escHtml(az.azienda_email):""}</div><div class="doc"><h1>PREVENTIVO</h1><div class="meta">N. ${escHtml(prev.numero||"—")}<br>Data: ${fmt(dt)}<br>Valido fino al: ${fmt(scad)}${prev.descrizione_breve?"<br>Oggetto: "+escHtml(prev.descrizione_breve):""}${prev.riferimento?"<br>Rif.: "+escHtml(prev.riferimento):""}</div></div>`}
 </div>
 ${carta?"":`<div class="cli"><div class="lbl">Spett.le</div><div class="nm">${escHtml((cli&&cli.ragione_sociale)||prev.cliente_nome||"")}</div>${indCli?escHtml(indCli)+"<br>":""}${cli&&cli.partita_iva?"P.IVA "+escHtml(cli.partita_iva):""}${prev.referente_dest?"<br>Alla c.a. "+escHtml(prev.referente_dest):""}${prev.email_dest?'<br><span style="color:#2f5bea">'+escHtml(prev.email_dest)+"</span>":""}</div>`}
+${destBanner}
 <table class="righe"><colgroup><col style="width:52%"><col style="width:12%"><col style="width:14%"><col style="width:10%"><col style="width:12%"></colgroup><thead><tr><th>Descrizione</th><th class="r">Q.tà</th><th class="r">Prezzo</th><th class="r">Sconto</th><th class="r">Totale</th></tr></thead>
 <tbody>${righeHtml}${extra.join("")}</tbody></table>
 <table class="tot">
@@ -7391,6 +7393,15 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
         const e=m[p.articolo_id]||(m[p.articolo_id]={mq:0,zero:0}); e.mq+=mq; if(Number(p.costo)===0) e.zero+=mq; });
       Object.values(m).forEach(e=>{ e.mq=Math.round(e.mq*100)/100; e.zero=Math.round(e.zero*100)/100; });
       setAvanzoDisp(m); }).catch(()=>{}); },[]);
+  // sedi del cliente: per assegnare una destinazione a ogni riga e stampare un preventivo per sede
+  const [sediCli,setSediCli]=useState([]);
+  useEffect(()=>{ let vivo=true; (async()=>{
+    if(!f.cliente_id){ setSediCli([]); return; }
+    const {data}=await sb.from("clienti").select("clienti_sedi(*)").eq("id",f.cliente_id).maybeSingle();
+    if(vivo) setSediCli((data&&data.clienti_sedi)||[]);
+  })(); return ()=>{vivo=false;}; },[f.cliente_id]);
+  const hasSedi = sediCli.length>1;
+  const sedeLabelP=s=>{ const t=(TIPI_SEDE.find(x=>x.v===s.tipo)||{}); return (t.ico?t.ico+" ":"")+((s.citta||s.indirizzo)?[s.citta,s.indirizzo].filter(Boolean).join(" "):(t.label||s.tipo)); };
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const setRiga=(i,k,v)=>setRighe(p=>p.map((r,j)=>j===i?{...r,[k]:v}:r));
   const delRiga=i=>setRighe(p=>p.filter((_,j)=>j!==i));
@@ -7473,6 +7484,18 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
   }
   async function stampa(){ const cli=await caricaCli(); stampaHTML(htmlPreventivo(f, righeCalc, imp, cli, tot)); }
   async function stampaCliente(){ const cli=await caricaCli(); stampaHTML(htmlPreventivo(f, righeVersioneCliente(righeCalc), imp, cli, tot)); }
+  // Preventivo per SINGOLA SEDE: solo le righe di quella destinazione, extra globali (imballaggio/trasporto) azzerati.
+  async function stampaSede(sedeId){
+    const cli=await caricaCli();
+    const righeS=righeCalc.filter(r=>(r.sede_id||"")===(sedeId||""));
+    if(!righeS.length){ setErr("Nessuna riga per questa destinazione."); return; }
+    const fS={...f, imballaggio:0, trasporto:0};
+    const totS=calcolaPreventivo(righeS,fS);
+    const s=sediCli.find(x=>x.id===sedeId);
+    const destTxt = s ? [ (TIPI_SEDE.find(t=>t.v===s.tipo)||{}).label, s.indirizzo, s.cap, s.citta, s.provincia&&("("+s.provincia+")") ].filter(Boolean).join(" ")
+                      : "Senza destinazione";
+    stampaHTML(htmlPreventivo(fS, righeVersioneCliente(righeS), imp, cli, totS, destTxt));
+  }
   const numIn={width:82,padding:"6px 7px",border:"1px solid var(--line)",borderRadius:7,textAlign:"right"};
   const LAV_OPZ=[...new Set([...tariffe.map(t=>t.lavorazione),...LAVORAZIONI])];
 
@@ -7502,6 +7525,7 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
       articolo_id:r.articolo_id||null,lavorazione:r.lavorazione||"",quantita:Number(r.quantita)||0,unita:r.unita||"",
       costo_unitario:Number(r.costo_unitario)||0,prezzo_unitario:Number(r.prezzo_unitario)||0,sconto_pct:Number(r.sconto_pct)||0,
       config:r.config||null,modalita_consegna:r.modalita_consegna||"corriere", pagato_intero:r.pagato_intero!==false,
+      sede_id:r.sede_id||null,
       imballo_id:null, imballo_ids:imballiSel(r).filter(x=>x!=="__pluriball__"), imballo_pluriball:pluriballDaSalvare(r),
       imballo_costo:Math.round(costoImballoRiga(r)*100)/100}));
     if(rows.length){ const {error}=await sb.from("preventivi_righe").insert(rows); if(error) throw error; }
@@ -7554,7 +7578,7 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
         .map((r,idx)=>({commessa_id:nc.id, ordine:idx, descrizione:r.descrizione||"",
           articolo_id:r.articolo_id||null, quantita:Number(r.quantita)||0, unita:r.unita||"",
           data_consegna:null, stato:"da_produrre", config:r.config||null,
-          modalita_consegna:r.modalita_consegna||"corriere",
+          modalita_consegna:r.modalita_consegna||"corriere", sede_id:r.sede_id||null,
           imballo_id:null, imballo_ids:imballiSel(r).filter(x=>x!=="__pluriball__"), imballo_pluriball:pluriballDaSalvare(r),
           imballo_costo:Math.round(costoImballoRiga(r)*100)/100}));
       if(artRighe.length){ const {error:er}=await sb.from("commesse_righe").insert(artRighe); if(er) throw er; }
@@ -7616,10 +7640,10 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
               <table>
                 <thead><tr>
                   <th>Tipo</th><th>Descrizione / Lavorazione</th><th>Q.tà</th><th>Prezzo €</th><th>Sc.%</th><th>Costo €</th>
-                  <th style={{textAlign:"right"}}>Totale</th><th>Consegna</th><th></th>
+                  <th style={{textAlign:"right"}}>Totale</th>{hasSedi && <th>Destinazione</th>}<th>Consegna</th><th></th>
                 </tr></thead>
                 <tbody>
-                  {righe.length===0 && <tr><td colSpan={9} className="muted" style={{padding:14}}>Nessuna riga. Aggiungi materiale, manodopera o impianti qui sotto.</td></tr>}
+                  {righe.length===0 && <tr><td colSpan={9+(hasSedi?1:0)} className="muted" style={{padding:14}}>Nessuna riga. Aggiungi materiale, manodopera o impianti qui sotto.</td></tr>}
                   {righe.map((r,i)=>{
                     const rt=(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0)*(1-(Number(r.sconto_pct)||0)/100);
                     return (
@@ -7640,6 +7664,11 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
                         <td><input type="number" step="any" value={r.sconto_pct} onChange={e=>setRiga(i,"sconto_pct",e.target.value)} style={{...numIn,width:56}}/></td>
                         <td><input type="number" step="any" value={r.costo_unitario} onChange={e=>setRiga(i,"costo_unitario",e.target.value)} style={numIn}/></td>
                         <td style={{textAlign:"right",fontWeight:600}}>{eur(rt)}</td>
+                        {hasSedi && <td><select value={r.sede_id||""} onChange={e=>setRiga(i,"sede_id",e.target.value||null)}
+                          style={{padding:"5px",borderRadius:7,border:"1px solid var(--line)",fontSize:12,maxWidth:150}}>
+                          <option value="">— nessuna —</option>
+                          {sediCli.map(s=><option key={s.id} value={s.id}>{sedeLabelP(s)}</option>)}
+                        </select></td>}
                         <td>{(r.tipo==="materiale"||r.tipo==="altro")
                           ? <div style={{display:"flex",flexDirection:"column",gap:4}}>
                               <select value={r.modalita_consegna||"corriere"} onChange={e=>setRiga(i,"modalita_consegna",e.target.value)}
@@ -7791,7 +7820,13 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
         </div>
         <footer>
           <button type="button" className="btn" style={{marginRight:8}} onClick={stampa} disabled={!f.cliente_id} title="PDF interno completo (con lavorazioni)">🖨️ PDF interno</button>
-          <button type="button" className="btn" style={{marginRight:"auto"}} onClick={stampaCliente} disabled={!f.cliente_id} title="PDF per il cliente: lavorazioni fuse nel materiale, nessuna fase visibile">👤 PDF cliente</button>
+          <button type="button" className="btn" style={{marginRight:hasSedi?8:"auto"}} onClick={stampaCliente} disabled={!f.cliente_id} title="PDF per il cliente: lavorazioni fuse nel materiale, nessuna fase visibile">👤 PDF cliente</button>
+          {hasSedi && <select className="btn" style={{marginRight:"auto"}} value="" disabled={!f.cliente_id}
+            onChange={e=>{ const v=e.target.value; e.target.value=""; if(v) stampaSede(v); }}
+            title="Stampa un preventivo con i soli materiali di una destinazione (per mandarlo a quella sede)">
+            <option value="">📄 PDF per sede…</option>
+            {sediCli.filter(s=>righe.some(r=>(r.sede_id||"")===s.id)).map(s=><option key={s.id} value={s.id}>{sedeLabelP(s)}</option>)}
+          </select>}
           {!nuovo && f.stato==="accettato" &&
             <button type="button" className="btn" onClick={creaCommessa} disabled={busy} title="Genera una commessa di produzione da questo preventivo">🏭 Crea commessa</button>}
           <button type="button" className="btn" onClick={onClose}>Annulla</button>
@@ -8110,14 +8145,161 @@ function FidoEditorKomunigo({a, esposizione, onSalva}){
     </div>
   );
 }
+// crea un cliente in anagrafica dai dati inseriti in fase di registrazione sul negozio
+async function creaClienteDaAccount(a){
+  const payload={
+    ragione_sociale:(a.ragione_sociale||a.nome||a.azienda||"").trim(),
+    tipo: a.tipo_cliente==="azienda"?"Azienda":"Privato",
+    categoria:"Cliente finale", stato:"Attivo",
+    partita_iva:(a.partita_iva||"").trim(), codice_fiscale:(a.codice_fiscale||"").trim(), codice_sdi:(a.codice_sdi||"").trim(),
+    telefono:(a.telefono||"").trim(), sconto_pct:null,
+  };
+  const {data:cli,error}=await sb.from("clienti").insert(payload).select("id").single();
+  if(error) throw error;
+  const sedi=[];
+  if(a.indirizzo||a.citta||a.cap) sedi.push({cliente_id:cli.id,tipo:"legale",indirizzo:a.indirizzo||"",cap:a.cap||"",citta:a.citta||"",provincia:a.provincia||"",nazione:"Italia"});
+  if(a.consegna_uguale===false && (a.consegna_indirizzo||a.consegna_citta)) sedi.push({cliente_id:cli.id,tipo:"destinazione_merce",indirizzo:a.consegna_indirizzo||"",cap:a.consegna_cap||"",citta:a.consegna_citta||"",provincia:a.consegna_provincia||"",nazione:"Italia"});
+  if(sedi.length){ const {error:e2}=await sb.from("clienti_sedi").insert(sedi); if(e2) throw e2; }
+  const em=[];
+  if(a.email) em.push({cliente_id:cli.id,categoria:"generica",indirizzo:a.email});
+  if(a.pec) em.push({cliente_id:cli.id,categoria:"pec",indirizzo:a.pec});
+  if(em.length){ const {error:e3}=await sb.from("clienti_email").insert(em); if(e3) throw e3; }
+  return cli.id;
+}
+
+// SCHEDA COMPLETA di un account Komunigo: dati registrazione (modificabili),
+// anagrafica (crea/collega), condizioni B2B + fido, storico ordini.
+function SchedaAccountKomunigo({a, clienti, ordini, cliMap, esposizione, onBack, onReload, salvaB2b, perm}){
+  const BILL=["tipo_cliente","ragione_sociale","nome","azienda","partita_iva","codice_fiscale","pec","codice_sdi","telefono","indirizzo","cap","citta","provincia","consegna_uguale","consegna_indirizzo","consegna_cap","consegna_citta","consegna_provincia"];
+  const [bf,setBf]=useState(()=>{ const o={}; BILL.forEach(k=>o[k]=a[k]); return o; });
+  const [err,setErr]=useState(""); const [msg,setMsg]=useState(""); const [busy,setBusy]=useState("");
+  const [linkSel,setLinkSel]=useState(a.cliente_id||"");
+  useEffect(()=>{ const o={}; BILL.forEach(k=>o[k]=a[k]); setBf(o); setLinkSel(a.cliente_id||""); },[a.id]);
+  const set=(k,v)=>{ setBf(p=>({...p,[k]:v})); setMsg(""); };
+  const cli=cliMap[a.cliente_id];
+  const esp=esposizione(a.id);
+  const F=(label,key,opts={})=> <div className="field" style={{minWidth:opts.w||160,flex:opts.grow?1:"initial"}}><label>{label}</label>
+    <input value={bf[key]==null?"":bf[key]} onChange={e=>set(key,e.target.value)} placeholder={opts.ph||""}/></div>;
+  async function salvaDati(){
+    setBusy("dati"); setErr(""); setMsg("");
+    const payload={}; BILL.forEach(k=>payload[k]= k==="consegna_uguale"? (bf[k]!==false && bf[k]!=="false") : (bf[k]||""));
+    const {error}=await sb.from("komunigo_account").update(payload).eq("id",a.id);
+    setBusy("");
+    if(error){ setErr(error.message); return; }
+    setMsg("Dati salvati ✓"); onReload();
+  }
+  async function creaCliente(){
+    if(!window.confirm("Creo un nuovo cliente in Anagrafica con questi dati e lo collego a questo account?")) return;
+    setBusy("crea"); setErr(""); setMsg("");
+    try{
+      const cid=await creaClienteDaAccount(a);
+      await salvaB2b(a,{cliente_id:cid});
+      setMsg("Cliente creato e collegato ✓"); onReload();
+    }catch(e){ setErr("Errore creazione cliente: "+(e.message||e)); }
+    setBusy("");
+  }
+  async function eliminaAccount(){
+    if(!window.confirm(`Eliminare definitivamente l'account «${a.ragione_sociale||a.nome||a.email}»?\n\n• Verrà rimosso il suo accesso al negozio Komunigo\n• Gli eventuali ordini restano, ma senza account collegato\n• L'anagrafica cliente NON viene toccata\n\nOperazione non annullabile.`)) return;
+    setBusy("del"); setErr("");
+    try{
+      const {data,error}=await sb.functions.invoke("komunigo-ordine",{body:{action:"account-elimina",account_id:a.id}});
+      if(error) throw error; if(data&&data.error) throw new Error(data.error);
+      onBack(); onReload();
+    }catch(e){ setErr("Errore eliminazione: "+(e.message||e)); setBusy(""); }
+  }
+  const ordiniAcc=(ordini||[]).filter(o=>o.account_id===a.id);
+  return (
+    <>
+      <div className="topbar"><h1>🤝 {a.ragione_sociale||a.nome||a.email||"Account"}</h1>
+        <button className="btn ghost" onClick={onBack}>← Torna all'elenco</button></div>
+      <div className="content">
+        {err && <div className="banner err">{err}</div>}
+        {msg && <div className="banner info">{msg}</div>}
+        <div className="muted" style={{fontSize:13,marginBottom:10}}>📧 {a.email} · registrato il {a.creato_il? new Date(a.creato_il).toLocaleDateString("it-IT"):"—"}</div>
+
+        <div className="card" style={{marginBottom:16}}>
+          <h3 style={{marginTop:0}}>Dati di registrazione / fatturazione</h3>
+          <div style={{display:"flex",gap:14,flexWrap:"wrap",alignItems:"flex-end"}}>
+            <div className="field" style={{minWidth:140}}><label>Tipo</label>
+              <select value={bf.tipo_cliente||"privato"} onChange={e=>set("tipo_cliente",e.target.value)}>
+                <option value="privato">Privato</option><option value="azienda">Azienda</option></select></div>
+            {F("Ragione sociale","ragione_sociale",{w:240,grow:true})}
+            {F("Referente / nome","nome",{w:200})}
+            {F("Partita IVA","partita_iva",{w:160})}
+            {F("Codice fiscale","codice_fiscale",{w:180})}
+            {F("PEC","pec",{w:220})}
+            {F("Codice SDI","codice_sdi",{w:120})}
+            {F("Telefono","telefono",{w:160})}
+          </div>
+          <h4 style={{margin:"14px 0 4px"}}>Sede legale</h4>
+          <div style={{display:"flex",gap:14,flexWrap:"wrap",alignItems:"flex-end"}}>
+            {F("Indirizzo","indirizzo",{w:260,grow:true})}{F("CAP","cap",{w:90})}{F("Città","citta",{w:180})}{F("Prov.","provincia",{w:80})}
+          </div>
+          <label style={{display:"flex",gap:8,alignItems:"center",margin:"12px 0 4px",fontWeight:600}}>
+            <input type="checkbox" checked={bf.consegna_uguale!==false && bf.consegna_uguale!=="false"} onChange={e=>set("consegna_uguale",e.target.checked)}/> Consegna uguale alla sede legale</label>
+          {!(bf.consegna_uguale!==false && bf.consegna_uguale!=="false") && <div style={{display:"flex",gap:14,flexWrap:"wrap",alignItems:"flex-end"}}>
+            {F("Indirizzo consegna","consegna_indirizzo",{w:260,grow:true})}{F("CAP","consegna_cap",{w:90})}{F("Città","consegna_citta",{w:180})}{F("Prov.","consegna_provincia",{w:80})}
+          </div>}
+          <button className="btn primary" style={{marginTop:14}} disabled={busy==="dati"} onClick={salvaDati}>{busy==="dati"?"…":"Salva dati"}</button>
+        </div>
+
+        <div className="card" style={{marginBottom:16}}>
+          <h3 style={{marginTop:0}}>Anagrafica cliente</h3>
+          {cli
+            ? <div style={{display:"flex",gap:14,alignItems:"center",flexWrap:"wrap"}}>
+                <span>Collegato a <b>{cli.ragione_sociale}</b>{cli.categoria?<span className="muted"> · {cli.categoria}</span>:null}</span>
+                <button className="btn small ghost" onClick={()=>salvaB2b(a,{cliente_id:null})}>Scollega</button>
+              </div>
+            : <>
+              <p className="muted" style={{marginTop:0}}>Questo account non è ancora un cliente in anagrafica. Puoi crearne uno nuovo con i dati qui sopra, oppure collegarlo a un cliente esistente.</p>
+              <div style={{display:"flex",gap:14,flexWrap:"wrap",alignItems:"flex-end"}}>
+                <button className="btn primary" disabled={busy==="crea"} onClick={creaCliente}>{busy==="crea"?"…":"➕ Crea nuovo cliente in anagrafica"}</button>
+                <span className="muted">oppure</span>
+                <div className="field" style={{minWidth:240}}><label>Collega a cliente esistente</label>
+                  <select value={linkSel} onChange={e=>{ setLinkSel(e.target.value); if(e.target.value) salvaB2b(a,{cliente_id:e.target.value}); }}>
+                    <option value="">— scegli —</option>
+                    {clienti.map(c=><option key={c.id} value={c.id}>{c.ragione_sociale}</option>)}
+                  </select></div>
+              </div>
+            </>}
+        </div>
+
+        <div className="card" style={{marginBottom:16}}>
+          <h3 style={{marginTop:0}}>Condizioni B2B</h3>
+          <div style={{display:"flex",gap:16,alignItems:"flex-end",flexWrap:"wrap",marginBottom:6}}>
+            <div className="field" style={{minWidth:200}}><label>Stato account</label>
+              <select value={a.stato} onChange={e=>salvaB2b(a,{stato:e.target.value})}>
+                <option value="nuovo">Nuovo</option><option value="attivo">Attivo</option>
+                <option value="b2b">B2B (prezzi riservati)</option><option value="sospeso">Sospeso</option></select></div>
+            {a.stato==="b2b" && <div style={{fontSize:14}}>{cli
+              ? <>Sconto applicato: <b style={{color:"var(--brand-d)"}}>{(()=>{ const sc=cli.sconto_pct!=null&&cli.sconto_pct!==""?Number(cli.sconto_pct):(cli.categoria==="Rivenditore"?"riv.":0); return sc==="riv."?"rivenditori":("−"+sc+"%"); })()}</b></>
+              : <span style={{color:"#c47a1e"}}>collega un cliente per applicare lo sconto</span>}</div>}
+          </div>
+          <FidoEditorKomunigo a={a} esposizione={esp} onSalva={(patch)=>salvaB2b(a,patch)}/>
+        </div>
+
+        <div className="card">
+          <h3 style={{marginTop:0}}>Ordini dal negozio ({ordiniAcc.length})</h3>
+          {ordiniAcc.length===0? <p className="muted">Nessun ordine.</p>
+           : <div className="muted" style={{fontSize:13}}>Totale ordinato: <b>{eur(ordiniAcc.reduce((s,o)=>s+(Number(o.totale)||0),0))}</b> · di cui a conto aperto non saldato: <b>{eur(esp)}</b>. Dettaglio in «🌐 Ordini Komunigo».</div>}
+        </div>
+
+        {perm.elimina && <div className="card" style={{marginTop:16,borderColor:"#f0c8c8"}}>
+          <h3 style={{marginTop:0,color:"#c0392b"}}>Elimina account</h3>
+          <p className="muted" style={{marginTop:0,fontSize:13}}>Rimuove il cliente dal negozio (accesso + registrazione). Gli ordini restano senza account collegato; l'anagrafica cliente resta. Operazione non annullabile.</p>
+          <button className="btn danger" disabled={busy==="del"} onClick={eliminaAccount}>{busy==="del"?"Elimino…":"🗑 Elimina account Komunigo"}</button>
+        </div>}
+      </div>
+    </>
+  );
+}
 function ModuloAccountKomunigo({profilo,perm}){
   const [acc,setAcc]=useState(null);
   const [clienti,setClienti]=useState([]);
   const [ordini,setOrdini]=useState([]);
   const [err,setErr]=useState("");
-  const [msg,setMsg]=useState("");
   const [cerca,setCerca]=useState("");
-  const [aperto,setAperto]=useState(null); // account id espanso
+  const [selId,setSelId]=useState(null); // account aperto in scheda
   const carica=useCallback(async()=>{
     setErr("");
     const [a,c,o]=await Promise.all([
@@ -8131,11 +8313,10 @@ function ModuloAccountKomunigo({profilo,perm}){
   useEffect(()=>{ carica(); },[carica]);
   const cliMap={}; clienti.forEach(c=>cliMap[c.id]=c);
   const scontoStd=(cli)=> !cli? 0 : (cli.sconto_pct!=null&&cli.sconto_pct!==""? Number(cli.sconto_pct) : (cli.categoria==="Rivenditore"? "riv." : 0));
-  // esposizione = somma ordini differiti NON ancora saldati del cliente
   const esposizione=(accId)=> (ordini||[]).filter(o=>o.account_id===accId && o.pagamento_metodo==="differito" && !["pagato","annullato"].includes(o.pagamento_stato)).reduce((s,o)=>s+(Number(o.totale)||0),0);
-  // salva i campi sensibili SOLO via RPC (il cliente non può toccarli)
+  // campi sensibili SOLO via RPC (il cliente non può toccarli)
   async function salvaB2b(a, patch){
-    setErr(""); setMsg("");
+    setErr("");
     const {error}=await sb.rpc("komunigo_account_set_b2b",{
       p_id:a.id,
       p_cliente_id:('cliente_id' in patch? patch.cliente_id : a.cliente_id)||null,
@@ -8145,9 +8326,11 @@ function ModuloAccountKomunigo({profilo,perm}){
       p_giorni:('giorni_pagamento' in patch? patch.giorni_pagamento : a.giorni_pagamento),
     });
     if(error){ setErr(error.message); return; }
-    setMsg("Salvato ✓"); await carica();
+    await carica();
   }
-  const STATI=[["nuovo","Nuovo"],["attivo","Attivo"],["b2b","B2B (prezzi riservati)"],["sospeso","Sospeso"]];
+  const selAcc=(acc||[]).find(x=>x.id===selId)||null;
+  if(selAcc) return <SchedaAccountKomunigo a={selAcc} clienti={clienti} ordini={ordini} cliMap={cliMap}
+    esposizione={esposizione} onBack={()=>setSelId(null)} onReload={carica} salvaB2b={salvaB2b} perm={perm}/>;
   const q=cerca.trim().toLowerCase();
   const lista=(acc||[]).filter(a=>!q || [a.nome,a.email,a.ragione_sociale,a.azienda].join(" ").toLowerCase().includes(q));
   return (
@@ -8155,8 +8338,7 @@ function ModuloAccountKomunigo({profilo,perm}){
       <div className="topbar"><h1>🤝 Account Komunigo</h1></div>
       <div className="content">
         {err && <div className="banner err">{err}</div>}
-        {msg && <div className="banner info">{msg}</div>}
-        <div className="banner info">Clienti registrati sul <b>negozio Komunigo</b>. Collega un account all'<b>anagrafica cliente</b> e mettilo su <b>B2B</b> per applicargli il suo <b>sconto</b>; con <b>⚙️ Fido</b> attivi il <b>pagamento differito</b> (conto aperto a X giorni) e il tetto di credito.</div>
+        <div className="banner info">Clienti registrati sul <b>negozio Komunigo</b>. Apri la <b>scheda</b> per vedere/modificare i dati, <b>creare</b> il cliente in anagrafica (o collegarlo), attivare il <b>B2B</b> con sconto e il <b>conto aperto</b> (pagamento differito + fido).</div>
         <div className="toolbar">
           <div className="search"><span className="mag">🔍</span><input placeholder="Cerca nome, email, azienda…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
           <span className="muted">{lista.length} account</span>
@@ -8165,38 +8347,26 @@ function ModuloAccountKomunigo({profilo,perm}){
          : lista.length===0? <div className="card empty">Nessun account registrato dal negozio.</div>
          : <div className="card" style={{overflow:"auto"}}>
             <table>
-              <thead><tr><th>Cliente</th><th>Contatti</th><th>Anagrafica collegata</th><th>Stato</th><th>Sconto B2B</th><th>Conto aperto</th></tr></thead>
-              <tbody>{lista.map(a=>{ const cli=cliMap[a.cliente_id]; const s=scontoStd(cli); const esp=esposizione(a.id); const espanso=aperto===a.id; return (
-                <React.Fragment key={a.id}>
-                <tr>
+              <thead><tr><th>Cliente</th><th>Contatti</th><th>Anagrafica</th><th>Stato</th><th>Sconto B2B</th><th>Conto aperto</th><th></th></tr></thead>
+              <tbody>{lista.map(a=>{ const cli=cliMap[a.cliente_id]; const s=scontoStd(cli); const esp=esposizione(a.id); const sfora=esp>Number(a.fido_massimo||0)&&Number(a.fido_massimo)>0; return (
+                <tr key={a.id} style={{cursor:"pointer"}} onClick={()=>setSelId(a.id)}>
                   <td className="rs">{a.ragione_sociale||a.nome||"—"}
                     {a.azienda&&a.azienda!==a.ragione_sociale?<div className="muted" style={{fontSize:12}}>{a.azienda}</div>:null}
                     <div className="muted" style={{fontSize:11}}>{a.tipo_cliente==="azienda"?"Azienda":"Privato"}{a.partita_iva?" · P.IVA "+a.partita_iva:""}</div></td>
                   <td className="muted" style={{fontSize:13}}>{a.email}<div>{a.telefono}</div></td>
-                  <td>{perm.scrivi
-                    ? <select value={a.cliente_id||""} onChange={e=>salvaB2b(a,{cliente_id:e.target.value||null})} style={{maxWidth:230}}>
-                        <option value="">— non collegato —</option>
-                        {clienti.map(c=><option key={c.id} value={c.id}>{c.ragione_sociale}</option>)}
-                      </select>
-                    : (cli? cli.ragione_sociale : "—")}</td>
-                  <td>{perm.scrivi
-                    ? <select value={a.stato} onChange={e=>salvaB2b(a,{stato:e.target.value})}>{STATI.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</select>
-                    : a.stato}</td>
+                  <td>{cli? cli.ragione_sociale : <span className="muted">non collegato</span>}</td>
+                  <td><span className="muted">{a.stato}</span></td>
                   <td>{a.stato==="b2b" && cli
                     ? <b style={{color:"var(--brand-d)"}}>{s==="riv."?"rivenditori":("−"+s+"%")}</b>
-                    : <span className="muted">{a.stato==="b2b"?"collega un cliente":"—"}</span>}</td>
+                    : <span className="muted">—</span>}</td>
                   <td>{a.pagamento_differito
-                    ? <span className="tag" style={{background:esp>Number(a.fido_massimo||0)&&Number(a.fido_massimo)>0?"#fde8e8":"#e6f4ea",color:esp>Number(a.fido_massimo||0)&&Number(a.fido_massimo)>0?"#c0392b":"#1e7d34"}}>{eur(esp)}/{eur(a.fido_massimo)} · {a.giorni_pagamento}gg</span>
-                    : <span className="muted">no</span>}
-                    {perm.scrivi && <button className="btn small ghost" style={{marginLeft:8}} onClick={()=>setAperto(espanso?null:a.id)}>{espanso?"chiudi":"⚙️ Fido"}</button>}</td>
-                </tr>
-                {espanso && perm.scrivi && <tr><td colSpan={6} style={{padding:0}}>
-                  <FidoEditorKomunigo a={a} esposizione={esp} onSalva={(patch)=>salvaB2b(a,patch)}/>
-                </td></tr>}
-                </React.Fragment>); })}</tbody>
+                    ? <span className="tag" style={{background:sfora?"#fde8e8":"#e6f4ea",color:sfora?"#c0392b":"#1e7d34"}}>{eur(esp)}/{eur(a.fido_massimo)} · {a.giorni_pagamento}gg</span>
+                    : <span className="muted">no</span>}</td>
+                  <td><button className="btn small" onClick={e=>{e.stopPropagation();setSelId(a.id);}}>Apri ›</button></td>
+                </tr>); })}</tbody>
             </table>
           </div>}
-        <div className="muted" style={{fontSize:12,marginTop:10}}>Lo sconto segue le regole dell'anagrafica (eccezione categoria → sconto cliente → rivenditori), su magazzino e configuratori, solo con stato <b>B2B</b> e cliente collegato. Il <b>conto aperto</b> fa partire l'ordine senza pagamento anticipato: l'incasso lo confermi a scadenza in «Ordini Komunigo».</div>
+        <div className="muted" style={{fontSize:12,marginTop:10}}>Clicca una riga per aprire la scheda. Un cliente che si registra sul negozio compare qui automaticamente; da qui lo trasformi in cliente d'anagrafica e gli dai le condizioni B2B.</div>
       </div>
     </>
   );

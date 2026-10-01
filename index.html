@@ -345,6 +345,10 @@ const CATEGORIE_EMAIL = [
   {v:"pec",label:"PEC"},
   {v:"ordini",label:"Ordini"},
 ];
+// Etichette dei ruoli mostrate agli utenti. La CHIAVE interna resta invariata
+// ('commerciale'): permessi e RLS non cambiano, cambia solo il nome visualizzato.
+const RUOLI_LABEL={amministratore:"Amministratore", commerciale:"Back office", agente:"Agente", produzione:"Produzione", magazzino:"Magazzino", reception:"Reception"};
+const labelRuolo=r=> RUOLI_LABEL[r]||r||"";
 const CATEGORIE_STRUTTURA = [
   {v:"personale_indiretto",label:"Personale indiretto"},
   {v:"affitto",label:"Affitto / immobili"},
@@ -903,7 +907,7 @@ function Gestionale({profilo}){
         </nav>
         <div className="userbox">
           <div className="nm">{profilo.nome}</div>
-          <div className="rl">{profilo.ruolo}</div>
+          <div className="rl">{labelRuolo(profilo.ruolo)}</div>
           <button className="btn small" style={{marginTop:9,width:"100%"}} onClick={()=>setCambiaPw(true)}>🔑 Cambia password</button>
           <button className="btn small" style={{marginTop:6,width:"100%"}} onClick={()=>sb.auth.signOut()}>Esci</button>
         </div>
@@ -1047,7 +1051,7 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
 
   return <div className="cm">
     <div className="cmhead">
-      <div><b>Gestionale Creatio</b><div className="u">{profilo.nome} · {profilo.ruolo}</div></div>
+      <div><b>Gestionale Creatio</b><div className="u">{profilo.nome} · {labelRuolo(profilo.ruolo)}</div></div>
       <button className="btn small" onClick={()=>sb.auth.signOut()}>Esci</button>
     </div>
 
@@ -12895,7 +12899,7 @@ function ModuloUtenti({profilo}){
                     <td>
                       <select className="btn small" value={u.ruolo||"reception"}
                               onChange={e=>cambiaRuolo(u.id,e.target.value)}>
-                        {RUOLI.map(r=><option key={r} value={r}>{r}</option>)}
+                        {RUOLI.map(r=><option key={r} value={r}>{labelRuolo(r)}</option>)}
                       </select>
                     </td>
                     <td>
@@ -12953,7 +12957,7 @@ function PermessiEditor({utente,onClose,onSalvato}){
         <header><h2>Permessi di {utente.nome}</h2><button type="button" className="x" onClick={onClose}>×</button></header>
         <div className="body">
           {err && <div className="banner err">{err}</div>}
-          <div className="banner info">Ruolo: <b>{ruolo}</b>. Qui fai <b>eccezioni</b> solo per questo utente. "Come ruolo" = usa il default del ruolo.</div>
+          <div className="banner info">Ruolo: <b>{labelRuolo(ruolo)}</b>. Qui fai <b>eccezioni</b> solo per questo utente. "Come ruolo" = usa il default del ruolo.</div>
           <div className="section"><h3>Autorizzazioni</h3>
             {FLAGS.map(f=>
               <div key={f.k} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"6px 0",flexWrap:"wrap"}}>

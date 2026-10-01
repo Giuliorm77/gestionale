@@ -140,7 +140,7 @@
     <span class="ar">&rarr;</span>
     <div class="rs p"><small>Fase 4 · produzione</small><b>Produzione</b><span>Commesse, cronometro, “pronto”</span></div>
     <span class="ar">&rarr;</span>
-    <div class="rs m"><small>Fase 5 · spedizioni</small><b>Magazzino</b><span>Imballo, spedizione, consegna, rientri</span></div>
+    <div class="rs m"><small>Fase 5 · spedizioni</small><b>Magazzino</b><span>Imballo, DDT (anche per sede), spedizione, consegna</span></div>
   </div>
   <p class="sec-sub" style="margin-top:12px">🔎 <b>Questi sono i titoli.</b> L'elenco <b>completo</b> di cosa fa ogni reparto — passo per passo, con la prova da spuntare — è nella sua <b>scheda dettagliata qui sotto</b>.</p>
 
@@ -156,10 +156,12 @@
     <tr><td>🚚 Fornitori (+ listino per articolo)</td><td><span class="badge b-a">Amministrazione</span></td></tr>
     <tr><td>📦 Catalogo articoli (creazione anagrafica)</td><td><span class="badge b-a">Amministrazione</span></td></tr>
     <tr><td>🏬 Magazzino: carichi, scarichi, rettifiche, giacenze · 🏷️ Pezzi &amp; Etichette (lastre/avanzi)</td><td><span class="badge b-m">Magazzino</span></td></tr>
-    <tr><td>🧩 Prodotti configurabili · 🎁 Imballi</td><td><span class="badge b-c">Commerciale</span></td></tr>
-    <tr><td>🧾 Preventivi</td><td><span class="badge b-c">Commerciale</span></td></tr>
+    <tr><td>🧩 Prodotti configurabili (a misura, <b>Stampa su carta</b>, gadget) · 🎁 Imballi</td><td><span class="badge b-c">Commerciale</span></td></tr>
+    <tr><td>🧾 Preventivi (destinazione per riga · PDF per sede)</td><td><span class="badge b-c">Commerciale</span></td></tr>
+    <tr><td>🎯 CRM / Trattative · 📅 Agenda e promemoria</td><td><span class="badge b-c">Commerciale / Agenti</span></td></tr>
     <tr><td>🏭 Commesse: avanzamento fino a “pronto” · ⏱️ Postazione operatore</td><td><span class="badge b-p">Produzione</span></td></tr>
-    <tr><td>🚚 Spedizioni: spedito/consegnato, imballo finale, trasporto</td><td><span class="badge b-m">Magazzino</span></td></tr>
+    <tr><td>🚚 Spedizioni: imballo, spedito/consegnato · 📄 <b>DDT</b> (anche per sede)</td><td><span class="badge b-m">Magazzino</span></td></tr>
+    <tr><td>✅ Qualità (ISO): non conformità, controlli, progettazione · 🔧 Mezzi &amp; Strumenti</td><td><span class="badge b-a">Ufficio / reparti</span></td></tr>
   </table>
 
   <h2 class="sec">Tutto in una pagina — cosa fa ogni reparto</h2>
@@ -192,13 +194,20 @@
       <tr><td>Scarichi e rettifiche (dopo conteggio fisico)</td><td>🏬 Magazzino</td></tr>
       <tr><td>Scarico materiali della commessa (senza prezzi)</td><td>🏭 Commesse</td></tr>
       <tr><td>Spedizione: imballo, corriere, spedito/consegnato</td><td>🏭 Commesse</td></tr>
+      <tr><td>DDT — documento di trasporto (da commessa, anche parziale e <b>un DDT per sede</b>)</td><td>📄 DDT</td></tr>
 
       <tr class="grp c"><td colspan="2">COMMERCIALE · vendita</td></tr>
-      <tr><td>Prodotti configurabili (varianti, opzioni, fasce)</td><td>🧩 Prodotti config.</td></tr>
+      <tr><td>Prodotti configurabili: a misura, <b>Stampa su carta</b> (nesting fogli), gadget</td><td>🧩 Prodotti config.</td></tr>
       <tr><td>Imballi (ricette di imballaggio)</td><td>🎁 Imballi</td></tr>
-      <tr><td>Preventivi (cliente, righe, configurabili, imballo/trasporto, PDF)</td><td>🧾 Preventivi</td></tr>
-      <tr><td>Preventivo accettato → Crea commessa</td><td>🧾 Preventivi</td></tr>
+      <tr><td>Preventivi (cliente, righe, configurabili, imballo/trasporto, PDF). Misure in <b>mm</b></td><td>🧾 Preventivi</td></tr>
+      <tr><td>Ordine a più sedi: <b>destinazione per riga</b> + <b>PDF per sede</b> (solo i suoi materiali)</td><td>🧾 Preventivi</td></tr>
+      <tr><td>Preventivo accettato → Crea commessa (le destinazioni si portano dietro)</td><td>🧾 Preventivi</td></tr>
+      <tr><td>Evasione riga (🏭 interna / 🚚 fornitore / 📦 neutro) → Genera ordine fornitore</td><td>🏭 Commesse</td></tr>
       <tr><td>Valorizza avanzi (costo zero / acquisto / manuale) = leva prezzi</td><td>🏷️ Pezzi &amp; Etichette</td></tr>
+
+      <tr class="grp c"><td colspan="2">CRM · trattative e promemoria (Commerciale / Agenti)</td></tr>
+      <tr><td>Trattative (pipeline), attività, clienti collegati all'agente</td><td>🎯 CRM / Trattative</td></tr>
+      <tr><td>Promemoria con giorno+ora → avviso via <b>email</b> e “Aggiungi al calendario”</td><td>📅 Agenda</td></tr>
 
       <tr class="grp p"><td colspan="2">PRODUZIONE · officina (senza prezzi)</td></tr>
       <tr><td>Completa la commessa: data di consegna per riga (obbligatoria)</td><td>🏭 Commesse</td></tr>
@@ -253,9 +262,9 @@
       <ol class="load">
         <li><b>Anagrafica Clienti</b> <span class="mod">👥 Clienti</span>
           <span class="fields">Ragione sociale, tipo, referente, sedi (legale/operativa/consegna), email categorizzate,
-          dati fiscali (P.IVA/CF/SDI), condizioni economiche ed eventuali listini personali.</span></li>
+          telefono/cellulare/<b>WhatsApp</b> (link 💬 per aprire la chat), dati fiscali (P.IVA/CF/SDI), condizioni economiche ed eventuali listini personali.</span></li>
         <li><b>Fornitori</b> <span class="mod">🚚 Fornitori</span>
-          <span class="fields">Anagrafica, cosa fornisce, affidabilità, sedi, dati fiscali; se possibile il <b>listino per articolo</b>.</span></li>
+          <span class="fields">Anagrafica, cosa fornisce, affidabilità, sedi, contatti (telefono/cellulare/<b>WhatsApp</b>), dati fiscali; se possibile il <b>listino per articolo</b>.</span></li>
         <li><b>Catalogo articoli</b> <span class="mod">📦 Catalogo</span>
           <span class="fields">Materie prime e prodotti: codice, nome, unità, <b>costo</b> interno, <b>prezzi</b>, scorta minima, foto.
           Puoi <b>importare da Excel</b>. Spunta “vendibile” dove serve.<br>
@@ -284,16 +293,20 @@
       <div class="block-lbl">Cosa carichi</div>
       <ol class="load">
         <li><b>Prodotti configurabili</b> <span class="mod">🧩 Prodotti config.</span>
-          <span class="fields">Le lavorazioni su misura (es. pannello forex): varianti (materiale/spessore), voci di
-          lavorazione, fasce di quantità. <b>Aggancia ogni variante all'articolo</b> del catalogo (per scaricare il magazzino).</span></li>
+          <span class="fields">Tre tipi: <b>a misura</b> (es. pannello forex: varianti materiale/spessore, voci, fasce) · <b>Stampa su carta</b> (biglietti, volantini: il sistema calcola da solo le <b>pose per foglio</b> e i <b>fogli</b> necessari — tu imposti carte, vivo, €/passaggio) · <b>gadget</b> (colori + posizioni di stampa). Tutte le <b>misure in mm</b>. <b>Aggancia ogni variante all'articolo</b> del catalogo (per scaricare il magazzino). Nella sezione <b>🛒 Vendita online</b> decidi cosa vede il cliente sul sito.</span></li>
         <li><b>Imballi</b> <span class="mod">🎁 Imballi</span>
           <span class="fields">Le “ricette” di imballaggio (meglio <b>mono-materiale</b>: scatola, scotch, angolari…). Sulla riga del preventivo puoi combinarne <b>più d'una</b>, più il <b>Pluriball automatico</b> (bobina e metri calcolati dalle misure). Le bobine sono articoli <b>PLURIBALL-&lt;altezza&gt;</b>.</span></li>
         <li><b>Preventivi</b> <span class="mod">🧾 Preventivi</span>
-          <span class="fields">Scegli il cliente, aggiungi righe materiale/manodopera e prodotti configurabili (misure → prezzo automatico), gli <b>imballi per riga</b> e il <b>trasporto</b> (🚚 dal listino corriere). Stampi due PDF: <b>interno</b> (con lavorazioni) e <b>cliente</b> (lavorazioni fuse nel materiale, nessuna fase visibile).</span></li>
+          <span class="fields">Scegli il cliente, aggiungi righe materiale/manodopera e prodotti configurabili (misure in <b>mm</b> → prezzo automatico), gli <b>imballi per riga</b> e il <b>trasporto</b> (🚚 dal listino corriere). Stampi due PDF: <b>interno</b> (con lavorazioni) e <b>cliente</b> (lavorazioni fuse nel materiale, nessuna fase visibile).</span></li>
+        <li><b>Ordine consegnato a più sedi</b> <span class="mod">🧾 Preventivi</span>
+          <span class="fields">Se il cliente ha più sedi (es. catena di negozi): su ogni riga scegli la <b>Destinazione</b> (quale sede), poi col menù <b>“📄 PDF per sede”</b> stampi/mandi a ciascun punto vendita un preventivo con i <b>soli suoi materiali</b>. Quando crei la commessa le destinazioni si portano dietro → il Magazzino farà <b>un DDT per ogni sede</b>.</span></li>
+        <li><b>Evasione delle righe</b> <span class="mod">🏭 Commesse</span>
+          <span class="fields">Ogni riga può essere <b>🏭 interna</b> (la facciamo noi), <b>🚚 fornitore</b> (acquisto da terzi → pulsante <b>Genera ordine fornitore</b>) o <b>📦 neutro</b> (si spedisce così com'è). Possono convivere nella stessa commessa.</span></li>
       </ol>
       <div class="block-lbl">Come lo provi — il giro completo</div>
       <ul class="test">
-        <li>Costruisci un preventivo con un <b>prodotto configurabile</b> (es. 100×70 cm) e verifica il prezzo.</li>
+        <li>Costruisci un preventivo con un <b>prodotto configurabile</b> (es. 1000×700 mm) e verifica il prezzo.</li>
+        <li>Se il cliente ha più sedi: assegna la <b>Destinazione</b> a qualche riga e prova <b>📄 PDF per sede</b>.</li>
         <li>Controlla che <b>totali, margine e IVA</b> tornino; se il margine è basso deve <b>avvisarti</b>.</li>
         <li>Stampa il <b>PDF interno</b> e il <b>PDF cliente</b>: nel secondo le lavorazioni sono fuse nel materiale.</li>
         <li>Segna il preventivo <b>accettato</b> e premi <b>“Crea commessa”</b>: deve nascere la commessa.</li>
@@ -302,6 +315,23 @@
       </ul>
       <div class="keep-out">↔️ <b>Passaggio di consegne:</b> quando crei la commessa, avvisa la Produzione — nasce
         “vuota” di date e va completata da loro. Alla creazione i materiali risultano già <b>impegnati</b> in automatico; lo <b>scarico</b> fisico lo fa il <b>Magazzino</b> quando preleva.</div>
+    </div>
+  </div>
+
+  <!-- ============================ CRM / AGENDA ============================ -->
+  <div class="dept c">
+    <div class="dept-h"><div class="k">Area commerciale · relazioni</div><h3>CRM, trattative e promemoria</h3>
+      <p>Per <b>Commerciale</b> e <b>Agenti</b>. Tenere traccia delle trattative e non dimenticare i richiami.</p></div>
+    <div class="dept-b">
+      <div class="block-lbl">Cosa fai</div>
+      <ol class="load">
+        <li><b>Trattative</b> <span class="mod">🎯 CRM / Trattative</span>
+          <span class="fields">Apri e segui le trattative (pipeline: nuovo → contatto → offerta → vinta/persa), con valore stimato e cliente. Dalla trattativa puoi anche <b>generare il preventivo</b> collegato.</span></li>
+        <li><b>Attività e promemoria</b> <span class="mod">📅 Agenda</span>
+          <span class="fields">Registra un'attività (chiamata, visita, email…) e metti un <b>Promemoria</b> con <b>giorno e ora</b>. All'ora indicata ti arriva una <b>email</b> di avviso; col pulsante <b>“Aggiungi al calendario”</b> metti la sveglia anche sul telefono.</span></li>
+      </ol>
+      <div class="pre">📱 Da telefono: nel cruscotto compare la card <b>Agenda / promemoria</b> (i follow-up scaduti in rosso) con <b>+ Nuovo promemoria</b>. Gli <b>agenti</b> vedono una vista dedicata (solo i loro clienti e le loro trattative).</div>
+      <div class="keep-out">🔒 La <b>provvigione</b> la imposta il commerciale nel preventivo; l'agente la vede in sola lettura.</div>
     </div>
   </div>
 
@@ -356,7 +386,7 @@
         <li><b>Rientro dai reparti</b> <span class="mod">🏬 Magazzino</span>
           <span class="fields">Il materiale non usato che torna: <b>carico</b> con causale <b>“Rientro da lavorazione”</b>.</span></li>
         <li><b>Lastre con etichetta (avanzi)</b> <span class="mod">🏷️ Pezzi &amp; Etichette</span>
-          <span class="fields">Per le <b>lastre</b>: “<b>Prepara per commessa</b>” stampa l'<b>etichetta col codice a barre</b> e aggancia il materiale alla commessa. Al ritorno “<b>Registra rientro</b>”: se torna un <b>avanzo</b> lo misuri e nasce una <b>nuova etichetta</b>; il ritaglio resta a scaffale, riutilizzabile.</span></li>
+          <span class="fields">Per le <b>lastre</b>: “<b>Prepara per commessa</b>” stampa l'<b>etichetta col codice a barre</b> e aggancia il materiale alla commessa. Al ritorno “<b>Registra rientro</b>”: se torna un <b>avanzo</b> lo misuri (<b>in mm</b>) e nasce una <b>nuova etichetta</b>; il ritaglio resta a scaffale, riutilizzabile.</span></li>
         <li><b>Allestimenti: uscita e rientro</b> <span class="mod">🏬 Magazzino</span>
           <span class="fields">Prepara il carico per l'evento (<b>“Uscita per allestimento”</b>); al rientro <b>controlla e sistema</b> la merce e registra il rientro (<b>“Rientro da allestimento”</b>).</span></li>
         <li><b>Scarichi e rettifiche</b> <span class="mod">🏬 Magazzino</span>
@@ -365,6 +395,8 @@
           <span class="fields">Apri la commessa → sezione <b>Materiali</b> → <b>Scarica dal magazzino</b>: crea i movimenti e cala la giacenza. Vedi <b>quantità</b>, non prezzi. Puoi anche <b>stornare</b> uno scarico sbagliato.</span></li>
         <li><b>Spedizione e consegna</b> <span class="mod">🏭 Commesse</span>
           <span class="fields">Quando la Produzione ha segnato <b>“pronto”</b>: prepara l'<b>imballo</b>, affida al corriere e segna la riga <b>spedito/consegnato</b>.</span></li>
+        <li><b>DDT — documento di trasporto</b> <span class="mod">📄 DDT</span>
+          <span class="fields">Dalla commessa generi il <b>DDT</b> (destinatario, colli, peso, vettore, causale). Puoi fare <b>spedizioni parziali</b> (spedisci i pronti, il resto con un DDT successivo). Se l'ordine va a <b>più sedi</b>: scegli la <b>Sede di consegna</b> e generi <b>un DDT per ogni sede</b>, con i soli materiali di quella destinazione.</span></li>
       </ol>
       <div class="pre" style="margin-top:2px">🏷️ <b>Novità già attiva — Pezzi &amp; Etichette:</b> le <b>lastre</b> si tracciano con un <b>codice a barre</b>
         (prelievo → etichetta → rientro dell'avanzo con nuova etichetta → il commerciale ne vede il valore, €0 se già pagato).
@@ -382,6 +414,24 @@
       </ul>
       <div class="keep-out">🔒 <b>Non tuo:</b> l'<b>anagrafica</b> degli articoli (nomi, prezzi) la crea l'Amministrazione.
         Tu muovi le <b>quantità</b>, non i prezzi — compreso lo <b>scarico dei materiali della commessa</b>, che ora fai <b>tu</b> (senza vedere i costi).</div>
+    </div>
+  </div>
+
+  <h2 class="sec">✅ Qualità (ISO) — registri legati alle commesse</h2>
+  <p class="sec-sub">Per l'<b>ufficio</b> (amministrazione/commerciale). Servono alla certificazione: si compilano una volta e generano i documenti per l'ente.</p>
+  <div class="dept a">
+    <div class="dept-h"><div class="k">Modulo ✅ Qualità (ISO)</div><h3>Non conformità, controlli, progettazione</h3>
+      <p>Quattro registri in un unico modulo, alcuni collegabili a una commessa.</p></div>
+    <div class="dept-b">
+      <ol class="load">
+        <li><b>Non conformità</b> <span class="mod">✅ Qualità (ISO)</span>
+          <span class="fields">Registri un problema (reparto, ambito, gravità, azione correttiva, responsabile, esito). Stampi il <b>rapporto PDF</b> (MOD QA-10.2) e scarichi il <b>Registro Excel</b>.</span></li>
+        <li><b>Controlli operativi qualità</b> <span class="mod">✅ Qualità (ISO)</span>
+          <span class="fields">Controllo su una commessa/processo con esito (positivo / parzialmente / negativo). Export Excel del registro.</span></li>
+        <li><b>Piano di progettazione e Pianificazione servizio-produzione</b> <span class="mod">✅ Qualità (ISO)</span>
+          <span class="fields">Schede collegate a una <b>commessa</b> (input/output, riesame, risorse, fasi e controlli) con stampa PDF.</span></li>
+      </ol>
+      <div class="keep-out">🔒 Lo tiene l'<b>ufficio</b>, non gli operatori. Gli Excel per l'ente si generano con un clic dai dati inseriti.</div>
     </div>
   </div>
 

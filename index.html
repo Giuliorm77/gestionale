@@ -3335,6 +3335,9 @@ function ArticoloForm({articolo,perm,profilo,fornitori,onClose,onSalvato,onDupli
     .then(({data})=>setFornPrezzi((data||[]).map(x=>({...x})))); } },[articolo?.id]);
   const [catSugg,setCatSugg]=useState([]);
   useEffect(()=>{ sb.rpc("categorie_articoli").then(({data})=>setCatSugg((data||[]).map(r=>r.categoria).filter(Boolean))); },[]);
+  const [sgPct,setSgPct]=useState(0);   // % spese generali (dalle Impostazioni) per il margine netto
+  useEffect(()=>{ sb.from("impostazioni").select("spese_generali_pct").eq("id",1).maybeSingle()
+    .then(({data})=>setSgPct(Number(data&&data.spese_generali_pct)||0)).catch(()=>{}); },[]);
   const [prezzoKg,setPrezzoKg]=useState("");   // per calcolare il costo/foglio della carta
   const addForn=()=>setFornPrezzi(p=>[...p,{fornitore_id:"",prezzo:0,codice_fornitore:"",note:""}]);
   const setFP=(i,k,v)=>setFornPrezzi(p=>p.map((r,j)=>j===i?{...r,[k]:v}:r));
@@ -3489,10 +3492,12 @@ function ArticoloForm({articolo,perm,profilo,fornitori,onClose,onSalvato,onDupli
               {(() => { const c=Number(f.costo)||0, p=Number(f.prezzo_pubblico)||0;
                 if(!(c>0 && p>0)) return null;
                 const m=(p-c)/p*100;
-                return <div className="field" style={{maxWidth:200,alignSelf:"flex-start"}}>
+                const sg=Number(sgPct)||0, cPieno=c*(1+sg/100), netM=(p-cPieno)/p*100;
+                return <div className="field" style={{maxWidth:230,alignSelf:"flex-start"}}>
                   <label>Margine</label>
-                  <div style={{fontSize:22,fontWeight:800,color:m<=0?"var(--danger)":m<20?"#b26a00":"var(--ok)"}}>{m.toFixed(1)}%</div>
-                  <div className="muted" style={{fontSize:12}}>{m<=0?"⚠️ Sotto costo!":"Sconto max prima di andare sotto costo: "+m.toFixed(0)+"%"}</div>
+                  <div style={{fontSize:22,fontWeight:800,color:m<=0?"var(--danger)":m<20?"#b26a00":"var(--ok)"}}>{m.toFixed(1)}% <span style={{fontSize:12,fontWeight:600,color:"var(--muted)"}}>lordo</span></div>
+                  {sg>0 && <div style={{fontSize:13,marginTop:2}}>Netto (spese gen. {sg}%): <b style={{color:netM<=0?"var(--danger)":netM<10?"#b26a00":"var(--ok)"}}>{netM.toFixed(1)}%</b></div>}
+                  <div className="muted" style={{fontSize:12,marginTop:2}}>{m<=0?"⚠️ Sotto costo!":"Sconto max prima di andare sotto costo (d'acquisto): "+m.toFixed(0)+"%"}</div>
                 </div>; })()}
             </div>
             <div className="row">

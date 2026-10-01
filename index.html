@@ -543,6 +543,12 @@ const NAV_ITEMS = [
 ];
 const labelSede = v => (TIPI_SEDE.find(t=>t.v===v)||{}).label || v;
 const labelEmail = v => (CATEGORIE_EMAIL.find(c=>c.v===v)||{}).label || v;
+// Link alla chat WhatsApp (wa.me) da un numero scritto in qualunque formato.
+// Numeri italiani senza prefisso (es. 333...) ricevono +39 in automatico.
+function waHref(num){ let d=String(num||"").replace(/\D/g,""); if(!d) return "";
+  if(d.startsWith("00")) d=d.slice(2);
+  if(!d.startsWith("39") && d[0]==="3" && d.length>=9 && d.length<=11) d="39"+d;
+  return "https://wa.me/"+d; }
 // Interpreta un prezzo scritto in vari formati (es. "1.234,56 €", "1,234.56", "12,5") -> numero
 function normalizzaPrezzo(v){
   if(v===null||v===undefined||v==="") return "";
@@ -1860,7 +1866,7 @@ function ModuloClienti({profilo,perm}){
         "Ragione sociale":c.ragione_sociale||"", "Tipo":c.tipo||"", "Categoria":c.categoria||"",
         "Attività":c.tipo_attivita||"", "Referente":c.referente||"",
         "Città":sede.citta||"", "Provincia":sede.provincia||"", "Regione":sede.regione||"",
-        "Telefono":c.telefono||"", "Cellulare":c.cellulare||"", "Email":email,
+        "Telefono":c.telefono||"", "Cellulare":c.cellulare||"", "WhatsApp":c.whatsapp||"", "Email":email,
         "P.IVA":c.partita_iva||"", "Cod.Fiscale":c.codice_fiscale||"",
         "Stato":c.stato||"Attivo", "Affidabilità":c.affidabilita||"",
         "Agente":(c.agente&&c.agente.nome)||"", "Lavorazioni":(c.lavorazioni||[]).join(", "),
@@ -2086,6 +2092,7 @@ function DettaglioCliente({cliente:c,perm,profilo,onClose,onModifica,onEliminato
               <span className="k">Referente</span><span>{c.referente||"—"}</span>
               <span className="k">Telefono</span><span>{c.telefono||"—"}</span>
               <span className="k">Cellulare</span><span>{c.cellulare||"—"}</span>
+              <span className="k">WhatsApp</span><span>{c.whatsapp? <a href={waHref(c.whatsapp)} target="_blank" rel="noopener noreferrer" style={{color:"#25D366",fontWeight:700,textDecoration:"none"}}>💬 {c.whatsapp}</a> : "—"}</span>
             </div>
             <div style={{marginTop:10}}>
               {emails.length? emails.map(e=>
@@ -2273,6 +2280,7 @@ function FormCliente({cliente,perm,onClose,onSalvato}){
     sconto_pct:cliente?.sconto_pct ?? "",
     telefono:cliente?.telefono||"",
     cellulare:cliente?.cellulare||"",
+    whatsapp:cliente?.whatsapp||"",
     trasp_vettore:cliente?.trasp_vettore||"",
     trasp_referente:cliente?.trasp_referente||"",
     trasp_telefono:cliente?.trasp_telefono||"",
@@ -2473,6 +2481,8 @@ function FormCliente({cliente,perm,onClose,onSalvato}){
                 <input value={f.telefono} onChange={e=>set("telefono",e.target.value)}/></div>
               <div className="field"><label>Cellulare</label>
                 <input value={f.cellulare} onChange={e=>set("cellulare",e.target.value)}/></div>
+              <div className="field"><label>WhatsApp {f.whatsapp && <a href={waHref(f.whatsapp)} target="_blank" rel="noopener noreferrer" style={{color:"#25D366",fontWeight:700,textDecoration:"none"}}>💬 apri</a>}</label>
+                <input value={f.whatsapp} onChange={e=>set("whatsapp",e.target.value)} placeholder="es. 333 1234567"/></div>
             </div>
             <label style={{fontSize:12,fontWeight:600,color:"var(--muted)",textTransform:"uppercase"}}>Email</label>
             {emails.map((e,i)=>
@@ -5614,7 +5624,7 @@ function ModuloFornitori({profilo,perm}){
       const r={
         "Ragione sociale":fo.ragione_sociale||"", "Cosa fornisce":forn, "Note forniture":fo.cosa_fornisce_note||"",
         "Affidabilità (1-5)":fo.affidabilita||"", "Referente":fo.referente||"",
-        "Telefono":fo.telefono||"", "Cellulare":fo.cellulare||"", "Email":fo.email||"", "PEC":fo.pec||"",
+        "Telefono":fo.telefono||"", "Cellulare":fo.cellulare||"", "WhatsApp":fo.whatsapp||"", "Email":fo.email||"", "PEC":fo.pec||"",
         "P.IVA":fo.partita_iva||"", "Cod.Fiscale":fo.codice_fiscale||"",
         "Città":fo.citta||"", "Regione":fo.regione||"", "Termini pagamento":fo.termini_pagamento||"",
         "Attivo":fo.attivo===false?"No":"Sì",
@@ -5720,6 +5730,7 @@ function FornitoreForm({fornitore,perm,profilo,onClose,onSalvato}){
     referente:fornitore?.referente||"",
     telefono:fornitore?.telefono||"",
     cellulare:fornitore?.cellulare||"",
+    whatsapp:fornitore?.whatsapp||"",
     email:fornitore?.email||"",
     pec:fornitore?.pec||"",
     partita_iva:fornitore?.partita_iva||"",
@@ -5888,6 +5899,7 @@ function FornitoreForm({fornitore,perm,profilo,onClose,onSalvato}){
             <div className="row">
               <div className="field"><label>Telefono</label><input value={f.telefono} onChange={e=>set("telefono",e.target.value)}/></div>
               <div className="field"><label>Cellulare</label><input value={f.cellulare} onChange={e=>set("cellulare",e.target.value)}/></div>
+              <div className="field"><label>WhatsApp {f.whatsapp && <a href={waHref(f.whatsapp)} target="_blank" rel="noopener noreferrer" style={{color:"#25D366",fontWeight:700,textDecoration:"none"}}>💬 apri</a>}</label><input value={f.whatsapp} onChange={e=>set("whatsapp",e.target.value)} placeholder="es. 333 1234567"/></div>
             </div>
             <div className="row">
               <div className="field"><label>Email</label>

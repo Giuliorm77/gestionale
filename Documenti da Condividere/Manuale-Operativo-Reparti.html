@@ -113,8 +113,8 @@
     <p class="lead">Cosa deve <b>caricare</b> ogni reparto e come <b>provarlo</b>, in un ordine preciso.
        Ognuno lavora sulla <b>propria area</b>: così i dati entrano una volta sola e non ci si accavalla.</p>
     <div class="note">🎯 <b>Come usare questo foglio.</b> Ognuno legge (e stampa) <b>solo la sua sezione</b>.
-       Si va in ordine: prima i Titolari, poi Amministrazione, poi Magazzino (giacenze), poi Commerciale,
-       poi Produzione, infine di nuovo il Magazzino per le spedizioni — ogni reparto usa i dati di chi lo precede.</div>
+       Si va in ordine: prima i Titolari, poi il Back office (anagrafiche e articoli), poi il Magazzino (giacenze),
+       di nuovo il Back office (preventivi), poi la Produzione, infine il Magazzino per le spedizioni — ogni reparto usa i dati di chi lo precede.</div>
   </header>
 
   <h2 class="sec">Le 3 regole per non pestarsi i piedi</h2>
@@ -132,11 +132,11 @@
   <div class="relay">
     <div class="rs t"><small>Fase 0 · fondamenta</small><b>Titolari</b><span>Impostazioni, tariffe, lavorazioni, operatori, utenti</span></div>
     <span class="ar">&rarr;</span>
-    <div class="rs a"><small>Fase 1 · anagrafiche</small><b>Amministrazione</b><span>Clienti, fornitori, catalogo</span></div>
+    <div class="rs a"><small>Fase 1 · anagrafiche</small><b>Back office</b><span>Clienti (+ fatturazione), fornitori, catalogo articoli</span></div>
     <span class="ar">&rarr;</span>
     <div class="rs m"><small>Fase 2 · giacenze</small><b>Magazzino</b><span>Giacenze, carichi, prelievi con etichetta, avanzi</span></div>
     <span class="ar">&rarr;</span>
-    <div class="rs c"><small>Fase 3 · vendita</small><b>Commerciale</b><span>Configurabili, imballi, preventivi</span></div>
+    <div class="rs c"><small>Fase 3 · vendita</small><b>Back office</b><span>Configurabili, imballi, preventivi (+ CRM)</span></div>
     <span class="ar">&rarr;</span>
     <div class="rs p"><small>Fase 4 · produzione</small><b>Produzione</b><span>Commesse, cronometro, “pronto”</span></div>
     <span class="ar">&rarr;</span>
@@ -152,13 +152,13 @@
     <tr><td>Tariffe per lavorazione (costi e margini) · Lavorazioni · Costi di struttura</td><td><span class="badge b-t">Titolari</span></td></tr>
     <tr><td>👷 Operatori e costi orari</td><td><span class="badge b-t">Titolari</span></td></tr>
     <tr><td>🔑 Utenti &amp; Ruoli (approvazioni)</td><td><span class="badge b-t">Titolari</span></td></tr>
-    <tr><td>👥 Anagrafica Clienti (sedi, listini, condizioni)</td><td><span class="badge b-a">Amministrazione</span></td></tr>
-    <tr><td>🚚 Fornitori (+ listino per articolo)</td><td><span class="badge b-a">Amministrazione</span></td></tr>
-    <tr><td>📦 Catalogo articoli (creazione anagrafica)</td><td><span class="badge b-a">Amministrazione</span></td></tr>
+    <tr><td>👥 Anagrafica Clienti (sedi, listini, condizioni)</td><td><span class="badge b-c">Back office</span></td></tr>
+    <tr><td>🚚 Fornitori (+ listino per articolo)</td><td><span class="badge b-c">Back office</span></td></tr>
+    <tr><td>📦 Catalogo articoli (creazione anagrafica)</td><td><span class="badge b-c">Back office</span></td></tr>
     <tr><td>🏬 Magazzino: carichi, scarichi, rettifiche, giacenze · 🏷️ Pezzi &amp; Etichette (lastre/avanzi)</td><td><span class="badge b-m">Magazzino</span></td></tr>
-    <tr><td>🧩 Prodotti configurabili (a misura, <b>Stampa su carta</b>, gadget) · 🎁 Imballi</td><td><span class="badge b-c">Commerciale</span></td></tr>
-    <tr><td>🧾 Preventivi (destinazione per riga · PDF per sede)</td><td><span class="badge b-c">Commerciale</span></td></tr>
-    <tr><td>🎯 CRM / Trattative · 📅 Agenda e promemoria</td><td><span class="badge b-c">Commerciale / Agenti</span></td></tr>
+    <tr><td>🧩 Prodotti configurabili (a misura, <b>Stampa su carta</b>, gadget) · 🎁 Imballi</td><td><span class="badge b-c">Back office</span></td></tr>
+    <tr><td>🧾 Preventivi (destinazione per riga · PDF per sede)</td><td><span class="badge b-c">Back office</span></td></tr>
+    <tr><td>🎯 CRM / Trattative · 📅 Agenda e promemoria</td><td><span class="badge b-c">Back office / Agenti</span></td></tr>
     <tr><td>🏭 Commesse: avanzamento fino a “pronto” · ⏱️ Postazione operatore</td><td><span class="badge b-p">Produzione</span></td></tr>
     <tr><td>🚚 Spedizioni: imballo, spedito/consegnato · 📄 <b>DDT</b> (anche per sede)</td><td><span class="badge b-m">Magazzino</span></td></tr>
     <tr><td>✅ Qualità (ISO): non conformità, controlli, progettazione · 🔧 Mezzi &amp; Strumenti</td><td><span class="badge b-a">Ufficio / reparti</span></td></tr>
@@ -178,8 +178,8 @@
       <tr><td>Operatori e costi orari</td><td>👷 Operatori</td></tr>
       <tr><td>Approva utenti e assegna ruoli</td><td>🔑 Utenti &amp; Ruoli</td></tr>
 
-      <tr class="grp a"><td colspan="2">AMMINISTRAZIONE · anagrafiche</td></tr>
-      <tr><td>Anagrafica clienti (sedi, email, dati fiscali, condizioni, listini)</td><td>👥 Clienti</td></tr>
+      <tr class="grp c"><td colspan="2">BACK OFFICE · anagrafiche e articoli (ex Amministrazione + Commerciale)</td></tr>
+      <tr><td>Anagrafica clienti: sedi, email, WhatsApp, condizioni, listini <b>+ dati di fatturazione</b> (P.IVA/CF/SDI/PEC)</td><td>👥 Clienti</td></tr>
       <tr><td>Fornitori (+ listino per articolo)</td><td>🚚 Fornitori</td></tr>
       <tr><td>Catalogo articoli (crea, import Excel, prezzi, “vendibile”)</td><td>📦 Catalogo</td></tr>
 
@@ -196,7 +196,7 @@
       <tr><td>Spedizione: imballo, corriere, spedito/consegnato</td><td>🏭 Commesse</td></tr>
       <tr><td>DDT — documento di trasporto (da commessa, anche parziale e <b>un DDT per sede</b>)</td><td>📄 DDT</td></tr>
 
-      <tr class="grp c"><td colspan="2">COMMERCIALE · vendita</td></tr>
+      <tr class="grp c"><td colspan="2">BACK OFFICE · vendita</td></tr>
       <tr><td>Prodotti configurabili: a misura, <b>Stampa su carta</b> (nesting fogli), gadget</td><td>🧩 Prodotti config.</td></tr>
       <tr><td>Imballi (ricette di imballaggio)</td><td>🎁 Imballi</td></tr>
       <tr><td>Preventivi (cliente, righe, configurabili, imballo/trasporto, PDF). Misure in <b>mm</b></td><td>🧾 Preventivi</td></tr>
@@ -205,7 +205,7 @@
       <tr><td>Evasione riga (🏭 interna / 🚚 fornitore / 📦 neutro) → Genera ordine fornitore</td><td>🏭 Commesse</td></tr>
       <tr><td>Valorizza avanzi (costo zero / acquisto / manuale) = leva prezzi</td><td>🏷️ Pezzi &amp; Etichette</td></tr>
 
-      <tr class="grp c"><td colspan="2">CRM · trattative e promemoria (Commerciale / Agenti)</td></tr>
+      <tr class="grp c"><td colspan="2">CRM · trattative e promemoria (Back office / Agenti)</td></tr>
       <tr><td>Trattative (pipeline), attività, clienti collegati all'agente</td><td>🎯 CRM / Trattative</td></tr>
       <tr><td>Promemoria con giorno+ora → avviso via <b>email</b> e “Aggiungi al calendario”</td><td>📅 Agenda</td></tr>
 
@@ -238,7 +238,7 @@
         <li><b>Operatori e costi orari</b> <span class="mod">👷 Operatori</span>
           <span class="fields">Chi lavora in produzione, reparto e <b>costo orario</b> (dato sensibile). Serve alla manodopera dei preventivi.</span></li>
         <li><b>Approva le persone e assegna i ruoli</b> <span class="mod">🔑 Utenti &amp; Ruoli</span>
-          <span class="fields">Ognuno si registra da sé; tu approvi e assegni: Amministrazione, Commerciale, Produzione.</span></li>
+          <span class="fields">Ognuno si registra da sé; tu approvi e assegni: Back office, Produzione, Magazzino, Agenti.</span></li>
       </ol>
       <div class="block-lbl">Come lo provi</div>
       <ul class="test">
@@ -254,8 +254,8 @@
 
   <!-- ========================= AMMINISTRAZIONE ========================= -->
   <div class="dept a">
-    <div class="dept-h"><div class="k">Fase 1 · anagrafiche e magazzino</div><h3>Amministrazione</h3>
-      <p>Le “rubriche” del gestionale: clienti, fornitori, articoli e giacenze di partenza.</p></div>
+    <div class="dept-h"><div class="k">Fase 1 · anagrafiche e articoli</div><h3>Back office — anagrafiche, articoli e fatturazione</h3>
+      <p>Le “rubriche” del gestionale: clienti (compresi i <b>dati di fatturazione</b>), fornitori e catalogo articoli. Le giacenze le mette il Magazzino.</p></div>
     <div class="dept-b">
       <div class="pre">✅ <b>Prima di iniziare:</b> i Titolari devono aver finito la Fase 0 (almeno Lavorazioni e Utenti approvati).</div>
       <div class="block-lbl">Cosa carichi</div>
@@ -280,16 +280,16 @@
         <li>Apri un fornitore e controlla sedi e contatti.</li>
       </ul>
       <div class="keep-out">↔️ <b>Passaggio di consegne:</b> quando il catalogo di prova è pronto, avvisa il <b>Magazzino</b>
-        (deve caricare le giacenze) e il <b>Commerciale</b> (deve costruire i prodotti configurabili sugli articoli).</div>
+        (deve caricare le giacenze): poi, sempre come Back office, costruisci i prodotti configurabili sugli articoli.</div>
     </div>
   </div>
 
   <!-- ============================ COMMERCIALE ============================ -->
   <div class="dept c">
-    <div class="dept-h"><div class="k">Fase 2 · motore di vendita</div><h3>Commerciale</h3>
-      <p>Configura i prodotti su misura e produce i preventivi, fino a farne nascere le commesse.</p></div>
+    <div class="dept-h"><div class="k">Fase 3 · motore di vendita</div><h3>Back office — vendita</h3>
+      <p>Configura i prodotti su misura e produce i preventivi (anche per più sedi), fino a farne nascere le commesse.</p></div>
     <div class="dept-b">
-      <div class="pre">✅ <b>Prima di iniziare:</b> Titolari (tariffe/listini) e Amministrazione (clienti e catalogo) devono aver caricato le loro parti.</div>
+      <div class="pre">✅ <b>Prima di iniziare:</b> i Titolari (tariffe/listini) e la Fase 1 del Back office (clienti e catalogo) devono essere pronti.</div>
       <div class="block-lbl">Cosa carichi</div>
       <ol class="load">
         <li><b>Prodotti configurabili</b> <span class="mod">🧩 Prodotti config.</span>
@@ -321,7 +321,7 @@
   <!-- ============================ CRM / AGENDA ============================ -->
   <div class="dept c">
     <div class="dept-h"><div class="k">Area commerciale · relazioni</div><h3>CRM, trattative e promemoria</h3>
-      <p>Per <b>Commerciale</b> e <b>Agenti</b>. Tenere traccia delle trattative e non dimenticare i richiami.</p></div>
+      <p>Per il <b>Back office</b> e gli <b>Agenti</b>. Tenere traccia delle trattative e non dimenticare i richiami.</p></div>
     <div class="dept-b">
       <div class="block-lbl">Cosa fai</div>
       <ol class="load">
@@ -340,7 +340,7 @@
     <div class="dept-h"><div class="k">Fase 3 · in officina</div><h3>Produzione</h3>
       <p>Prende in carico le commesse, segue l'avanzamento e i tempi, porta i lavori a “pronto/consegnato”.</p></div>
     <div class="dept-b">
-      <div class="pre">✅ <b>Prima di iniziare:</b> il Commerciale deve aver creato almeno una <b>commessa</b> di prova.
+      <div class="pre">✅ <b>Prima di iniziare:</b> il Back office deve aver creato almeno una <b>commessa</b> di prova.
         Nota: <b>non vedi prezzi né costi</b> — è normale, a te serve il lato operativo.</div>
       <div class="block-lbl">Cosa fai / carichi</div>
       <ol class="load">
@@ -373,7 +373,7 @@
       <p>Tiene i conti delle scorte e chiude il cerchio: riceve la merce, carica le giacenze, spedisce.
         Ruolo dedicato: <b>vede quantità e giacenze, ma NON prezzi né costi</b>.</p></div>
     <div class="dept-b">
-      <div class="pre">✅ <b>Prima di iniziare:</b> Amministrazione deve aver creato gli <b>articoli</b> nel Catalogo.
+      <div class="pre">✅ <b>Prima di iniziare:</b> il Back office deve aver creato gli <b>articoli</b> nel Catalogo.
         Le giacenze le carichi tu, appena il catalogo è pronto — non serve aspettare la produzione.</div>
       <div class="block-lbl">Cosa carichi / fai</div>
       <ol class="load">
@@ -399,7 +399,7 @@
           <span class="fields">Dalla commessa generi il <b>DDT</b> (destinatario, colli, peso, vettore, causale). Puoi fare <b>spedizioni parziali</b> (spedisci i pronti, il resto con un DDT successivo). Se l'ordine va a <b>più sedi</b>: scegli la <b>Sede di consegna</b> e generi <b>un DDT per ogni sede</b>, con i soli materiali di quella destinazione.</span></li>
       </ol>
       <div class="pre" style="margin-top:2px">🏷️ <b>Novità già attiva — Pezzi &amp; Etichette:</b> le <b>lastre</b> si tracciano con un <b>codice a barre</b>
-        (prelievo → etichetta → rientro dell'avanzo con nuova etichetta → il commerciale ne vede il valore, €0 se già pagato).
+        (prelievo → etichetta → rientro dell'avanzo con nuova etichetta → il Back office ne vede il valore, €0 se già pagato).
         Finché non arriva il <b>lettore a pistola</b>, il codice si può anche <b>digitare a mano</b>.
         🚧 <b>Ancora in arrivo:</b> il modulo <b>uscita/rientro allestimenti</b> con lista di controllo e segnalazione <b>ripristini</b>.</div>
       <div class="block-lbl">Come lo provi</div>
@@ -412,13 +412,13 @@
         <li>Su una commessa <b>“pronta”</b>, segna una riga come <b>consegnata</b> e controlla che il riepilogo si aggiorni.</li>
         <li>Verifica che <b>NON compaiano prezzi né costi</b> da nessuna parte: se li vedi, segnalalo subito.</li>
       </ul>
-      <div class="keep-out">🔒 <b>Non tuo:</b> l'<b>anagrafica</b> degli articoli (nomi, prezzi) la crea l'Amministrazione.
+      <div class="keep-out">🔒 <b>Non tuo:</b> l'<b>anagrafica</b> degli articoli (nomi, prezzi) la crea il Back office.
         Tu muovi le <b>quantità</b>, non i prezzi — compreso lo <b>scarico dei materiali della commessa</b>, che ora fai <b>tu</b> (senza vedere i costi).</div>
     </div>
   </div>
 
   <h2 class="sec">✅ Qualità (ISO) — registri legati alle commesse</h2>
-  <p class="sec-sub">Per l'<b>ufficio</b> (amministrazione/commerciale). Servono alla certificazione: si compilano una volta e generano i documenti per l'ente.</p>
+  <p class="sec-sub">Per l'<b>ufficio</b> (Back office). Servono alla certificazione: si compilano una volta e generano i documenti per l'ente.</p>
   <div class="dept a">
     <div class="dept-h"><div class="k">Modulo ✅ Qualità (ISO)</div><h3>Non conformità, controlli, progettazione</h3>
       <p>Quattro registri in un unico modulo, alcuni collegabili a una commessa.</p></div>
@@ -464,7 +464,7 @@
   </div>
 
   <div class="foot">
-    <p>Ordine da ricordare: <b>Titolari → Amministrazione → Magazzino (giacenze) → Commerciale → Produzione → Magazzino (spedizioni)</b>.
+    <p>Ordine da ricordare: <b>Titolari → Back office (anagrafiche/articoli) → Magazzino (giacenze) → Back office (preventivi) → Produzione → Magazzino (spedizioni)</b>.
       Ognuno carica la sua area una volta sola, poi passa il testimone. Così a gennaio partiamo con dati puliti e ruoli chiari.</p>
     <p class="sig">Creatio Group · Stampa &amp; Allestimenti — manuale operativo per reparto</p>
   </div>

@@ -1,6 +1,6 @@
 <!doctype html><html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Commerciale — Gestionale Creatio</title>
+<title>Back office — Gestionale Creatio</title>
 <style>
   :root{
     --bg:#EAEEF0; --surface:#FFFFFF; --surface-2:#F3F6F7; --ink:#132029; --ink-soft:#51646F;
@@ -105,19 +105,52 @@
   <header class="hero">
     <span class="crop tl"></span><span class="crop tr"></span><span class="crop bl"></span><span class="crop br"></span>
     <span class="eyebrow">Gestionale Creatio · Collaudo verso il go-live</span>
-    <h1>Commerciale</h1>
-    <p class="lead">Prodotti configurabili, imballi e preventivi (anche per più sedi), fino a far nascere le commesse.</p>
+    <h1>Back office</h1>
+    <p class="lead">Anagrafiche clienti (fatturazione inclusa), fornitori e catalogo articoli; prodotti configurabili, imballi e preventivi (anche per più sedi); CRM. E i registri ISO d'ufficio.</p>
   </header>
   <div class="note" style="margin-top:8px">
   <b>3 regole per non pestarsi i piedi.</b>
   <b>1 · Un dato, un proprietario:</b> carichi solo la tua area; se ti serve un dato di un altro reparto, chiediglielo.
   <b>2 · Si rispetta l'ordine</b> della staffetta. <b>3 · Dati di prova riconoscibili</b> (es. "PROVA – Rossi Srl").</div>
   
-  <div class="dept c">
-    <div class="dept-h"><div class="k">Fase 2 · motore di vendita</div><h3>Commerciale</h3>
-      <p>Configura i prodotti su misura e produce i preventivi, fino a farne nascere le commesse.</p></div>
+  <div class="dept a">
+    <div class="dept-h"><div class="k">Fase 1 · anagrafiche e articoli</div><h3>Back office — anagrafiche, articoli e fatturazione</h3>
+      <p>Le “rubriche” del gestionale: clienti (compresi i <b>dati di fatturazione</b>), fornitori e catalogo articoli. Le giacenze le mette il Magazzino.</p></div>
     <div class="dept-b">
-      <div class="pre">✅ <b>Prima di iniziare:</b> Titolari (tariffe/listini) e Amministrazione (clienti e catalogo) devono aver caricato le loro parti.</div>
+      <div class="pre">✅ <b>Prima di iniziare:</b> i Titolari devono aver finito la Fase 0 (almeno Lavorazioni e Utenti approvati).</div>
+      <div class="block-lbl">Cosa carichi</div>
+      <ol class="load">
+        <li><b>Anagrafica Clienti</b> <span class="mod">👥 Clienti</span>
+          <span class="fields">Ragione sociale, tipo, referente, sedi (legale/operativa/consegna), email categorizzate,
+          telefono/cellulare/<b>WhatsApp</b> (link 💬 per aprire la chat), dati fiscali (P.IVA/CF/SDI), condizioni economiche ed eventuali listini personali.</span></li>
+        <li><b>Fornitori</b> <span class="mod">🚚 Fornitori</span>
+          <span class="fields">Anagrafica, cosa fornisce, affidabilità, sedi, contatti (telefono/cellulare/<b>WhatsApp</b>), dati fiscali; se possibile il <b>listino per articolo</b>.</span></li>
+        <li><b>Catalogo articoli</b> <span class="mod">📦 Catalogo</span>
+          <span class="fields">Materie prime e prodotti: codice, nome, unità, <b>costo</b> interno, <b>prezzi</b>, scorta minima, foto.
+          Puoi <b>importare da Excel</b>. Spunta “vendibile” dove serve.<br>
+          • <b>Rigidi (forex, pvc…)</b>: unità <b>mq</b> + “mq per lastra” per caricarli a lastre.<br>
+          • <b>Carta</b>: unità <b>foglio</b> + grammatura e formato → il sistema calcola peso/foglio, e dal <b>prezzo al kg</b> ricava il <b>costo/foglio</b>; al carico scegli kg/pacchi/fogli.</span></li>
+      </ol>
+      <div class="pre" style="margin-top:2px">📦 <b>Le giacenze le carica il Magazzino:</b> tu crei l'<u>anagrafica</u> degli articoli
+        (nomi, codici, prezzi, unità); a mettere le <u>quantità</u> reali ci pensa il Magazzino, appena il catalogo è pronto.</div>
+      <div class="block-lbl">Come lo provi</div>
+      <ul class="test">
+        <li>Cerca un cliente con i <b>filtri</b> (lavorazione, regione, città): deve trovarsi al volo.</li>
+        <li>Dopo un <b>import Excel</b> del catalogo, apri 2-3 articoli e controlla che i campi siano corretti.</li>
+        <li>Apri un fornitore e controlla sedi e contatti.</li>
+      </ul>
+      <div class="keep-out">↔️ <b>Passaggio di consegne:</b> quando il catalogo di prova è pronto, avvisa il <b>Magazzino</b>
+        (deve caricare le giacenze): poi, sempre come Back office, costruisci i prodotti configurabili sugli articoli.</div>
+    </div>
+  </div>
+
+  
+
+  <div class="dept c">
+    <div class="dept-h"><div class="k">Fase 3 · motore di vendita</div><h3>Back office — vendita</h3>
+      <p>Configura i prodotti su misura e produce i preventivi (anche per più sedi), fino a farne nascere le commesse.</p></div>
+    <div class="dept-b">
+      <div class="pre">✅ <b>Prima di iniziare:</b> i Titolari (tariffe/listini) e la Fase 1 del Back office (clienti e catalogo) devono essere pronti.</div>
       <div class="block-lbl">Cosa carichi</div>
       <ol class="load">
         <li><b>Prodotti configurabili</b> <span class="mod">🧩 Prodotti config.</span>
@@ -147,6 +180,44 @@
   </div>
 
   
+
+  <div class="dept c">
+    <div class="dept-h"><div class="k">Area commerciale · relazioni</div><h3>CRM, trattative e promemoria</h3>
+      <p>Per il <b>Back office</b> e gli <b>Agenti</b>. Tenere traccia delle trattative e non dimenticare i richiami.</p></div>
+    <div class="dept-b">
+      <div class="block-lbl">Cosa fai</div>
+      <ol class="load">
+        <li><b>Trattative</b> <span class="mod">🎯 CRM / Trattative</span>
+          <span class="fields">Apri e segui le trattative (pipeline: nuovo → contatto → offerta → vinta/persa), con valore stimato e cliente. Dalla trattativa puoi anche <b>generare il preventivo</b> collegato.</span></li>
+        <li><b>Attività e promemoria</b> <span class="mod">📅 Agenda</span>
+          <span class="fields">Registra un'attività (chiamata, visita, email…) e metti un <b>Promemoria</b> con <b>giorno e ora</b>. All'ora indicata ti arriva una <b>email</b> di avviso; col pulsante <b>“Aggiungi al calendario”</b> metti la sveglia anche sul telefono.</span></li>
+      </ol>
+      <div class="pre">📱 Da telefono: nel cruscotto compare la card <b>Agenda / promemoria</b> (i follow-up scaduti in rosso) con <b>+ Nuovo promemoria</b>. Gli <b>agenti</b> vedono una vista dedicata (solo i loro clienti e le loro trattative).</div>
+      <div class="keep-out">🔒 La <b>provvigione</b> la imposta il commerciale nel preventivo; l'agente la vede in sola lettura.</div>
+    </div>
+  </div>
+
+  
+<h2 class="sec">✅ Qualità (ISO) — registri legati alle commesse</h2>
+  <p class="sec-sub">Per l'<b>ufficio</b> (Back office). Servono alla certificazione: si compilano una volta e generano i documenti per l'ente.</p>
+  <div class="dept a">
+    <div class="dept-h"><div class="k">Modulo ✅ Qualità (ISO)</div><h3>Non conformità, controlli, progettazione</h3>
+      <p>Quattro registri in un unico modulo, alcuni collegabili a una commessa.</p></div>
+    <div class="dept-b">
+      <ol class="load">
+        <li><b>Non conformità</b> <span class="mod">✅ Qualità (ISO)</span>
+          <span class="fields">Registri un problema (reparto, ambito, gravità, azione correttiva, responsabile, esito). Stampi il <b>rapporto PDF</b> (MOD QA-10.2) e scarichi il <b>Registro Excel</b>.</span></li>
+        <li><b>Controlli operativi qualità</b> <span class="mod">✅ Qualità (ISO)</span>
+          <span class="fields">Controllo su una commessa/processo con esito (positivo / parzialmente / negativo). Export Excel del registro.</span></li>
+        <li><b>Piano di progettazione e Pianificazione servizio-produzione</b> <span class="mod">✅ Qualità (ISO)</span>
+          <span class="fields">Schede collegate a una <b>commessa</b> (input/output, riesame, risorse, fasi e controlli) con stampa PDF.</span></li>
+      </ol>
+      <div class="keep-out">🔒 Lo tiene l'<b>ufficio</b>, non gli operatori. Gli Excel per l'ente si generano con un clic dai dati inseriti.</div>
+    </div>
+  </div>
+
+  
+<div class="note" style="margin-top:12px"><b>Altri due registri ISO</b> (sempre ufficio): <b>Feedback clienti</b> nella scheda del cliente e <b>Valutazione fornitori</b> nella scheda del fornitore — generano l'Excel in automatico.</div>
   <div class="note" style="margin-top:22px"><b>Se trovi un intoppo</b> — annota <b>cosa stavi facendo</b>, <b>cosa ti aspettavi</b> e <b>cosa è successo</b>, fai uno <b>screenshot</b> e passa tutto a <b>Giulio</b>. Sono dati di prova: sbagliare qui è utile.</div>
   <div class="foot"><p>Fai parte di una staffetta: <b>Titolari → Amministrazione → Magazzino → Commerciale → Produzione → Magazzino (spedizioni)</b>. Questo foglio è la <b>tua</b> parte.</p>
   <p class="sig">Creatio Group · Stampa &amp; Allestimenti — manuale operativo</p></div>

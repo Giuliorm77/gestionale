@@ -6808,6 +6808,8 @@ function htmlSchedaCommessa(c, fasi, righe, az){
     const stf=(est?STATI_FASE_ESTERNA:STATI_FASE)[fa.stato]||(est?STATI_FASE_ESTERNA.da_inviare:STATI_FASE.da_fare);
     const ops=(fa.operatori||[]).map(o=>escHtml(o.nome)+(Number(o.ore)?" ("+o.ore+"h)":"")).join(", ");
     const titolo=escHtml(fa.reparto||fa.descrizione||(est?"Lavorazione esterna":"—"));
+    const qp=Number(fa.quantita_prevista)||0;
+    const daFare = qp>0 ? ('<b>'+qp+'</b>'+(fa.unita_lavorata?' '+escHtml(fa.unita_lavorata):'')) : '<span class="mut">—</span>';
     const terz = est
       ? `<div class="sub" style="color:#b26a00;font-weight:bold">🏭 TERZISTA: ${escHtml(fa.fornitore_nome||"da definire")}</div>`
         + ((fa.data_invio||fa.data_rientro_prevista)?`<div class="nn">Invio: ${fmt(fa.data_invio)} · Rientro previsto: ${fmt(fa.data_rientro_prevista)}</div>`:"")
@@ -6816,6 +6818,7 @@ function htmlSchedaCommessa(c, fasi, righe, az){
       <td class="c">${i+1}</td>
       <td><b>${titolo}</b>${est?' <span class="chip" style="background:#fff4e5;color:#b26a00">ESTERNA</span>':''}${terz}${fa.descrizione&&fa.descrizione!==fa.reparto?`<div class="sub">${escHtml(fa.descrizione)}</div>`:""}${fa.note?`<div class="nn">📝 ${escHtml(fa.note)}</div>`:""}</td>
       <td>${est?('<span class="mut">→ '+escHtml(fa.fornitore_nome||"terzista")+'</span>'):(ops||'<span class="mut">—</span>')}</td>
+      <td class="c">${daFare}</td>
       <td class="c mut">____________</td>
       <td class="c"><span class="chip" style="background:${stf.bg};color:${stf.c}">${stf.l}</span></td>
       <td class="c">&#9744;</td>
@@ -6876,9 +6879,10 @@ ${c.prodotto?`<div style="margin:2px 0 14px;padding:10px 14px;background:#eef4ff
 <div class="stt">Lavorazioni</div>
 <table class="f"><thead><tr>
   <th style="width:26px">#</th><th>Reparto / lavorazione</th><th>Operatori</th>
+  <th style="width:90px" class="c">Da fare</th>
   <th style="width:90px" class="c">Ore reali</th>
   <th style="width:90px" class="c">Stato</th><th style="width:44px" class="c">Fatto</th>
-</tr></thead><tbody>${fasiHtml||`<tr><td colspan="6" class="c mut" style="padding:16px">Nessuna fase.</td></tr>`}</tbody></table>
+</tr></thead><tbody>${fasiHtml||`<tr><td colspan="7" class="c mut" style="padding:16px">Nessuna fase.</td></tr>`}</tbody></table>
 ${imb.length?`<div class="stt">Imballo</div>
 <table class="f"><thead><tr><th>Materiale</th><th class="c" style="width:120px">Da usare</th><th class="c" style="width:60px">Fatto</th></tr></thead>
 <tbody>${imbHtml}</tbody></table>`:""}
@@ -10289,7 +10293,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   }
 
   const setFase=(i,k,v)=>setFasi(p=>p.map((fa,j)=>j===i?{...fa,[k]:v}:fa));
-  const addFase=()=>setFasi(p=>[...p,{chiave:uid(),reparto:"",descrizione:"",stato:"da_fare",ore_previste:0,quantita_lavorata:0,unita_lavorata:"",operatori:[],note:"",esterna:false,fornitore_id:"",fornitore_nome:"",costo_previsto:0,costo_reale:0,data_invio:"",data_rientro_prevista:"",data_rientro:"",aggiunta:!nuova}]);
+  const addFase=()=>setFasi(p=>[...p,{chiave:uid(),reparto:"",descrizione:"",stato:"da_fare",ore_previste:0,quantita_prevista:0,quantita_lavorata:0,unita_lavorata:"",operatori:[],note:"",esterna:false,fornitore_id:"",fornitore_nome:"",costo_previsto:0,costo_reale:0,data_invio:"",data_rientro_prevista:"",data_rientro:"",aggiunta:!nuova}]);
   const delFase=i=>setFasi(p=>p.filter((_,j)=>j!==i));
   const addOpFase=(i,opId)=>{ const op=operatori.find(o=>o.id===opId); if(!op) return;
     setFasi(p=>p.map((fa,j)=>{ if(j!==i) return fa;
@@ -10403,6 +10407,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       const rows=fasi.map((fa,idx)=>({commessa_id:id, ordine:idx, chiave:fa.chiave||uid(), reparto:fa.reparto||"",
         descrizione:fa.descrizione||"", stato:fa.stato||(fa.esterna?"da_inviare":"da_fare"),
         ore_previste:Number(fa.ore_previste)||0,
+        quantita_prevista:Number(fa.quantita_prevista)||0,
         quantita_lavorata:Number(fa.quantita_lavorata)||0, unita_lavorata:fa.unita_lavorata||"",
         operatori:(fa.operatori||[]).map(o=>({id:o.id,nome:o.nome,ore:Number(o.ore)||0})),
         esterna:!!fa.esterna, fornitore_id:fa.fornitore_id||null, fornitore_nome:fa.fornitore_nome||"",
@@ -10830,6 +10835,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                     {!est && (()=>{ const bloc=!nuova && !!fa.id;    // bloccata solo se fase già salvata
                       return <div className="field" style={{maxWidth:100}}><label>Ore prev.</label>
                       <input type="number" step="0.5" value={fa.ore_previste} onChange={e=>setFase(i,"ore_previste",e.target.value)} style={{...numIn,...(bloc?{background:"#f1f3f5",color:"#697386",cursor:"not-allowed"}:{})}} disabled={bloc} title={bloc?"Ore previste bloccate dopo la creazione della commessa: sono il riferimento per confrontare preventivato vs reale.":""}/></div>; })()}
+                    {!est && <div className="field" style={{maxWidth:110}}><label>Q.tà da fare</label>
+                      <input type="number" step="0.01" value={fa.quantita_prevista||""} onChange={e=>setFase(i,"quantita_prevista",e.target.value)} style={numIn} title="Quanto deve produrre il reparto (es. 500 battute). Compare sulla scheda di lavorazione per la produzione."/></div>}
                     {!est && <div className="field" style={{maxWidth:100}}><label>Q.tà lavorata</label>
                       <input type="number" step="0.01" value={fa.quantita_lavorata||""} onChange={e=>setFase(i,"quantita_lavorata",e.target.value)} style={numIn} title="Quanto ha lavorato il reparto (mq, battute…)"/></div>}
                     {!est && <div className="field" style={{maxWidth:70}}><label>Unità</label>

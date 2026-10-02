@@ -10161,6 +10161,14 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       .eq("commessa_id",commessa.id)
       .then(({data})=>setOfColl(data||[]));
   },[commessa?.id]);
+  // Listino articolo↔fornitore: per avvisare se il fornitore scelto ha un prezzo diverso dal preventivato
+  const [prezzoForn,setPrezzoForn]=useState({});
+  useEffect(()=>{
+    const ids=[...new Set((commessa?.commesse_righe||[]).map(r=>r.articolo_id).filter(Boolean))];
+    if(!ids.length){ setPrezzoForn({}); return; }
+    sb.from("articoli_fornitori").select("articolo_id,fornitore_id,prezzo").in("articolo_id",ids)
+      .then(({data})=>{ const m={}; (data||[]).forEach(x=>{ m[x.articolo_id+"|"+x.fornitore_id]=Number(x.prezzo)||0; }); setPrezzoForn(m); });
+  },[commessa?.id]);
 
   /* Elenco partecipanti: sessioni cronometrate (Postazione) + ore scritte a
      mano nelle fasi + aiuti imprevisti, uniti per persona. */
@@ -10656,6 +10664,13 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                         {r.fornitore_prezzo_id && <input value={r.fornitore_prezzo_nota||""} onChange={e=>setRiga(i,"fornitore_prezzo_nota",e.target.value)}
                           placeholder="nota: data/rif./validità offerta" style={{width:"100%",padding:"5px",borderRadius:7,border:"1px solid var(--line)",fontSize:11.5}}/>}
                         {r.fornitore_prezzo_id && <AllegatoOfferta riga={r} onSet={(p,n)=>{ setRiga(i,"fornitore_prezzo_allegato",p); setRiga(i,"fornitore_prezzo_allegato_nome",n); }}/>}
+                        {r.articolo_id && r.fornitore_prezzo_id && (()=>{
+                          const p=prezzoForn[r.articolo_id+"|"+r.fornitore_prezzo_id]; const base=Number(r.costo_unitario)||0;
+                          if(p==null||!(base>0)) return null; const d=Math.round((p-base)*100)/100; if(Math.abs(d)<0.01) return null;
+                          return <div style={{fontSize:11,fontWeight:600,color:d>0?"#c0392b":"#127a3e"}}
+                            title="Prezzo di questo fornitore per l'articolo (da listino articoli-fornitori) rispetto al preventivato">
+                            ⚠ {eur(p)}/u da questo fornitore · prev. {eur(base)} ({d>0?"+":""}{eur(d)}/u{(Number(r.quantita)||0)>0?(" · tot "+(d>0?"+":"")+eur(d*(Number(r.quantita)||0))):""})</div>;
+                        })()}
                       </div>}
                       </td>
                       <td><button type="button" className="btn small danger" onClick={()=>delRiga(i)}>✕</button></td>
@@ -12770,6 +12785,7 @@ function ModuloReport({profilo,perm}){
   const [opMap,setOpMap]=useState({});
   const [intByComm,setIntByComm]=useState({});
   const [persiByComm,setPersiByComm]=useState({});
+  const [ofByComm,setOfByComm]=useState({});   // ordini fornitore collegati, per correzione costo reale
   const [err,setErr]=useState("");
   const [dal,setDal]=useState("");
   const [al,setAl]=useState("");
@@ -12801,7 +12817,7 @@ function ModuloReport({profilo,perm}){
 
   const carica=useCallback(async()=>{
     setErr("");
-    const [c,a,o,it,pz,cl,ag,tr]=await Promise.all([
+    const [c,a,o,it,pz,cl,ag,tr,of]=await Promise.all([
       sb.from("commesse").select("*, commesse_fasi(*), commesse_righe(*)").order("creato_il",{ascending:false}),
       caricaArticoliTutti("id,costo"),
       sb.from("operatori").select("id,costo_orario"),
@@ -12810,6 +12826,7 @@ function ModuloReport({profilo,perm}){
       sb.from("clienti").select("id,agente_id,provvigione_pct"),
       sb.from("agenti").select("id,nome,provvigione_pct"),
       sb.from("crm_trattative").select("agente_id,cliente_id,stato,valore_stimato,aggiornato_il,tipo_provvigione,prezzo_netto,quota_margine_pct,provvigione_pct"),
+      sb.from("ordini_fornitore").select("commessa_id, ordini_fornitore_righe(quantita,prezzo_unitario)"),
     ]);
     if(c.error){ setErr(c.error.message); return; }
     setCommesse(c.data||[]);
@@ -12817,6 +12834,7 @@ function ModuloReport({profilo,perm}){
     const om={}; (o.data||[]).forEach(x=>om[x.id]=x); setOpMap(om);
     const ibc={}; (it.data||[]).forEach(x=>{ (ibc[x.commessa_id]=ibc[x.commessa_id]||[]).push(x); }); setIntByComm(ibc);
     const pbc={}; (pz.data||[]).forEach(x=>{ if(x.commessa_id){ (pbc[x.commessa_id]=pbc[x.commessa_id]||[]).push(x); } }); setPersiByComm(pbc);
+    const obc={}; (of&&of.data||[]).forEach(x=>{ if(x.commessa_id){ (obc[x.commessa_id]=obc[x.commessa_id]||[]).push(x); } }); setOfByComm(obc);
     const cm={}; (cl.data||[]).forEach(x=>cm[x.id]=x); setCliMap(cm);
     const gm={}; (ag.data||[]).forEach(x=>gm[x.id]=x); setAgMap(gm);
     setCrmTratt((tr&&tr.data)||[]);
@@ -12841,10 +12859,18 @@ function ModuloReport({profilo,perm}){
     const costoPerdite=(persiByComm[c.id]||[]).reduce((s,p)=>{ const a=artMap[p.articolo_id];
       const mq=(Number(p.larghezza_cm)||0)*(Number(p.altezza_cm)||0)/10000*(Number(p.quantita)||1);
       return s+mq*(a?Number(a.costo)||0:0); },0);
+    // CORREZIONE costo reale fornitori: il costo materiali qui è stimato (consumi × listino).
+    // Se ci sono ordini fornitore collegati E una base preventivata sulle righe (costo_unitario),
+    // sostituiamo la stima col reale: costi += (reale − preventivato). Senza base (vecchie commesse)
+    // non tocchiamo nulla, per non contare due volte.
+    const ofc=ofByComm[c.id]||[];
+    const realeForn=ofc.reduce((s,o)=>s+(o.ordini_fornitore_righe||[]).reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0),0),0);
+    const prevForn=(c.commesse_righe||[]).filter(r=>r.fornitore_prezzo_id).reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0);
+    const scostForn=(ofc.length && prevForn>0) ? (realeForn-prevForn) : 0;
     const ricavi=(Number(c.valore)||0)+addeb;
-    const costi=costoMat+costoMdo+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord;
-    return {ricavi,costi,margine:ricavi-costi};
-  },[artMap,opMap,intByComm,persiByComm]);
+    const costi=costoMat+costoMdo+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn;
+    return {ricavi,costi,margine:ricavi-costi,scostForn};
+  },[artMap,opMap,intByComm,persiByComm,ofByComm]);
 
   const tot=useMemo(()=>{ let ric=0,cos=0; filtrate.forEach(c=>{ const x=consunt(c); ric+=x.ricavi; cos+=x.costi; });
     return {ric,cos,mar:ric-cos,n:filtrate.length}; },[filtrate,consunt]);
@@ -13275,7 +13301,7 @@ function ModuloReport({profilo,perm}){
                       <td>{c.cliente_nome||"—"}{nAgg>0 && <span className="tag" style={{marginLeft:6,background:"#fff8e1",color:"#9a6b00",border:"1px solid #ffe08a"}} title={nAgg+" voci (lavorazioni/materiali) aggiunte dopo la creazione (fuori preventivo): da fatturare o aggiornare a preventivo"}>➕ {nAgg} fuori prev.</span>}</td>
                       <td><span className="tag" style={{background:st.bg,color:st.c}}>{st.l}</span></td>
                       <td style={{textAlign:"right"}}>{eur(x.ricavi)}</td>
-                      <td style={{textAlign:"right"}}>{eur(x.costi)}</td>
+                      <td style={{textAlign:"right"}}>{eur(x.costi)}{Math.abs(x.scostForn||0)>=0.01 && <div style={{fontSize:10.5,color:x.scostForn>0?"#c0392b":"#127a3e"}} title="Correzione al costo reale pagato ai fornitori (ordini collegati) rispetto al preventivato">{x.scostForn>0?"+":""}{eur(x.scostForn)} forn. reale</div>}</td>
                       <td style={{textAlign:"right",fontWeight:700,color:x.margine>=0?"var(--ok)":"var(--danger)"}}>{eur(x.margine)}</td>
                       <td style={{textAlign:"right"}} className="muted">{x.ricavi>0?(x.margine/x.ricavi*100).toFixed(0):0}%</td>
                     </tr>; })}

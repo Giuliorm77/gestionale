@@ -6816,7 +6816,6 @@ function htmlSchedaCommessa(c, fasi, righe, az){
       <td class="c">${i+1}</td>
       <td><b>${titolo}</b>${est?' <span class="chip" style="background:#fff4e5;color:#b26a00">ESTERNA</span>':''}${terz}${fa.descrizione&&fa.descrizione!==fa.reparto?`<div class="sub">${escHtml(fa.descrizione)}</div>`:""}${fa.note?`<div class="nn">📝 ${escHtml(fa.note)}</div>`:""}</td>
       <td>${est?('<span class="mut">→ '+escHtml(fa.fornitore_nome||"terzista")+'</span>'):(ops||'<span class="mut">—</span>')}</td>
-      <td class="c">${Number(fa.ore_previste)||0}</td>
       <td class="c mut">____________</td>
       <td class="c"><span class="chip" style="background:${stf.bg};color:${stf.c}">${stf.l}</span></td>
       <td class="c">&#9744;</td>
@@ -6877,13 +6876,13 @@ ${c.prodotto?`<div style="margin:2px 0 14px;padding:10px 14px;background:#eef4ff
 <div class="stt">Lavorazioni</div>
 <table class="f"><thead><tr>
   <th style="width:26px">#</th><th>Reparto / lavorazione</th><th>Operatori</th>
-  <th style="width:60px" class="c">Ore prev.</th><th style="width:80px" class="c">Ore reali</th>
+  <th style="width:90px" class="c">Ore reali</th>
   <th style="width:90px" class="c">Stato</th><th style="width:44px" class="c">Fatto</th>
-</tr></thead><tbody>${fasiHtml||`<tr><td colspan="7" class="c mut" style="padding:16px">Nessuna fase.</td></tr>`}</tbody></table>
+</tr></thead><tbody>${fasiHtml||`<tr><td colspan="6" class="c mut" style="padding:16px">Nessuna fase.</td></tr>`}</tbody></table>
 ${imb.length?`<div class="stt">Imballo</div>
 <table class="f"><thead><tr><th>Materiale</th><th class="c" style="width:120px">Da usare</th><th class="c" style="width:60px">Fatto</th></tr></thead>
 <tbody>${imbHtml}</tbody></table>`:""}
-<div class="tot">Totale ore previste: <b>${orePrev}</b> &nbsp;·&nbsp; Ore reali: ____________</div>
+<div class="tot">Ore reali totali: ____________</div>
 <div class="note"><div class="k">Note di produzione</div>${escHtml(c.note||"")}</div>
 <div class="firme"><div>Data inizio ______________________</div><div>Responsabile di produzione<br>______________________________</div></div>
 </body></html>`;

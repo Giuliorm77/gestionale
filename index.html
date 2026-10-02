@@ -6546,20 +6546,25 @@ function htmlPreventivo(prev, righe, az, cli, tot, destinazione, opts){
   const pgc=Array.isArray(ccRaw)?ccRaw[0]:(ccRaw||null);
   const pagCond=pgc?[pgc.metodo_pagamento,pgc.termini_pagamento].filter(Boolean).join(" · "):"";
   const indCli=sede?[sede.indirizzo,[sede.cap,sede.citta].filter(Boolean).join(" "),sede.provincia&&"("+sede.provincia+")"].filter(Boolean).join(", "):"";
+  // La colonna Sconto compare SOLO se c'è almeno uno sconto applicato (così il cliente
+  // non vede una casella "Sconto —" vuota che inviterebbe a chiederlo).
+  const hasSconto=(righe||[]).some(r=>Number(r.sconto_pct)>0);
+  const scCell=s=>hasSconto?`<td class="r">${s?s+"%":"—"}</td>`:"";
+  const scEmpty=hasSconto?"<td></td>":"";
   const righeHtml=(righe||[]).map(r=>{
     const q=Number(r.quantita)||0, pu=Number(r.prezzo_unitario)||0, sc=Number(r.sconto_pct)||0;
     const md=r.modalita_consegna||"corriere";
     const mdNote = md!=="corriere" ? `<div style="font-size:10.5px;color:#b26a00">Consegna: ${md==="ritiro_cliente"?"ritiro a cura del cliente":"con nostro mezzo"}</div>` : "";
     if(opts&&opts.soloDescrizioni) return `<tr><td>${escHtml(r.descrizione)}${mdNote}</td></tr>`;
-    return `<tr><td>${escHtml(r.descrizione)}${mdNote}</td><td class="r">${q} ${escHtml(r.unita||"")}</td><td class="r">${eurf(pu)}</td><td class="r">${sc?sc+"%":"—"}</td><td class="r">${eurf(q*pu*(1-sc/100))}</td></tr>`;
+    return `<tr><td>${escHtml(r.descrizione)}${mdNote}</td><td class="r">${q} ${escHtml(r.unita||"")}</td><td class="r">${eurf(pu)}</td>${scCell(sc)}<td class="r">${eurf(q*pu*(1-sc/100))}</td></tr>`;
   }).join("");
   const extra=[];
   if(!(opts&&opts.noExtra)){
     const imbRigheTot=(righe||[]).reduce((s,r)=>s+(Number(r.imballo_costo)||0),0);
-    if(imbRigheTot>0) extra.push(`<tr><td>Imballo</td><td></td><td></td><td></td><td class="r">${eurf(imbRigheTot)}</td></tr>`);
-    if(Number(prev.imballaggio)>0) extra.push(`<tr><td>Imballaggio</td><td></td><td></td><td></td><td class="r">${eurf(prev.imballaggio)}</td></tr>`);
-    if(Number(prev.trasporto)>0) extra.push(`<tr><td>Trasporto</td><td></td><td></td><td></td><td class="r">${eurf(prev.trasporto)}</td></tr>`);
-    else extra.push(`<tr><td>Trasporto</td><td></td><td></td><td></td><td class="r" style="font-style:italic;color:#666">escluso</td></tr>`);
+    if(imbRigheTot>0) extra.push(`<tr><td>Imballo</td><td></td><td></td>${scEmpty}<td class="r">${eurf(imbRigheTot)}</td></tr>`);
+    if(Number(prev.imballaggio)>0) extra.push(`<tr><td>Imballaggio</td><td></td><td></td>${scEmpty}<td class="r">${eurf(prev.imballaggio)}</td></tr>`);
+    if(Number(prev.trasporto)>0) extra.push(`<tr><td>Trasporto</td><td></td><td></td>${scEmpty}<td class="r">${eurf(prev.trasporto)}</td></tr>`);
+    else extra.push(`<tr><td>Trasporto</td><td></td><td></td>${scEmpty}<td class="r" style="font-style:italic;color:#666">escluso</td></tr>`);
   }
   const carta=az.carta_intestata||"";
   const mT=carta?(Number(az.carta_margine_top)||40):14;
@@ -6599,7 +6604,9 @@ ${carta?"":`<div class="cli"><div class="lbl">Spett.le</div><div class="nm">${es
 ${destBanner}
 <table class="righe">${opts&&opts.soloDescrizioni
   ? `<colgroup><col style="width:100%"></colgroup><thead><tr><th>Descrizione</th></tr></thead>`
-  : `<colgroup><col style="width:52%"><col style="width:12%"><col style="width:14%"><col style="width:10%"><col style="width:12%"></colgroup><thead><tr><th>Descrizione</th><th class="r">Q.tà</th><th class="r">Prezzo</th><th class="r">Sconto</th><th class="r">Totale</th></tr></thead>`}
+  : (hasSconto
+      ? `<colgroup><col style="width:52%"><col style="width:12%"><col style="width:14%"><col style="width:10%"><col style="width:12%"></colgroup><thead><tr><th>Descrizione</th><th class="r">Q.tà</th><th class="r">Prezzo</th><th class="r">Sconto</th><th class="r">Totale</th></tr></thead>`
+      : `<colgroup><col style="width:56%"><col style="width:14%"><col style="width:15%"><col style="width:15%"></colgroup><thead><tr><th>Descrizione</th><th class="r">Q.tà</th><th class="r">Prezzo</th><th class="r">Totale</th></tr></thead>`)}
 <tbody>${righeHtml}${extra.join("")}</tbody></table>
 <table class="tot">
   <tr><td>Imponibile</td><td class="r">${eurf(tot.imponibile)}</td></tr>

@@ -7917,7 +7917,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       const artRighe=righe.filter(r=>(r.tipo==="materiale"||r.tipo==="altro") && String(r.descrizione||"").trim())
         .map((r,idx)=>({commessa_id:nc.id, ordine:idx, descrizione:r.descrizione||"",
           articolo_id:r.articolo_id||null, quantita:Number(r.quantita)||0, unita:r.unita||"",
-          data_consegna:null, stato:"da_produrre", config:r.config||null, costo_unitario:Number(r.costo_unitario)||0,
+          data_consegna:null, stato:"da_produrre", config:r.config||null, costo_unitario:Number(r.costo_unitario)||0, prezzo_unitario:Number(r.prezzo_unitario)||0,
           modalita_consegna:r.modalita_consegna||"corriere", sede_id:r.sede_id||null,
           fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||"",
           fornitore_prezzo_allegato:r.fornitore_prezzo_allegato||null, fornitore_prezzo_allegato_nome:r.fornitore_prezzo_allegato_nome||"",
@@ -10418,7 +10418,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         imballo_id:null, imballo_ids:(Array.isArray(r.imballo_ids)&&r.imballo_ids.length? r.imballo_ids : (r.imballo_id?[r.imballo_id]:[])),
         imballo_pluriball:r.imballo_pluriball||null, imballo_costo:Math.round(costoImballoRiga(r)*100)/100,
         modalita_consegna:r.modalita_consegna||"corriere", evasione:r.evasione||"interna", sede_id:r.sede_id||null, aggiunta:!!r.aggiunta,
-        costo_unitario:Number(r.costo_unitario)||0,
+        costo_unitario:Number(r.costo_unitario)||0, prezzo_unitario:Number(r.prezzo_unitario)||0,
         fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||"",
         fornitore_prezzo_allegato:r.fornitore_prezzo_allegato||null, fornitore_prezzo_allegato_nome:r.fornitore_prezzo_allegato_nome||""}));
       if(rowsR.length){ const {error}=await sb.from("commesse_righe").insert(rowsR); if(error) throw error; }
@@ -10612,9 +10612,17 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                     <tr key={i} style={{background:st.bg==="#eef1f5"?"transparent":st.bg}}>
                       <td style={{minWidth:220}}><input value={r.descrizione} onChange={e=>setRiga(i,"descrizione",e.target.value)}
                         style={{width:"100%",padding:"6px",border:"1px solid "+(r.aggiunta?"#f59f00":"var(--line)"),borderRadius:7}}/>
-                        {r.aggiunta && <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4,fontSize:11.5,color:"#9a6b00"}}>
-                          <span>➕ <b>Aggiunto dopo il preventivo</b></span>
-                          <button type="button" className="btn small" style={{padding:"1px 7px"}} onClick={()=>setRiga(i,"aggiunta",false)} title="Segna come recepito: inserito nel preventivo (nuova revisione) o da fatturare">✓ Recepita</button>
+                        {r.aggiunta && <div style={{marginTop:4}}>
+                          <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11.5,color:"#9a6b00"}}>
+                            <span>➕ <b>Aggiunto dopo il preventivo</b></span>
+                            <button type="button" className="btn small" style={{padding:"1px 7px"}} onClick={()=>setRiga(i,"aggiunta",false)} title="Segna come recepito: inserito nel preventivo (nuova revisione) o da fatturare">✓ Recepita</button>
+                          </div>
+                          {perm.economici && <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4,flexWrap:"wrap"}}>
+                            <label style={{fontSize:11,color:"#5a6b86"}}>Prezzo € (da fatturare)</label>
+                            <input type="number" step="0.01" value={r.prezzo_unitario||""} onChange={e=>setRiga(i,"prezzo_unitario",e.target.value)} style={{width:84,padding:"4px 6px",border:"1px solid var(--line)",borderRadius:6,textAlign:"right"}} title="Prezzo di vendita al cliente per questo extra"/>
+                            <label style={{fontSize:11,color:"#5a6b86"}}>Costo €</label>
+                            <input type="number" step="0.01" value={r.costo_unitario||""} onChange={e=>setRiga(i,"costo_unitario",e.target.value)} style={{width:84,padding:"4px 6px",border:"1px solid var(--line)",borderRadius:6,textAlign:"right"}} title="Costo d'acquisto unitario"/>
+                          </div>}
                         </div>}</td>
                       <td><input type="number" step="0.01" value={r.quantita} onChange={e=>setRiga(i,"quantita",e.target.value)}
                         style={{width:72,padding:"6px",border:"1px solid var(--line)",borderRadius:7,textAlign:"right"}}/></td>
@@ -10691,6 +10699,13 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               </table>
             </div>
             <button type="button" className="btn small" style={{marginTop:8}} onClick={addRiga}>+ Aggiungi articolo</button>
+            {perm.economici && (()=>{ const agg=righe.filter(r=>r.aggiunta); if(!agg.length) return null;
+              const ric=agg.reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0),0);
+              const cos=agg.reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0);
+              return <div style={{marginTop:10,padding:"8px 12px",borderRadius:10,background:"#fff8e1",border:"1px solid #ffe08a",fontSize:13}}>
+                ➕ <b>Extra fuori preventivo da fatturare: {eur(ric)}</b> <span className="muted">(costo {eur(cos)} · margine {eur(ric-cos)})</span>
+                <div className="muted" style={{fontSize:11,marginTop:3}}>Da {agg.length} articolo/i aggiunto/i dopo il preventivo. Entra nei ricavi/margine del Report e va aggiunto in fattura. Metti il prezzo su ogni riga aggiunta qui sopra.</div>
+              </div>; })()}
             {righe.some(r=>r.evasione==="fornitore") && <div style={{marginTop:12,padding:12,borderRadius:10,background:"#fff4e5",border:"1px solid #f0d8a8",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
               <div style={{flex:1,minWidth:200,fontSize:13}}>🚚 <b>{righe.filter(r=>r.evasione==="fornitore").length}</b> riga/e da evadere <b>via fornitore</b>: genera <b>un ordine separato per ogni riga</b> (uno per articolo/lavorazione), così li invii singolarmente.</div>
               <button type="button" className="btn small primary" onClick={generaOrdineFornitore} disabled={busy}>🚚 Genera ordini fornitore (uno per riga)</button>
@@ -12877,9 +12892,13 @@ function ModuloReport({profilo,perm}){
     const realeForn=ofc.reduce((s,o)=>s+(o.ordini_fornitore_righe||[]).reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0),0),0);
     const prevForn=(c.commesse_righe||[]).filter(r=>r.fornitore_prezzo_id).reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0);
     const scostForn=(ofc.length && prevForn>0) ? (realeForn-prevForn) : 0;
-    const ricavi=(Number(c.valore)||0)+addeb;
-    const costi=costoMat+costoMdo+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn;
-    return {ricavi,costi,margine:ricavi-costi,scostForn};
+    // EXTRA fuori preventivo: articoli aggiunti alla commessa dopo la creazione (non nel valore del preventivo).
+    const extraAgg=(c.commesse_righe||[]).filter(r=>r.aggiunta);
+    const extraRic=extraAgg.reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0),0);
+    const extraCos=extraAgg.reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0);
+    const ricavi=(Number(c.valore)||0)+addeb+extraRic;
+    const costi=costoMat+costoMdo+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos;
+    return {ricavi,costi,margine:ricavi-costi,scostForn,extraRic};
   },[artMap,opMap,intByComm,persiByComm,ofByComm]);
 
   const tot=useMemo(()=>{ let ric=0,cos=0; filtrate.forEach(c=>{ const x=consunt(c); ric+=x.ricavi; cos+=x.costi; });
@@ -13310,7 +13329,7 @@ function ModuloReport({profilo,perm}){
                       <td className="rs">{c.numero||"—"}</td>
                       <td>{c.cliente_nome||"—"}{nAgg>0 && <span className="tag" style={{marginLeft:6,background:"#fff8e1",color:"#9a6b00",border:"1px solid #ffe08a"}} title={nAgg+" voci (lavorazioni/materiali) aggiunte dopo la creazione (fuori preventivo): da fatturare o aggiornare a preventivo"}>➕ {nAgg} fuori prev.</span>}</td>
                       <td><span className="tag" style={{background:st.bg,color:st.c}}>{st.l}</span></td>
-                      <td style={{textAlign:"right"}}>{eur(x.ricavi)}</td>
+                      <td style={{textAlign:"right"}}>{eur(x.ricavi)}{Math.abs(x.extraRic||0)>=0.01 && <div style={{fontSize:10.5,color:"#9a6b00"}} title="Include gli articoli aggiunti fuori preventivo (extra da fatturare)">di cui +{eur(x.extraRic)} extra</div>}</td>
                       <td style={{textAlign:"right"}}>{eur(x.costi)}{Math.abs(x.scostForn||0)>=0.01 && <div style={{fontSize:10.5,color:x.scostForn>0?"#c0392b":"#127a3e"}} title="Correzione al costo reale pagato ai fornitori (ordini collegati) rispetto al preventivato">{x.scostForn>0?"+":""}{eur(x.scostForn)} forn. reale</div>}</td>
                       <td style={{textAlign:"right",fontWeight:700,color:x.margine>=0?"var(--ok)":"var(--danger)"}}>{eur(x.margine)}</td>
                       <td style={{textAlign:"right"}} className="muted">{x.ricavi>0?(x.margine/x.ricavi*100).toFixed(0):0}%</td>

@@ -6419,6 +6419,48 @@ function calcolaPreventivo(righe, prev){
   const totale = imponibile + iva;
   return {ricavi,costi,speseGen,imponibile,costoTot,margine,marginePct,iva,totale,imbRighe};
 }
+// PDF RISERVATO (uso interno): mostra costi e margine riga per riga + totali.
+// NON va mai consegnato al cliente — pulsante visibile solo ai ruoli economici.
+function htmlPreventivoCosti(prev, righe, az, cli, tot){
+  const eurf=n=>Number(n||0).toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+  const pct=n=>Number(n||0).toLocaleString("it-IT",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
+  const dt=prev.data? new Date(prev.data):new Date();
+  const fmt=d=>d.toLocaleDateString("it-IT");
+  const rows=(righe||[]).map(r=>{
+    const q=Number(r.quantita)||0, pu=Number(r.prezzo_unitario)||0, cu=Number(r.costo_unitario)||0, sc=Number(r.sconto_pct)||0;
+    const ric=q*pu*(1-sc/100), cos=q*cu, mar=ric-cos, mp=ric>0?mar/ric*100:0;
+    const forn=r.fornitore_prezzo_nome?('<div style="font-size:10px;color:#2f5bea">prezzo da: '+escHtml(r.fornitore_prezzo_nome)+(r.fornitore_prezzo_nota?(" — "+escHtml(r.fornitore_prezzo_nota)):"")+'</div>'):"";
+    return '<tr><td>'+escHtml(r.descrizione||r.lavorazione||"")+forn+'</td><td class="r">'+q+' '+escHtml(r.unita||"")+'</td><td class="r">'+eurf(pu)+(sc?(' <span style="color:#b26a00">-'+sc+'%</span>'):"")+'</td><td class="r">'+eurf(cu)+'</td><td class="r">'+eurf(ric)+'</td><td class="r">'+eurf(cos)+'</td><td class="r">'+eurf(mar)+'</td><td class="r" style="color:'+(mp<0?"#c0392b":"#127a3e")+'">'+pct(mp)+'</td></tr>';
+  }).join("");
+  const extraR=[];
+  if((tot.imbRighe||0)>0) extraR.push('<tr><td>Imballo (a carico cliente)</td><td></td><td></td><td></td><td class="r">'+eurf(tot.imbRighe)+'</td><td class="r">—</td><td class="r">—</td><td class="r">—</td></tr>');
+  if(Number(prev.imballaggio)>0) extraR.push('<tr><td>Imballaggio</td><td></td><td></td><td></td><td class="r">'+eurf(prev.imballaggio)+'</td><td class="r">—</td><td class="r">—</td><td class="r">—</td></tr>');
+  if(Number(prev.trasporto)>0) extraR.push('<tr><td>Trasporto</td><td></td><td></td><td></td><td class="r">'+eurf(prev.trasporto)+'</td><td class="r">—</td><td class="r">—</td><td class="r">—</td></tr>');
+  return '<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Preventivo '+escHtml(prev.numero||"")+' — COSTI</title>'+
+  '<style>*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#1d2430;font-size:12px;margin:24px}'+
+  '@page{size:A4 landscape;margin:12mm}'+
+  'h1{font-size:17px;margin:0 0 2px}.ris{display:inline-block;background:#fdecea;color:#c0392b;border:1px solid #f0b3ab;border-radius:5px;padding:4px 10px;font-size:11px;font-weight:bold;letter-spacing:.04em}'+
+  '.meta{color:#555;font-size:11.5px;margin:6px 0 14px;line-height:1.6}'+
+  'table{width:100%;border-collapse:collapse;font-size:11.5px}th,td{border:1px solid #d8dee6;padding:5px 7px;text-align:left}'+
+  'th{background:#f2f5fa;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em}td.r,th.r{text-align:right;white-space:nowrap}'+
+  '.tot{margin-top:14px;width:340px;margin-left:auto;font-size:12.5px}'+
+  '.tot div{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #eee}.tot .big{font-size:15px;font-weight:bold;border-bottom:none;padding-top:6px}'+
+  '</style></head><body>'+
+  '<div style="display:flex;justify-content:space-between;align-items:flex-start"><div>'+
+  '<h1>Preventivo '+escHtml(prev.numero||"")+'</h1>'+
+  '<div class="meta">Cliente: <b>'+escHtml((cli&&cli.ragione_sociale)||prev.cliente_nome||"")+'</b>'+
+  (prev.riferimento?(' · Rif: '+escHtml(prev.riferimento)):"")+'<br>Data: '+fmt(dt)+'</div></div>'+
+  '<span class="ris">🔒 USO INTERNO — NON CONSEGNARE AL CLIENTE</span></div>'+
+  '<table><thead><tr><th>Descrizione</th><th class="r">Q.tà</th><th class="r">Prezzo un.</th><th class="r">Costo un.</th><th class="r">Ricavo</th><th class="r">Costo</th><th class="r">Margine €</th><th class="r">Margine %</th></tr></thead>'+
+  '<tbody>'+rows+extraR.join("")+'</tbody></table>'+
+  '<div class="tot">'+
+  '<div><span>Ricavo (imponibile)</span><b>'+eurf(tot.imponibile)+'</b></div>'+
+  '<div><span>Costo materiali/lavorazioni</span><span>'+eurf(tot.costi)+'</span></div>'+
+  '<div><span>Spese generali</span><span>'+eurf(tot.speseGen)+'</span></div>'+
+  '<div><span>Costo totale</span><b>'+eurf(tot.costoTot)+'</b></div>'+
+  '<div class="big"><span>Margine</span><span style="color:'+(tot.margine<0?"#c0392b":"#127a3e")+'">'+eurf(tot.margine)+' ('+pct(tot.marginePct)+')</span></div>'+
+  '</div></body></html>';
+}
 // Versione CLIENTE: fonde le righe di lavorazione (manodopera/impianto) dentro le righe
 // materiale/prodotto, distribuendo il costo in proporzione. Il cliente non vede le fasi,
 // il totale resta identico. Le righe imballo/trasporto restano gestite a parte (extra).
@@ -7524,7 +7566,7 @@ function ModuloPreventivi({profilo,perm}){
               </table>
             </div>}
       </div>
-      {editor && <PreventivoEditor preventivo={editor.id?editor:null} profilo={profilo}
+      {editor && <PreventivoEditor preventivo={editor.id?editor:null} profilo={profilo} perm={perm}
         clienti={clienti} articoli={articoli} imp={imp} tariffe={tariffe} prodotti={prodotti} imballi={imballi} corrieri={corrieri} fornitori={fornitori}
         bozza={editBozza}
         numeroSuggerito={prossimoNumero(preventivi)}
@@ -7584,7 +7626,7 @@ function AllegatoOfferta({riga,onSet}){
   </div>;
 }
 
-function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodotti,imballi,corrieri,fornitori,bozza,numeroSuggerito,onClose,onSalvato}){
+function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,prodotti,imballi,corrieri,fornitori,bozza,numeroSuggerito,onClose,onSalvato}){
   const nuovo=!preventivo;
   const [f,setF]=useState(()=> (bozza&&bozza.f) ? bozza.f : ({
     numero:preventivo?.numero||numeroSuggerito,
@@ -7721,6 +7763,7 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
   }
   async function stampa(){ const cli=await caricaCli(); stampaHTML(htmlPreventivo(f, righeCalc, imp, cli, tot)); }
   async function stampaCliente(){ const cli=await caricaCli(); stampaHTML(htmlPreventivo(f, righeVersioneCliente(righeCalc), imp, cli, tot)); }
+  async function stampaCosti(){ const cli=await caricaCli(); stampaHTML(htmlPreventivoCosti(f, righeCalc, imp, cli, tot)); }
   // Preventivo per SINGOLA SEDE: solo le righe di quella destinazione, extra globali (imballaggio/trasporto) azzerati.
   async function stampaSede(sedeId){
     const cli=await caricaCli();
@@ -8074,14 +8117,16 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
           </div>
         </div>
         <footer>
-          <button type="button" className="btn" style={{marginRight:8}} onClick={stampa} disabled={!f.cliente_id} title="PDF interno completo (con lavorazioni)">🖨️ PDF interno</button>
-          <button type="button" className="btn" style={{marginRight:hasSedi?8:"auto"}} onClick={stampaCliente} disabled={!f.cliente_id} title="PDF per il cliente: lavorazioni fuse nel materiale, nessuna fase visibile">👤 PDF cliente</button>
-          {hasSedi && <select className="btn" style={{marginRight:"auto"}} value="" disabled={!f.cliente_id}
+          <button type="button" className="btn" style={{marginRight:8}} onClick={stampa} disabled={!f.cliente_id} title="PDF dettagliato con le lavorazioni esposte (senza costi/margine)">🖨️ PDF interno</button>
+          <button type="button" className="btn" style={{marginRight:8}} onClick={stampaCliente} disabled={!f.cliente_id} title="PDF per il cliente: lavorazioni fuse nel materiale, nessuna fase visibile">👤 PDF cliente</button>
+          {perm && perm.economici && <button type="button" className="btn" style={{marginRight:8}} onClick={stampaCosti} disabled={!f.cliente_id} title="USO INTERNO: PDF con costi e margine riga per riga. Da non consegnare al cliente.">🔒 PDF costi/margine</button>}
+          {hasSedi && <select className="btn" style={{marginRight:8}} value="" disabled={!f.cliente_id}
             onChange={e=>{ const v=e.target.value; e.target.value=""; if(v) stampaSede(v); }}
             title="Stampa un preventivo con i soli materiali di una destinazione (per mandarlo a quella sede)">
             <option value="">📄 PDF per sede…</option>
             {sediCli.filter(s=>righe.some(r=>(r.sede_id||"")===s.id)).map(s=><option key={s.id} value={s.id}>{sedeLabelP(s)}</option>)}
           </select>}
+          <div style={{marginLeft:"auto"}}/>
           {!nuovo && f.stato==="accettato" &&
             <button type="button" className="btn" onClick={creaCommessa} disabled={busy} title="Genera una commessa di produzione da questo preventivo">🏭 Crea commessa</button>}
           <button type="button" className="btn" onClick={onClose}>Annulla</button>

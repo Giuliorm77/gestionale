@@ -1461,7 +1461,7 @@ function DettaglioLavorazioneOp({commessa,onClose}){
   const [err,setErr]=useState("");
   useEffect(()=>{ let vivo=true;
     Promise.all([
-      sb.from("commesse").select("numero,cliente_nome,data_consegna,priorita,riferimento,note, commesse_righe(*), commesse_fasi(*)").eq("id",commessa.id).maybeSingle(),
+      sb.from("commesse").select("numero,cliente_nome,data_consegna,priorita,riferimento,note,prodotto,stato, commesse_righe(*), commesse_fasi(*)").eq("id",commessa.id).maybeSingle(),
       sb.from("magazzino_pezzi_op").select("codice,nome_articolo,larghezza_cm,altezza_cm,spessore_mm,mq,stato,ubicazione").eq("commessa_id",commessa.id).order("codice"),
     ]).then(async ([cm,pz])=>{ if(!vivo) return; if(cm.error){setErr(cm.error.message);return;} setC(cm.data); setPezzi(pz.data||[]);
       const ids=[...new Set((cm.data&&cm.data.commesse_righe||[]).map(r=>r.articolo_id).filter(Boolean))];
@@ -6866,7 +6866,10 @@ tr{page-break-inside:avoid}
   <div class="b"><div class="k">Stato</div><div class="v" style="color:${stc.c}">${stc.l}</div></div>
 </div>
 ${c.riferimento?`<div style="margin:-6px 0 12px;font-size:13px"><b>Riferimento:</b> ${escHtml(c.riferimento)}</div>`:""}
-<div class="stt">Articoli da consegnare</div>
+${c.prodotto?`<div style="margin:2px 0 14px;padding:10px 14px;background:#eef4ff;border:1px solid #cfe0ff;border-radius:8px">
+  <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#5a6b86">Prodotto</div>
+  <div style="font-size:18px;font-weight:800;color:#1d2430">🧩 ${escHtml(c.prodotto)}</div></div>`:""}
+<div class="stt">${c.prodotto?"Componenti per realizzarlo":"Articoli da consegnare"}</div>
 <table class="f"><thead><tr>
   <th>Descrizione</th><th class="c" style="width:90px">Q.tà</th>
   <th class="c" style="width:110px">Consegna</th><th class="c" style="width:120px">Stato</th>
@@ -7898,6 +7901,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       const cli=clienti.find(c=>c.id===f.cliente_id);
       const rec={numero, preventivo_id:preventivo.id, preventivo_numero:f.numero||preventivo.numero||"", cliente_id:f.cliente_id||null,
         cliente_nome:cli?cli.ragione_sociale:(preventivo.cliente_nome||""),
+        prodotto:f.descrizione_breve||"",
         riferimento:f.riferimento||"", stato:"aperta", priorita:"normale",
         consumi:suggerisciConsumi(righe.map(r=>({...r, imballo_pluriball:pluriballDaSalvare(r)})), prodotti),
         valore:Math.round((tot.imponibile||0)*100)/100, creato_da:profilo.id, aggiornato_il:new Date().toISOString()};
@@ -10072,6 +10076,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     numero:commessa?.numero||"",
     cliente_id:commessa?.cliente_id||"",
     cliente_nome:commessa?.cliente_nome||"",
+    prodotto:commessa?.prodotto||"",
     riferimento:commessa?.riferimento||"",
     data_consegna:commessa?.data_consegna||"",
     stato:commessa?.stato||"aperta",
@@ -10385,6 +10390,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       const consegnaFinale = dateRighe.length ? dateRighe[dateRighe.length-1] : (f.data_consegna||null);
       const rec={numero:f.numero||"", cliente_id:f.cliente_id||null,
         cliente_nome:cli?cli.ragione_sociale:(f.cliente_nome||""),
+        prodotto:f.prodotto||"",
         riferimento:f.riferimento||"", data_consegna:consegnaFinale,
         stato:f.stato, priorita:f.priorita, valore:Number(f.valore)||0, trasporto:Number(f.trasporto)||0,
         agente_id:f.agente_id||null,
@@ -10527,6 +10533,10 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                 <input value={f.numero} onChange={e=>set("numero",e.target.value)} placeholder="(auto se vuoto)"/></div>
               <div className="field" style={{maxWidth:210}}><label>Consegna finale</label>
                 <input value={(()=>{const d=righe.map(r=>r.data_consegna).filter(Boolean).sort();return d.length?new Date(d[d.length-1]).toLocaleDateString("it-IT"):"— (dalle righe)";})()} disabled style={{opacity:.7}}/></div>
+            </div>
+            <div className="row">
+              <div className="field"><label>Prodotto (cosa si produce)</label>
+                <input value={f.prodotto} onChange={e=>set("prodotto",e.target.value)} placeholder="es. Scatola Malfy — compare in cima alla scheda di lavorazione"/></div>
             </div>
             <div className="row">
               <div className="field"><label>Riferimento</label>

@@ -7749,6 +7749,15 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const setRiga=(i,k,v)=>setRighe(p=>p.map((r,j)=>j===i?{...r,[k]:v}:r));
   const delRiga=i=>setRighe(p=>p.filter((_,j)=>j!==i));
+  // Rimuove le righe IDENTICHE del preventivo (stesso tipo/descrizione/lavorazione/articolo/quantità/prezzo/costo/sconto/sede/config).
+  function rimuoviDuplicatiRighePrev(){
+    const seen=new Set(); const out=[];
+    righe.forEach(r=>{ const k=[r.tipo||"", String(r.descrizione||"").trim().toLowerCase(), r.lavorazione||"", r.articolo_id||"", Number(r.quantita)||0, Number(r.prezzo_unitario)||0, Number(r.costo_unitario)||0, Number(r.sconto_pct)||0, r.sede_id||"", JSON.stringify(r.config||null)].join("|");
+      if(seen.has(k)) return; seen.add(k); out.push(r); });
+    const removed=righe.length-out.length;
+    setRighe(out); setErr("");
+    setCommMsg(removed>0 ? ("Rimosse "+removed+" righe duplicate — ricordati di salvare il preventivo.") : "Nessuna riga duplicata trovata.");
+  }
   const addRigaCli=()=>setRigheCliente(p=>[...p,{descrizione:"",quantita:1,unita:"",prezzo_un:"",mostra:true}]);
   const setRigaCli=(i,k,v)=>setRigheCliente(p=>p.map((x,j)=>j===i?{...x,[k]:v}:x));
   const delRigaCli=i=>setRigheCliente(p=>p.filter((_,j)=>j!==i));
@@ -8114,6 +8123,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
               <button type="button" className="btn small" onClick={addManodopera}>+ Manodopera</button>
               <button type="button" className="btn small" onClick={addImpianto}>+ Impianto/avviamento</button>
               <button type="button" className="btn small" onClick={addLibera}>+ Riga libera</button>
+              {righe.length>1 && <button type="button" className="btn small" style={{marginLeft:"auto"}} onClick={rimuoviDuplicatiRighePrev} title="Toglie le righe identiche (doppioni) lasciandone una">🧹 Rimuovi duplicati</button>}
             </div>
             {configOpen && <ConfiguratoreRiga prodotti={prodotti} imballi={imballi} articoli={articoli} modiLabel={MODI_VOCE}
               iniziale={configEditIdx!=null ? (righe[configEditIdx]&&righe[configEditIdx].config) : null} abbDefault={Number(imp.abbondanza_cm ?? 3)}

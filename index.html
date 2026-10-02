@@ -7407,6 +7407,7 @@ function ModuloPreventivi({profilo,perm}){
   const [prodotti,setProdotti]=useState([]);
   const [imballi,setImballi]=useState([]);
   const [corrieri,setCorrieri]=useState([]);
+  const [fornitori,setFornitori]=useState([]);
   const [err,setErr]=useState("");
   const [cerca,setCerca]=useState("");
   const [filtroStato,setFiltroStato]=useState("");
@@ -7423,7 +7424,7 @@ function ModuloPreventivi({profilo,perm}){
 
   const carica=useCallback(async()=>{
     setErr("");
-    const [p,c,a,i,t,pc,imb,co]=await Promise.all([
+    const [p,c,a,i,t,pc,imb,co,fo]=await Promise.all([
       sb.from("preventivi").select("*, preventivi_righe(*)").order("creato_il",{ascending:false}),
       sb.from("clienti").select("id,ragione_sociale,categoria,sconto_pct, clienti_sconti(categoria,sconto_pct)").order("ragione_sociale"),
       caricaArticoliTutti("id,codice,nome_articolo,unita,categoria,costo,prezzo_pubblico,giacenza,impegnato,peso_kg,peso_um,peso_eccedenza_pct,traccia_avanzo"),
@@ -7432,11 +7433,12 @@ function ModuloPreventivi({profilo,perm}){
       sb.from("prodotti_config").select("*, prodotti_config_varianti(*), prodotti_config_voci(*), prodotti_config_fasce(*)").eq("attivo",true).order("nome"),
       sb.from("imballi").select("*, imballi_voci(*)").eq("attivo",true).order("nome"),
       sb.from("corrieri").select("*, corrieri_scaglioni(*)").eq("attivo",true).order("nome"),
+      sb.from("fornitori").select("id,ragione_sociale").order("ragione_sociale"),
     ]);
     if(p.error){ setErr(p.error.message); return; }
     setPreventivi(p.data||[]); setClienti(c.data||[]); setArticoli(a);
     if(i.data) setImp(i.data);
-    setTariffe(t.data||[]); setProdotti(pc.data||[]); setImballi(imb.data||[]); setCorrieri(co.data||[]);
+    setTariffe(t.data||[]); setProdotti(pc.data||[]); setImballi(imb.data||[]); setCorrieri(co.data||[]); setFornitori(fo.data||[]);
   },[]);
   useEffect(()=>{ carica(); },[carica]);
 
@@ -7523,7 +7525,7 @@ function ModuloPreventivi({profilo,perm}){
             </div>}
       </div>
       {editor && <PreventivoEditor preventivo={editor.id?editor:null} profilo={profilo}
-        clienti={clienti} articoli={articoli} imp={imp} tariffe={tariffe} prodotti={prodotti} imballi={imballi} corrieri={corrieri}
+        clienti={clienti} articoli={articoli} imp={imp} tariffe={tariffe} prodotti={prodotti} imballi={imballi} corrieri={corrieri} fornitori={fornitori}
         bozza={editBozza}
         numeroSuggerito={prossimoNumero(preventivi)}
         onClose={()=>{setEditor(null);setEditBozza(null);setBozza(leggiBozza());}}
@@ -7532,7 +7534,7 @@ function ModuloPreventivi({profilo,perm}){
   );
 }
 
-function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodotti,imballi,corrieri,bozza,numeroSuggerito,onClose,onSalvato}){
+function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodotti,imballi,corrieri,fornitori,bozza,numeroSuggerito,onClose,onSalvato}){
   const nuovo=!preventivo;
   const [f,setF]=useState(()=> (bozza&&bozza.f) ? bozza.f : ({
     numero:preventivo?.numero||numeroSuggerito,
@@ -7711,6 +7713,7 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
       costo_unitario:Number(r.costo_unitario)||0,prezzo_unitario:Number(r.prezzo_unitario)||0,sconto_pct:Number(r.sconto_pct)||0,
       config:r.config||null,modalita_consegna:r.modalita_consegna||"corriere", pagato_intero:r.pagato_intero!==false,
       sede_id:r.sede_id||null,
+      fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||"",
       imballo_id:null, imballo_ids:imballiSel(r).filter(x=>x!=="__pluriball__"), imballo_pluriball:pluriballDaSalvare(r),
       imballo_costo:Math.round(costoImballoRiga(r)*100)/100}));
     if(rows.length){ const {error}=await sb.from("preventivi_righe").insert(rows); if(error) throw error; }
@@ -7764,6 +7767,7 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
           articolo_id:r.articolo_id||null, quantita:Number(r.quantita)||0, unita:r.unita||"",
           data_consegna:null, stato:"da_produrre", config:r.config||null,
           modalita_consegna:r.modalita_consegna||"corriere", sede_id:r.sede_id||null,
+          fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||"",
           imballo_id:null, imballo_ids:imballiSel(r).filter(x=>x!=="__pluriball__"), imballo_pluriball:pluriballDaSalvare(r),
           imballo_costo:Math.round(costoImballoRiga(r)*100)/100}));
       if(artRighe.length){ const {error:er}=await sb.from("commesse_righe").insert(artRighe); if(er) throw er; }
@@ -7890,6 +7894,17 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
                                 {imballiProdPrev.filter(im=>!imballiSel(r).includes(im.id)).map(im=><option key={im.id} value={im.id}>📦 {im.nome}</option>)}
                               </select>
                               {imballiSel(r).length>0 && <span className="muted" style={{fontSize:11,fontWeight:600}}>imballo tot. {eur(costoImballoRiga(r))}</span>}
+                              <div style={{display:"flex",flexDirection:"column",gap:3,marginTop:3,paddingTop:4,borderTop:"1px dashed var(--line)"}}>
+                                <select value={r.fornitore_prezzo_id||""} onChange={e=>{ const fo=(fornitori||[]).find(x=>x.id===e.target.value); setRiga(i,"fornitore_prezzo_id",e.target.value||null); setRiga(i,"fornitore_prezzo_nome",fo?fo.ragione_sociale:""); }}
+                                  title="Fornitore che ci ha fatto questo prezzo d'acquisto (interno, NON compare sul PDF cliente)"
+                                  style={{padding:"5px",borderRadius:7,border:"1px solid var(--line)",fontSize:12,background:r.fornitore_prezzo_id?"#eef6ff":"#fff"}}>
+                                  <option value="">💬 Fornitore del prezzo…</option>
+                                  {(fornitori||[]).map(fo=><option key={fo.id} value={fo.id}>{fo.ragione_sociale}</option>)}
+                                </select>
+                                {r.fornitore_prezzo_id && <input value={r.fornitore_prezzo_nota||""} onChange={e=>setRiga(i,"fornitore_prezzo_nota",e.target.value)}
+                                  placeholder="nota: data/rif./validità offerta" title="Es. offerta via email del 02/10, rif. 1234, valida 30 gg"
+                                  style={{padding:"5px",borderRadius:7,border:"1px solid var(--line)",fontSize:12}}/>}
+                              </div>
                             </div>
                           : <span className="muted">—</span>}</td>
                         <td style={{whiteSpace:"nowrap"}}>
@@ -10140,9 +10155,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       for(const r of fr){
         seq++;
         const numero="OF-"+anno+"-"+String(seq).padStart(4,"0");
-        const rec={numero, fornitore_id:null, fornitore_nome:"", data:new Date().toISOString().slice(0,10), data_prevista:null,
+        const rec={numero, fornitore_id:r.fornitore_prezzo_id||null, fornitore_nome:r.fornitore_prezzo_nome||"", data:new Date().toISOString().slice(0,10), data_prevista:null,
           stato:"bozza", riferimento:"Commessa "+(commessa.numero||""), commessa_id:commessa.id,
-          note:"Da commessa "+(commessa.numero||"")+" — "+(r.descrizione||"riga"), totale:0, creato_da:profilo.id, aggiornato_il:new Date().toISOString()};
+          note:"Da commessa "+(commessa.numero||"")+" — "+(r.descrizione||"riga")+(r.fornitore_prezzo_nota?(" · prezzo da: "+r.fornitore_prezzo_nota):""), totale:0, creato_da:profilo.id, aggiornato_il:new Date().toISOString()};
         const {data:of,error}=await sb.from("ordini_fornitore").insert(rec).select("id,numero").single();
         if(error) throw error;
         const row={ordine_id:of.id, ordine:0, articolo_id:r.articolo_id||null, descrizione:r.descrizione||"",
@@ -10195,7 +10210,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         data_consegna:r.data_consegna||null, stato:r.stato||"da_produrre", note:r.note||"", config:r.config||null,
         imballo_id:null, imballo_ids:(Array.isArray(r.imballo_ids)&&r.imballo_ids.length? r.imballo_ids : (r.imballo_id?[r.imballo_id]:[])),
         imballo_pluriball:r.imballo_pluriball||null, imballo_costo:Math.round(costoImballoRiga(r)*100)/100,
-        modalita_consegna:r.modalita_consegna||"corriere", evasione:r.evasione||"interna", sede_id:r.sede_id||null, aggiunta:!!r.aggiunta}));
+        modalita_consegna:r.modalita_consegna||"corriere", evasione:r.evasione||"interna", sede_id:r.sede_id||null, aggiunta:!!r.aggiunta,
+        fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||""}));
       if(rowsR.length){ const {error}=await sb.from("commesse_righe").insert(rowsR); if(error) throw error; }
       try{ await sb.rpc("ricalcola_impegni"); }catch(e){}
       onSalvato();
@@ -10430,7 +10446,18 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                           background:(EVASIONE[r.evasione||"interna"]||EVASIONE.interna).bg,
                           color:(EVASIONE[r.evasione||"interna"]||EVASIONE.interna).c,fontWeight:600}}>
                         {Object.keys(EVASIONE).map(m=><option key={m} value={m}>{EVASIONE[m].l}</option>)}
-                      </select></td>
+                      </select>
+                      {r.evasione==="fornitore" && <div style={{marginTop:4,paddingTop:4,borderTop:"1px dashed var(--line)",display:"flex",flexDirection:"column",gap:3}}>
+                        <select value={r.fornitore_prezzo_id||""} onChange={e=>{ const fo=(fornitori||[]).find(x=>x.id===e.target.value); setRiga(i,"fornitore_prezzo_id",e.target.value||null); setRiga(i,"fornitore_prezzo_nome",fo?fo.ragione_sociale:""); }}
+                          title="Fornitore che ci ha fatto il prezzo d'acquisto: precompila l'ordine fornitore di questa riga"
+                          style={{width:"100%",padding:"5px",borderRadius:7,border:"1px solid var(--line)",fontSize:11.5,background:r.fornitore_prezzo_id?"#eef6ff":"#fff"}}>
+                          <option value="">💬 Fornitore del prezzo…</option>
+                          {(fornitori||[]).map(fo=><option key={fo.id} value={fo.id}>{fo.ragione_sociale}</option>)}
+                        </select>
+                        {r.fornitore_prezzo_id && <input value={r.fornitore_prezzo_nota||""} onChange={e=>setRiga(i,"fornitore_prezzo_nota",e.target.value)}
+                          placeholder="nota: data/rif./validità offerta" style={{width:"100%",padding:"5px",borderRadius:7,border:"1px solid var(--line)",fontSize:11.5}}/>}
+                      </div>}
+                      </td>
                       <td><button type="button" className="btn small danger" onClick={()=>delRiga(i)}>✕</button></td>
                     </tr>
                     );

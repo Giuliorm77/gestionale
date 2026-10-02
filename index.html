@@ -7690,9 +7690,19 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const setRiga=(i,k,v)=>setRighe(p=>p.map((r,j)=>j===i?{...r,[k]:v}:r));
   const delRiga=i=>setRighe(p=>p.filter((_,j)=>j!==i));
-  const addRigaCli=()=>setRigheCliente(p=>[...p,{descrizione:"",prezzo:""}]);
+  const addRigaCli=()=>setRigheCliente(p=>[...p,{descrizione:"",prezzo:"",mostra:true}]);
   const setRigaCli=(i,k,v)=>setRigheCliente(p=>p.map((x,j)=>j===i?{...x,[k]:v}:x));
   const delRigaCli=i=>setRigheCliente(p=>p.filter((_,j)=>j!==i));
+  // Riempie la versione cliente con TUTTE le voci del preventivo (flaggate da mostrare):
+  // così spunti quelle che devono comparire e ne ritocchi il testo.
+  const riempiRigheCli=()=>{
+    const out=righe.map(r=>{ const q=Number(r.quantita)||0, pu=Number(r.prezzo_unitario)||0, sc=Number(r.sconto_pct)||0;
+      return {descrizione:(r.descrizione||r.lavorazione||""), prezzo:Math.round(q*pu*(1-sc/100)*100)/100, mostra:true}; });
+    const imbTot=righe.reduce((s,r)=>s+(Number(r.imballo_costo)||0),0)+(Number(f.imballaggio)||0);
+    if(imbTot>0) out.push({descrizione:"Imballo", prezzo:Math.round(imbTot*100)/100, mostra:true});
+    if(Number(f.trasporto)>0) out.push({descrizione:"Trasporto", prezzo:Math.round(Number(f.trasporto)*100)/100, mostra:true});
+    setRigheCliente(out);
+  };
   const apriConfigModifica=(i)=>{ setConfigEditIdx(i); setConfigOpen(true); };
   const aggiungiRigaConfig=(r)=>{
     // in modifica preservo le scelte di riga che il configuratore non gestisce (imballo, consegna)
@@ -7773,7 +7783,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   async function stampa(){ const cli=await caricaCli(); stampaHTML(htmlPreventivo(f, righeCalc, imp, cli, tot)); }
   async function stampaCliente(){
     const cli=await caricaCli();
-    const rc=(righeCliente||[]).filter(x=>String(x.descrizione||"").trim()!==""||Number(x.prezzo)>0);
+    const rc=(righeCliente||[]).filter(x=>x.mostra!==false && (String(x.descrizione||"").trim()!==""||Number(x.prezzo)>0));
     if(rc.length){
       const rows=rc.map(x=>({descrizione:x.descrizione||"", quantita:1, unita:"", prezzo_unitario:Number(x.prezzo)||0, sconto_pct:0, modalita_consegna:"corriere", imballo_costo:0}));
       const imp2=rows.reduce((s,r)=>s+(Number(r.prezzo_unitario)||0),0);
@@ -7816,7 +7826,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       provvigione_pct: isMarg ? null : (f.provvigione_pct===""?null:Number(f.provvigione_pct)),
       prezzo_netto: isMarg ? (Number(f.prezzo_netto)||0) : null,
       quota_margine_pct: isMarg ? (Number(f.quota_margine_pct)||0) : null,
-      righe_cliente: righeCliente.filter(x=>String(x.descrizione||"").trim()!==""||Number(x.prezzo)>0).map(x=>({descrizione:x.descrizione||"",prezzo:Number(x.prezzo)||0})),
+      righe_cliente: righeCliente.filter(x=>String(x.descrizione||"").trim()!==""||Number(x.prezzo)>0).map(x=>({descrizione:x.descrizione||"",prezzo:Number(x.prezzo)||0,mostra:x.mostra!==false})),
       aggiornato_il:new Date().toISOString()};
     let id=preventivo?.id;
     if(nuovo && !id){ rec.creato_da=profilo.id;
@@ -8134,20 +8144,23 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
 
           <div className="section" style={{marginTop:18}}>
             <h3>📄 Versione per il cliente (sintesi facoltativa)</h3>
-            <div className="muted" style={{fontSize:12,marginBottom:8}}>Se compili queste righe, il <b>👤 PDF cliente</b> mostrerà <b>solo queste</b> (es. "Allestimento Longoni") al posto del dettaglio. Lascia vuoto per la versione automatica (materiali con manodopera inclusa). Serve solo per la stampa: non cambia la commessa.</div>
-            {righeCliente.length>0 && <div style={{overflow:"auto"}}><table><thead><tr><th>Descrizione per il cliente</th><th style={{width:150}}>Prezzo €</th><th style={{width:40}}></th></tr></thead>
-              <tbody>{righeCliente.map((x,i)=>(
-                <tr key={i}>
+            <div className="muted" style={{fontSize:12,marginBottom:8}}>Premi <b>⬇ Riempi dalle righe</b> per portare qui tutte le voci del preventivo, poi <b>spunta</b> quelle che devono comparire e, se vuoi, <b>cambia il testo</b>. Il <b>👤 PDF cliente</b> mostrerà solo le voci spuntate. Lascia vuoto per la versione automatica (materiali con manodopera inclusa). Serve solo per la stampa: non cambia la commessa.</div>
+            {righeCliente.length>0 && <div style={{overflow:"auto"}}><table><thead><tr><th style={{width:60}}>Mostra</th><th>Descrizione per il cliente</th><th style={{width:150}}>Prezzo €</th><th style={{width:40}}></th></tr></thead>
+              <tbody>{righeCliente.map((x,i)=>{ const on=x.mostra!==false; return (
+                <tr key={i} style={on?null:{opacity:.45}}>
+                  <td style={{textAlign:"center"}}><input type="checkbox" checked={on} onChange={e=>setRigaCli(i,"mostra",e.target.checked)} title="Mostra questa voce sul PDF cliente"/></td>
                   <td><input value={x.descrizione} onChange={e=>setRigaCli(i,"descrizione",e.target.value)} placeholder="es. Allestimento Longoni" style={{width:"100%",padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></td>
                   <td><input type="number" step="any" value={x.prezzo} onChange={e=>setRigaCli(i,"prezzo",e.target.value)} style={numIn}/></td>
                   <td><button type="button" className="btn small danger" onClick={()=>delRigaCli(i)}>✕</button></td>
-                </tr>))}</tbody></table></div>}
+                </tr>); })}</tbody></table></div>}
             <div style={{display:"flex",gap:8,alignItems:"center",marginTop:8,flexWrap:"wrap"}}>
-              <button type="button" className="btn small" onClick={addRigaCli}>+ Aggiungi riga cliente</button>
-              <button type="button" className="btn small" onClick={()=>setRigheCliente([{descrizione:f.descrizione_breve||"",prezzo:Math.round((tot.imponibile||0)*100)/100}])} title="Crea una riga unica con l'intero imponibile (poi puoi dividerla)">↺ Riga unica col totale</button>
-              {righeCliente.length>0 && (()=>{ const somma=righeCliente.reduce((s,x)=>s+(Number(x.prezzo)||0),0); const diff=Math.round((somma-(tot.imponibile||0))*100)/100;
+              <button type="button" className="btn small" onClick={riempiRigheCli} title="Porta qui tutte le voci del preventivo da spuntare">⬇ Riempi dalle righe</button>
+              <button type="button" className="btn small" onClick={addRigaCli}>+ Aggiungi riga</button>
+              <button type="button" className="btn small" onClick={()=>setRigheCliente([{descrizione:f.descrizione_breve||"",prezzo:Math.round((tot.imponibile||0)*100)/100,mostra:true}])} title="Crea una riga unica con l'intero imponibile (poi puoi dividerla)">↺ Riga unica col totale</button>
+              {righeCliente.some(x=>x.mostra!==false) && <button type="button" className="btn small" onClick={()=>setRigheCliente([])} title="Svuota la versione cliente (torna al PDF automatico)">🗑 Svuota</button>}
+              {righeCliente.length>0 && (()=>{ const somma=righeCliente.filter(x=>x.mostra!==false).reduce((s,x)=>s+(Number(x.prezzo)||0),0); const diff=Math.round((somma-(tot.imponibile||0))*100)/100;
                 return <span style={{fontSize:12.5,marginLeft:"auto",fontWeight:600,color:Math.abs(diff)<0.01?"#127a3e":"#c0392b"}}>
-                  Somma righe cliente: {eur(somma)} · Imponibile reale: {eur(tot.imponibile)}{Math.abs(diff)>=0.01?(" · ⚠ differenza "+eur(diff)):" · ✓ coincide"}</span>; })()}
+                  Totale voci mostrate: {eur(somma)} · Imponibile reale: {eur(tot.imponibile)}{Math.abs(diff)>=0.01?(" · ⚠ differenza "+eur(diff)):" · ✓ coincide"}</span>; })()}
             </div>
           </div>
 

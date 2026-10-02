@@ -10498,6 +10498,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
             <h3>Fasi di lavorazione</h3>
             <div className="muted" style={{fontSize:12,marginBottom:10}}>
               Avanzamento: <b>{fatte}/{fasi.length}</b> fasi fatte · Ore previste <b>{orePrevTot}</b> · Ore effettive <b>{oreEffTot}</b>
+              {!nuova && <span> · 🔒 le <b>ore previste</b> delle fasi esistenti sono bloccate (riferimento preventivato vs reale); le nuove fasi si possono ancora impostare</span>}
             </div>
             {fasi.length===0 && <div className="card empty" style={{marginBottom:10}}>Nessuna fase. Aggiungine una qui sotto (di solito arrivano dal preventivo).</div>}
             {fasi.map((fa,i)=>{
@@ -10516,8 +10517,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                       <select value={fa.stato} onChange={e=>setFase(i,"stato",e.target.value)}>
                         {Object.keys(statiFa).map(s=><option key={s} value={s}>{statiFa[s].l}</option>)}
                       </select></div>
-                    {!est && <div className="field" style={{maxWidth:100}}><label>Ore prev.</label>
-                      <input type="number" step="0.5" value={fa.ore_previste} onChange={e=>setFase(i,"ore_previste",e.target.value)} style={numIn}/></div>}
+                    {!est && (()=>{ const bloc=!nuova && !!fa.id;    // bloccata solo se fase già salvata
+                      return <div className="field" style={{maxWidth:100}}><label>Ore prev.</label>
+                      <input type="number" step="0.5" value={fa.ore_previste} onChange={e=>setFase(i,"ore_previste",e.target.value)} style={{...numIn,...(bloc?{background:"#f1f3f5",color:"#697386",cursor:"not-allowed"}:{})}} disabled={bloc} title={bloc?"Ore previste bloccate dopo la creazione della commessa: sono il riferimento per confrontare preventivato vs reale.":""}/></div>; })()}
                     {!est && <div className="field" style={{maxWidth:100}}><label>Q.tà lavorata</label>
                       <input type="number" step="0.01" value={fa.quantita_lavorata||""} onChange={e=>setFase(i,"quantita_lavorata",e.target.value)} style={numIn} title="Quanto ha lavorato il reparto (mq, battute…)"/></div>}
                     {!est && <div className="field" style={{maxWidth:70}}><label>Unità</label>

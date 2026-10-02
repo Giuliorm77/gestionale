@@ -6550,6 +6550,7 @@ function htmlPreventivo(prev, righe, az, cli, tot, destinazione, opts){
     const q=Number(r.quantita)||0, pu=Number(r.prezzo_unitario)||0, sc=Number(r.sconto_pct)||0;
     const md=r.modalita_consegna||"corriere";
     const mdNote = md!=="corriere" ? `<div style="font-size:10.5px;color:#b26a00">Consegna: ${md==="ritiro_cliente"?"ritiro a cura del cliente":"con nostro mezzo"}</div>` : "";
+    if(opts&&opts.soloDescrizioni) return `<tr><td>${escHtml(r.descrizione)}${mdNote}</td></tr>`;
     return `<tr><td>${escHtml(r.descrizione)}${mdNote}</td><td class="r">${q} ${escHtml(r.unita||"")}</td><td class="r">${eurf(pu)}</td><td class="r">${sc?sc+"%":"—"}</td><td class="r">${eurf(q*pu*(1-sc/100))}</td></tr>`;
   }).join("");
   const extra=[];
@@ -6596,7 +6597,9 @@ ${cartaImg}
 </div>
 ${carta?"":`<div class="cli"><div class="lbl">Spett.le</div><div class="nm">${escHtml((cli&&cli.ragione_sociale)||prev.cliente_nome||"")}</div>${indCli?escHtml(indCli)+"<br>":""}${cli&&cli.partita_iva?"P.IVA "+escHtml(cli.partita_iva):""}${prev.referente_dest?"<br>Alla c.a. "+escHtml(prev.referente_dest):""}${prev.email_dest?'<br><span style="color:#2f5bea">'+escHtml(prev.email_dest)+"</span>":""}</div>`}
 ${destBanner}
-<table class="righe"><colgroup><col style="width:52%"><col style="width:12%"><col style="width:14%"><col style="width:10%"><col style="width:12%"></colgroup><thead><tr><th>Descrizione</th><th class="r">Q.tà</th><th class="r">Prezzo</th><th class="r">Sconto</th><th class="r">Totale</th></tr></thead>
+<table class="righe">${opts&&opts.soloDescrizioni
+  ? `<colgroup><col style="width:100%"></colgroup><thead><tr><th>Descrizione</th></tr></thead>`
+  : `<colgroup><col style="width:52%"><col style="width:12%"><col style="width:14%"><col style="width:10%"><col style="width:12%"></colgroup><thead><tr><th>Descrizione</th><th class="r">Q.tà</th><th class="r">Prezzo</th><th class="r">Sconto</th><th class="r">Totale</th></tr></thead>`}
 <tbody>${righeHtml}${extra.join("")}</tbody></table>
 <table class="tot">
   <tr><td>Imponibile</td><td class="r">${eurf(tot.imponibile)}</td></tr>
@@ -7663,6 +7666,10 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   // Se compilata, il PDF cliente mostra queste al posto del dettaglio.
   const [righeCliente,setRigheCliente]=useState(()=> (bozza&&bozza.righeCliente) ? bozza.righeCliente.map(x=>({...x}))
     : (Array.isArray(preventivo?.righe_cliente)?preventivo.righe_cliente.map(x=>({...x})):[]) );
+  // Totale deciso a mano per il cliente (facoltativo): se valorizzato, il PDF cliente
+  // mostra le voci senza prezzi riga e usa questo totale (togliere una voce non lo cambia).
+  const [clienteTotale,setClienteTotale]=useState(()=> (bozza&&bozza.clienteTotale!=null)?bozza.clienteTotale
+    : (preventivo?.cliente_totale!=null?preventivo.cliente_totale:"") );
   const [cercaArt,setCercaArt]=useState("");
   const [configOpen,setConfigOpen]=useState(false);
   const [configEditIdx,setConfigEditIdx]=useState(null);
@@ -7715,9 +7722,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const montato=React.useRef(false);
   useEffect(()=>{
     if(!montato.current){ montato.current=true; return; }
-    scriviBozza({key:preventivo?.id||"new", f, righe, righeCliente, ts:Date.now(),
+    scriviBozza({key:preventivo?.id||"new", f, righe, righeCliente, clienteTotale, ts:Date.now(),
       etichetta:(f.numero||"")+" · "+((clienti.find(c=>c.id===f.cliente_id)||{}).ragione_sociale||"—")});
-  },[f,righe,righeCliente]);
+  },[f,righe,righeCliente,clienteTotale]);
 
   const risultatiArt=useMemo(()=>{
     const s=cercaArt.trim().toLowerCase(); if(!s) return [];
@@ -7786,10 +7793,12 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     const rc=(righeCliente||[]).filter(x=>x.mostra!==false && (String(x.descrizione||"").trim()!==""||Number(x.prezzo)>0));
     if(rc.length){
       const rows=rc.map(x=>({descrizione:x.descrizione||"", quantita:1, unita:"", prezzo_unitario:Number(x.prezzo)||0, sconto_pct:0, modalita_consegna:"corriere", imballo_costo:0}));
-      const imp2=rows.reduce((s,r)=>s+(Number(r.prezzo_unitario)||0),0);
+      const manualTot=Number(clienteTotale)||0;
+      const soloDesc=manualTot>0;   // totale a mano -> elenco senza prezzi riga + quel totale
+      const imp2=soloDesc ? manualTot : rows.reduce((s,r)=>s+(Number(r.prezzo_unitario)||0),0);
       const ivaPct=Number(f.iva_pct)||0;
       const totC={imponibile:imp2, iva:imp2*ivaPct/100, totale:imp2*(1+ivaPct/100), imbRighe:0};
-      stampaHTML(htmlPreventivo(f, rows, imp, cli, totC, null, {noExtra:true}));
+      stampaHTML(htmlPreventivo(f, rows, imp, cli, totC, null, {noExtra:true, soloDescrizioni:soloDesc}));
     } else {
       stampaHTML(htmlPreventivo(f, righeVersioneCliente(righeCalc), imp, cli, tot));
     }
@@ -7827,6 +7836,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       prezzo_netto: isMarg ? (Number(f.prezzo_netto)||0) : null,
       quota_margine_pct: isMarg ? (Number(f.quota_margine_pct)||0) : null,
       righe_cliente: righeCliente.filter(x=>String(x.descrizione||"").trim()!==""||Number(x.prezzo)>0).map(x=>({descrizione:x.descrizione||"",prezzo:Number(x.prezzo)||0,mostra:x.mostra!==false})),
+      cliente_totale: clienteTotale===""?null:(Number(clienteTotale)||0),
       aggiornato_il:new Date().toISOString()};
     let id=preventivo?.id;
     if(nuovo && !id){ rec.creato_da=profilo.id;
@@ -8162,6 +8172,14 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                 return <span style={{fontSize:12.5,marginLeft:"auto",fontWeight:600,color:Math.abs(diff)<0.01?"#127a3e":"#c0392b"}}>
                   Totale voci mostrate: {eur(somma)} · Imponibile reale: {eur(tot.imponibile)}{Math.abs(diff)>=0.01?(" · ⚠ differenza "+eur(diff)):" · ✓ coincide"}</span>; })()}
             </div>
+            {righeCliente.length>0 && <div style={{display:"flex",gap:10,alignItems:"center",marginTop:10,flexWrap:"wrap",paddingTop:10,borderTop:"1px solid var(--line)"}}>
+              <label style={{fontSize:13,fontWeight:600}}>Totale per il cliente (€)</label>
+              <input type="number" step="any" value={clienteTotale} onChange={e=>setClienteTotale(e.target.value)} placeholder="auto" style={numIn}
+                title="Se lo imposti, il PDF cliente stampa QUESTO totale (le voci compaiono senza prezzi) — togliere una voce non cambia la cifra. Lascia vuoto per usare la somma delle voci."/>
+              <button type="button" className="btn small" onClick={()=>setClienteTotale(Math.round((tot.imponibile||0)*100)/100)} title="Usa l'imponibile reale del preventivo">= imponibile reale</button>
+              {clienteTotale!=="" && <button type="button" className="btn small" onClick={()=>setClienteTotale("")} title="Torna al totale automatico (somma delle voci)">auto</button>}
+              <span className="muted" style={{fontSize:12,marginLeft:"auto"}}>{clienteTotale!==""&&Number(clienteTotale)>0 ? "Il PDF mostrerà le voci SENZA prezzi + questo totale" : "Vuoto = somma delle voci mostrate"}</span>
+            </div>}
           </div>
 
           <div className="section" style={{marginTop:18}}>

@@ -10255,9 +10255,19 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       const nuove=(data||[]).filter(r=>(r.tipo==="materiale"||r.tipo==="altro") && String(r.descrizione||"").trim())
         .map(r=>({descrizione:r.descrizione||"", articolo_id:r.articolo_id||null, quantita:Number(r.quantita)||0,
           unita:r.unita||"", data_consegna:"", stato:"da_produrre", note:"", config:r.config||null}));
-      setRighe(p=>{ const esist=new Set(p.map(x=>x.descrizione)); return [...p, ...nuove.filter(n=>!esist.has(n.descrizione))]; });
+      setRighe(p=>{ const seen=new Set(p.map(x=>String(x.descrizione||"").trim().toLowerCase())); const out=[...p];
+        nuove.forEach(n=>{ const k=String(n.descrizione||"").trim().toLowerCase(); if(seen.has(k)) return; seen.add(k); out.push(n); }); return out; });
       setBusy(false);
     }catch(ex){ setErr(ex.message); setBusy(false); }
+  }
+  // Rimuove le righe IDENTICHE (stessa descrizione/articolo/quantità/unità/sede/consegna/config): toglie i doppioni.
+  function rimuoviDuplicatiRighe(){
+    const seen=new Set(); const out=[];
+    righe.forEach(r=>{ const k=[String(r.descrizione||"").trim().toLowerCase(), r.articolo_id||"", r.unita||"", Number(r.quantita)||0, r.sede_id||"", r.data_consegna||"", JSON.stringify(r.config||null)].join("|");
+      if(seen.has(k)) return; seen.add(k); out.push(r); });
+    const removed=righe.length-out.length;
+    setRighe(out); setErr("");
+    setConsMsg(removed>0 ? ("Rimosse "+removed+" righe duplicate — premi «Salva» per confermare.") : "Nessuna riga duplicata trovata.");
   }
 
   // ---- Magazzino: consumi materiali ----
@@ -10608,6 +10618,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                 <span className="tag" style={{background:"#e6f4ee",color:"#1f9c68"}}>tutti pronti 🎉</span>}
             </div>}
             {commessa?.preventivo_id && <button type="button" className="btn small" style={{marginBottom:10}} onClick={importaDaPreventivo} disabled={busy}>⬇ Importa articoli dal preventivo</button>}
+            {perm.scrivi && righe.length>1 && <button type="button" className="btn small" style={{marginBottom:10,marginLeft:8}} onClick={rimuoviDuplicatiRighe} title="Toglie le righe identiche (doppioni) lasciandone una">🧹 Rimuovi duplicati</button>}
             {righeSenzaData>0 && <div className="banner err" style={{marginTop:0}}>⚠ {righeSenzaData} articolo/i senza data di consegna: compila le date per poter salvare.</div>}
             {(()=>{ const agg=righe.filter(r=>r.aggiunta); if(!agg.length) return null; return (
               <div className="card" style={{background:"#fff8e1",border:"1px solid #ffe08a",padding:"8px 12px",marginBottom:10,fontSize:13}}>

@@ -7534,6 +7534,18 @@ function ModuloPreventivi({profilo,perm}){
     finally{ revBusyRef.current=false; }
   }
 
+  async function eliminaPreventivo(p){
+    if(!window.confirm("Eliminare definitivamente il preventivo "+(p.numero||"")+"?\nOperazione non annullabile.")) return;
+    setErr("");
+    try{
+      const {data:comm}=await sb.from("commesse").select("numero").eq("preventivo_id",p.id).limit(1);
+      if(comm&&comm.length){ setErr("Non eliminabile: esiste la commessa "+comm[0].numero+" generata da questo preventivo. Elimina/scollega prima quella."); return; }
+      await sb.from("preventivi_righe").delete().eq("preventivo_id",p.id);
+      const {error}=await sb.from("preventivi").delete().eq("id",p.id); if(error) throw error;
+      await carica();
+    }catch(ex){ setErr("Eliminazione non riuscita: "+(ex.message||ex)); }
+  }
+
   const filtrati=useMemo(()=>{
     if(!preventivi) return [];
     const q=cerca.trim().toLowerCase();
@@ -7586,6 +7598,7 @@ function ModuloPreventivi({profilo,perm}){
                         <td style={{textAlign:"right",fontWeight:700}}>{eur(t.totale)}</td>
                         <td style={{whiteSpace:"nowrap"}} onClick={e=>e.stopPropagation()}>
                           {perm.scrivi && <button type="button" className="btn small" title="Crea una nuova revisione copiando tutte le righe (l'originale resta come storico)" onClick={()=>nuovaRevisione(p)}>🔁 Revisione</button>}
+                          {perm.elimina && <button type="button" className="btn small danger" style={{marginLeft:6}} title="Elimina questo preventivo (non annullabile; bloccato se ha una commessa collegata)" onClick={()=>eliminaPreventivo(p)}>🗑</button>}
                         </td>
                       </tr>
                     );

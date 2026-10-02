@@ -7474,6 +7474,7 @@ function ModuloPreventivi({profilo,perm}){
   const [editor,setEditor]=useState(null);
   const [editBozza,setEditBozza]=useState(null);
   const [bozza,setBozza]=useState(()=>leggiBozza());
+  const revBusyRef=React.useRef(false);   // evita doppie revisioni (doppio-clic)
 
   const riprendiBozza=()=>{
     if(!bozza) return;
@@ -7505,12 +7506,20 @@ function ModuloPreventivi({profilo,perm}){
   // Nuova revisione: duplica il preventivo (testata + tutte le righe) in uno nuovo
   // "… rev.N"; l'originale resta com'è (storico). Poi apre la revisione.
   async function nuovaRevisione(p){
+    if(revBusyRef.current) return;   // guardia anti doppio-clic (evita due rev. con lo stesso numero)
+    revBusyRef.current=true;
     setErr("");
     try{
       const mm=String(p.numero||"").match(/^(.*?)(?:\s*rev\.?\s*(\d+))?\s*$/i);
       const base=(mm&&mm[1]?mm[1].trim():String(p.numero||"").trim())||prossimoNumero(preventivi);
-      const esistenti=new Set((preventivi||[]).map(x=>String(x.numero||"").trim().toLowerCase()));
-      let n=(mm&&mm[2]?Number(mm[2]):1)+1, num;
+      // Legge FRESCO dal DB i numeri che iniziano con la base, così la revisione successiva
+      // è sempre max+1 anche creandone più di seguito (niente due "rev.2").
+      const {data:esistD}=await sb.from("preventivi").select("numero").ilike("numero", base+"%");
+      const reBase=new RegExp("^"+base.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?:\\s*rev\\.?\\s*(\\d+))?\\s*$","i");
+      let maxRev=1;   // il preventivo base (senza "rev") conta come rev.1
+      (esistD||[]).forEach(x=>{ const m2=reBase.exec(String(x.numero||"").trim()); if(m2){ const rv=m2[1]?Number(m2[1]):1; if(rv>maxRev) maxRev=rv; } });
+      const esistenti=new Set((esistD||[]).map(x=>String(x.numero||"").trim().toLowerCase()));
+      let n=maxRev+1, num;
       do{ num=base+" rev."+n; n++; }while(esistenti.has(num.toLowerCase()));
       const {id,creato_il,creato_da,aggiornato_il,preventivi_righe,numero,stato,...rest}=p;
       const rec={...rest, data:new Date().toISOString().slice(0,10), numero:num, stato:"bozza",
@@ -7522,6 +7531,7 @@ function ModuloPreventivi({profilo,perm}){
       const {data:full}=await sb.from("preventivi").select("*, preventivi_righe(*)").eq("id",np.id).maybeSingle();
       setEditBozza(null); setEditor(full||{id:np.id});
     }catch(ex){ setErr("Revisione non riuscita: "+(ex.message||ex)); }
+    finally{ revBusyRef.current=false; }
   }
 
   const filtrati=useMemo(()=>{

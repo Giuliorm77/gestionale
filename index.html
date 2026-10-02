@@ -958,7 +958,7 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
   const [editorAtt,setEditorAtt]=useState(null);
   const carica=React.useCallback(async()=>{
     const tasks={
-      commesse: sb.from("commesse").select("id,numero,cliente_nome,stato,data_consegna,valore,priorita, commesse_righe(stato,data_consegna,descrizione)").order("data_consegna",{ascending:true}),
+      commesse: sb.from("commesse").select("id,numero,cliente_nome,stato,data_consegna,valore,priorita,avviso_produzione,avviso_il, commesse_righe(stato,data_consegna,descrizione)").order("data_consegna",{ascending:true}),
     };
     if(perm.economici) tasks.preventivi = sb.from("preventivi").select("id,numero,cliente_nome,stato,data, preventivi_righe(prezzo_unitario,quantita)").order("data",{ascending:false});
     if(perm.crm){
@@ -989,6 +989,7 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
   const ritardo=aperte.filter(c=>c.data_consegna && c.data_consegna<oggiS);
   const scadenza=aperte.filter(c=>c.data_consegna && c.data_consegna>=oggiS && c.data_consegna<=tra7S);
   const pronte=comm.filter(c=>c.stato==="pronta");
+  const avvisi=aperte.filter(c=>(c.avviso_produzione||"").trim());
   const prevAttesa=prev.filter(p=>p.stato==="inviato");
   const valoreInCorso=aperte.reduce((s,c)=>s+(Number(c.valore)||0),0);
   const valorePronte=pronte.reduce((s,c)=>s+(Number(c.valore)||0),0);
@@ -1054,6 +1055,12 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
       <div><b>Gestionale Creatio</b><div className="u">{profilo.nome} · {labelRuolo(profilo.ruolo)}</div></div>
       <button className="btn small" onClick={()=>sb.auth.signOut()}>Esci</button>
     </div>
+
+    {avvisi.length>0 && <div style={{margin:"10px 4px 0",padding:"10px 12px",background:"#fdecec",border:"2px solid #e3342f",borderRadius:10}}>
+      <div style={{fontWeight:800,color:"#c0392b",marginBottom:6}}>🚨 Variazioni/disdette da leggere ({avvisi.length})</div>
+      {avvisi.map(c=><div key={c.id} style={{fontSize:13,marginBottom:6,paddingBottom:6,borderBottom:"1px solid #f3c6c3"}}>
+        <b>{c.numero||"—"}</b> · {c.cliente_nome||"—"}<div style={{whiteSpace:"pre-wrap",color:"#1d2430"}}>{c.avviso_produzione}</div></div>)}
+    </div>}
 
     <div className="cmcards">
       <button className={"cmcard"+(apri==="commesse"?" sel":"")} onClick={()=>{setApri("commesse");setFiltro("tutte");}}>
@@ -1461,7 +1468,7 @@ function DettaglioLavorazioneOp({commessa,onClose}){
   const [err,setErr]=useState("");
   useEffect(()=>{ let vivo=true;
     Promise.all([
-      sb.from("commesse").select("numero,cliente_nome,data_consegna,priorita,riferimento,note,prodotto,stato, commesse_righe(*), commesse_fasi(*)").eq("id",commessa.id).maybeSingle(),
+      sb.from("commesse").select("numero,cliente_nome,data_consegna,priorita,riferimento,note,prodotto,stato,avviso_produzione,avviso_il, commesse_righe(*), commesse_fasi(*)").eq("id",commessa.id).maybeSingle(),
       sb.from("magazzino_pezzi_op").select("codice,nome_articolo,larghezza_cm,altezza_cm,spessore_mm,mq,stato,ubicazione").eq("commessa_id",commessa.id).order("codice"),
     ]).then(async ([cm,pz])=>{ if(!vivo) return; if(cm.error){setErr(cm.error.message);return;} setC(cm.data); setPezzi(pz.data||[]);
       const ids=[...new Set((cm.data&&cm.data.commesse_righe||[]).map(r=>r.articolo_id).filter(Boolean))];
@@ -6681,7 +6688,8 @@ const STATI_RIGA_COMMESSA = {
   da_produrre:{l:"Da produrre",bg:"#eef1f5",c:"#697386"},
   in_produzione:{l:"In produzione",bg:"#fff4e5",c:"#b26a00"},
   pronto:{l:"Pronto",bg:"#eef4ff",c:"#1e46c4"},
-  consegnato:{l:"Consegnato",bg:"#e6f4ee",c:"#1f9c68"}};
+  consegnato:{l:"Consegnato",bg:"#e6f4ee",c:"#1f9c68"},
+  annullato:{l:"⛔ Annullato",bg:"#fdecec",c:"#c0392b"}};
 const MODALITA_CONSEGNA = {
   corriere:{l:"Corriere",bg:"#eef4ff",c:"#1e46c4"},
   ritiro_cliente:{l:"Ritiro cliente",bg:"#eef1f5",c:"#697386"},
@@ -6790,9 +6798,10 @@ function htmlSchedaCommessa(c, fasi, righe, az){
   const fmt=d=> d? new Date(d).toLocaleDateString("it-IT") : "—";
   const orePrev=(fasi||[]).reduce((s,fa)=>s+(Number(fa.ore_previste)||0),0);
   const rigaTr=r=>{ const str=STATI_RIGA_COMMESSA[r.stato]||STATI_RIGA_COMMESSA.da_produrre;
-    return `<tr>
-      <td><b>${escHtml(r.descrizione||"—")}</b></td>
-      <td class="c">${Number(r.quantita)||0} ${escHtml(r.unita||"")}</td>
+    const ann=r.stato==="annullato";
+    return `<tr${ann?' style="background:#fdecec"':''}>
+      <td${ann?' style="text-decoration:line-through;color:#c0392b"':''}><b>${escHtml(r.descrizione||"—")}</b>${ann?' <span class="chip" style="background:#fdecec;color:#c0392b">⛔ ANNULLATO</span>':''}</td>
+      <td class="c"${ann?' style="text-decoration:line-through;color:#c0392b"':''}>${Number(r.quantita)||0} ${escHtml(r.unita||"")}</td>
       <td class="c"><b>${fmt(r.data_consegna)}</b></td>
       <td class="c"><span class="chip" style="background:${str.bg};color:${str.c}">${str.l}</span></td>
     </tr>`; };
@@ -6857,6 +6866,10 @@ table.f td.c{text-align:center}
 .firme{display:flex;justify-content:space-between;gap:30px;margin-top:26px;font-size:12px;color:#333}
 tr{page-break-inside:avoid}
 </style></head><body>
+${(c.avviso_produzione||"").trim()?`<div style="margin:0 0 14px;padding:12px 14px;background:#fdecec;border:2px solid #e3342f;border-radius:9">
+  <div style="font-weight:800;color:#c0392b;font-size:15px;margin-bottom:3px">🚨 VARIAZIONE / DISDETTA CLIENTE — LEGGERE PRIMA DI PRODURRE</div>
+  <div style="white-space:pre-wrap;font-size:14px">${escHtml(c.avviso_produzione)}</div>
+  ${c.avviso_il?`<div style="font-size:11px;color:#777;margin-top:4px">Segnalato il ${new Date(c.avviso_il).toLocaleString("it-IT")}</div>`:""}</div>`:""}
 <div class="hd">
   <div><h1>SCHEDA DI LAVORAZIONE</h1><div class="num">Commessa ${escHtml(c.numero||"—")}</div></div>
   <div class="az">${escHtml(az&&az.azienda_nome||"")}<br>Stampata il ${fmt(new Date())}</div>
@@ -10052,7 +10065,7 @@ function ModuloCommesse({profilo,perm}){
                     return (
                       <tr key={c.id} onClick={()=>setEditor(c)}>
                         <td className="rs">{c.numero||"—"}{c.preventivo_numero && <div className="muted" style={{fontSize:10.5,fontWeight:400}}>📄 prev. {c.preventivo_numero}</div>}</td>
-                        <td>{c.cliente_nome||"—"}{nAgg>0 && <span className="tag" style={{marginLeft:6,background:"#fff8e1",color:"#9a6b00",border:"1px solid #ffe08a"}} title={nAgg+" voci (lavorazioni/materiali) aggiunte dopo la creazione (fuori preventivo): da fatturare o aggiornare a preventivo"}>➕ {nAgg} fuori prev.</span>}</td>
+                        <td>{c.cliente_nome||"—"}{(c.avviso_produzione||"").trim() && <span className="tag" style={{marginLeft:6,background:"#fdecec",color:"#c0392b",border:"1px solid #e3342f",fontWeight:700}} title={"Variazione/disdetta cliente: "+c.avviso_produzione}>🚨 VARIAZIONE</span>}{nAgg>0 && <span className="tag" style={{marginLeft:6,background:"#fff8e1",color:"#9a6b00",border:"1px solid #ffe08a"}} title={nAgg+" voci (lavorazioni/materiali) aggiunte dopo la creazione (fuori preventivo): da fatturare o aggiornare a preventivo"}>➕ {nAgg} fuori prev.</span>}</td>
                         <td className="muted" style={ritardo?{color:"var(--danger)",fontWeight:700}:null}>
                           {dateMancanti
                             ? <span className="tag" style={{background:"#fdecea",color:"#c0392b"}} title="Alcuni articoli non hanno la data di consegna">⚠ date mancanti</span>
@@ -10111,6 +10124,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     trasporto:commessa?.trasporto ?? 0,
     agente_id:commessa?.agente_id||"",
     note:commessa?.note||"",
+    avviso_produzione:commessa?.avviso_produzione||"",
   }));
   const [fasi,setFasi]=useState(()=> (commessa?.commesse_fasi||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0))
     .map(x=>({...x, operatori:Array.isArray(x.operatori)?x.operatori:[]})) );
@@ -10430,7 +10444,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         riferimento:f.riferimento||"", data_consegna:consegnaFinale,
         stato:f.stato, priorita:f.priorita, valore:Number(f.valore)||0, trasporto:Number(f.trasporto)||0,
         agente_id:f.agente_id||null,
-        note:f.note||"", consumi:consumi.map(c=>({...c})), aiuti:aiuti.map(a=>({...a})), straordinari:straordinari.map(a=>({...a})), aggiornato_il:new Date().toISOString()};
+        note:f.note||"", avviso_produzione:(f.avviso_produzione||"").trim()||null,
+        avviso_il:(f.avviso_produzione||"").trim() ? (commessa?.avviso_il||new Date().toISOString()) : null,
+        consumi:consumi.map(c=>({...c})), aiuti:aiuti.map(a=>({...a})), straordinari:straordinari.map(a=>({...a})), aggiornato_il:new Date().toISOString()};
       let id=commessa?.id;
       if(nuova){ rec.creato_da=profilo.id;
         const {data,error}=await sb.from("commesse").insert(rec).select("id").single(); if(error) throw error; id=data.id;
@@ -10539,6 +10555,12 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
           {err && <div className="banner err">{err}</div>}
           {consMsg && <div className="banner" style={{background:"#e6f4ee",color:"#1f9c68"}}>✅ {consMsg}</div>}
 
+          {(f.avviso_produzione||"").trim() && <div style={{margin:"0 0 12px",padding:"12px 14px",background:"#fdecec",border:"2px solid #e3342f",borderRadius:9}}>
+            <div style={{fontWeight:800,color:"#c0392b",fontSize:15,marginBottom:3}}>🚨 VARIAZIONE / DISDETTA CLIENTE — LEGGERE PRIMA DI PRODURRE</div>
+            <div style={{whiteSpace:"pre-wrap",fontSize:14,color:"#1d2430"}}>{f.avviso_produzione}</div>
+            {commessa?.avviso_il && <div className="muted" style={{fontSize:11,marginTop:4}}>Segnalato il {new Date(commessa.avviso_il).toLocaleString("it-IT")}</div>}
+          </div>}
+
           {!nuova && commessa?.preventivo_numero &&
             <div style={{fontSize:13,marginBottom:10,padding:"6px 12px",background:"#eef4ff",border:"1px solid #cfe0ff",borderRadius:7,display:"inline-block"}}>
               📄 Generata dal preventivo <b>N. {commessa.preventivo_numero}</b></div>}
@@ -10575,6 +10597,13 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               <div className="field"><label>Prodotto (cosa si produce)</label>
                 <input value={f.prodotto} onChange={e=>set("prodotto",e.target.value)} placeholder="es. Scatola Malfy — compare in cima alla scheda di lavorazione"/></div>
             </div>
+            {!nuova && perm.economici && <div className="row">
+              <div className="field"><label style={{color:"#c0392b"}}>🚨 Avviso per la produzione (variazione / disdetta cliente)</label>
+                <textarea rows={2} value={f.avviso_produzione} onChange={e=>set("avviso_produzione",e.target.value)}
+                  placeholder="es. ANNULLATO il pannello forex · borse: cambiare grafica 3 con quella nuova — comunicato dal cliente il 02/10 ore 18"
+                  style={f.avviso_produzione?{border:"2px solid #e3342f",background:"#fff8f8"}:null}/>
+                <div className="muted" style={{fontSize:11,marginTop:3}}>Se compilato, la produzione vede un avviso rosso in cima alla commessa, nel cruscotto e sulla scheda. Metti anche lo stato <b>⛔ Annullato</b> sulle righe disdette. Svuota per togliere l'avviso.</div></div>
+            </div>}
             <div className="row">
               <div className="field"><label>Riferimento</label>
                 <input value={f.riferimento} onChange={e=>set("riferimento",e.target.value)}/></div>

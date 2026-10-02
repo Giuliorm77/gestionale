@@ -7913,7 +7913,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       const artRighe=righe.filter(r=>(r.tipo==="materiale"||r.tipo==="altro") && String(r.descrizione||"").trim())
         .map((r,idx)=>({commessa_id:nc.id, ordine:idx, descrizione:r.descrizione||"",
           articolo_id:r.articolo_id||null, quantita:Number(r.quantita)||0, unita:r.unita||"",
-          data_consegna:null, stato:"da_produrre", config:r.config||null,
+          data_consegna:null, stato:"da_produrre", config:r.config||null, costo_unitario:Number(r.costo_unitario)||0,
           modalita_consegna:r.modalita_consegna||"corriere", sede_id:r.sede_id||null,
           fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||"",
           fornitore_prezzo_allegato:r.fornitore_prezzo_allegato||null, fornitore_prezzo_allegato_nome:r.fornitore_prezzo_allegato_nome||"",
@@ -10153,6 +10153,14 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       .eq("commessa_id",commessa.id).order("inizio")
       .then(({data})=>setSegmenti(data||[]));
   },[commessa?.id]);
+  // Ordini fornitore collegati: per la spia "preventivato vs costo reale pagato"
+  const [ofColl,setOfColl]=useState([]);
+  useEffect(()=>{
+    if(!commessa?.id){ setOfColl([]); return; }
+    sb.from("ordini_fornitore").select("numero,fornitore_nome,stato, ordini_fornitore_righe(quantita,quantita_ricevuta,prezzo_unitario)")
+      .eq("commessa_id",commessa.id)
+      .then(({data})=>setOfColl(data||[]));
+  },[commessa?.id]);
 
   /* Elenco partecipanti: sessioni cronometrate (Postazione) + ore scritte a
      mano nelle fasi + aiuti imprevisti, uniti per persona. */
@@ -10396,6 +10404,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         imballo_id:null, imballo_ids:(Array.isArray(r.imballo_ids)&&r.imballo_ids.length? r.imballo_ids : (r.imballo_id?[r.imballo_id]:[])),
         imballo_pluriball:r.imballo_pluriball||null, imballo_costo:Math.round(costoImballoRiga(r)*100)/100,
         modalita_consegna:r.modalita_consegna||"corriere", evasione:r.evasione||"interna", sede_id:r.sede_id||null, aggiunta:!!r.aggiunta,
+        costo_unitario:Number(r.costo_unitario)||0,
         fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||"",
         fornitore_prezzo_allegato:r.fornitore_prezzo_allegato||null, fornitore_prezzo_allegato_nome:r.fornitore_prezzo_allegato_nome||""}));
       if(rowsR.length){ const {error}=await sb.from("commesse_righe").insert(rowsR); if(error) throw error; }
@@ -10662,6 +10671,24 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               <button type="button" className="btn small primary" onClick={generaOrdineFornitore} disabled={busy}>🚚 Genera ordini fornitore (uno per riga)</button>
             </div>}
             {ofMsg && <div className="banner" style={{background:"#e6f4ee",color:"#1f9c68",marginTop:8}}>✅ {ofMsg}</div>}
+            {(ofColl.length>0 || righe.some(r=>r.fornitore_prezzo_id)) && (()=>{
+              const reale=(ofColl||[]).reduce((s,o)=>s+(o.ordini_fornitore_righe||[]).reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0),0),0);
+              const prev=(righe||[]).filter(r=>r.fornitore_prezzo_id).reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0);
+              const diff=Math.round((reale-prev)*100)/100;
+              return <div style={{marginTop:10,padding:12,borderRadius:10,background:"#f7f9fc",border:"1px solid var(--line)"}}>
+                <div style={{fontWeight:700,marginBottom:6}}>🚚 Acquisti da fornitori — preventivato vs reale</div>
+                {ofColl.length>0
+                  ? <div style={{fontSize:12.5,marginBottom:8}}>{ofColl.map((o,k)=>{ const t=(o.ordini_fornitore_righe||[]).reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0),0);
+                      return <div key={k} className="muted">• <b>{o.numero}</b>{o.fornitore_nome?(" · "+o.fornitore_nome):" · (fornitore da scegliere)"} — {eur(t)} <span style={{fontSize:11}}>({o.stato})</span></div>; })}</div>
+                  : <div className="muted" style={{fontSize:12,marginBottom:8}}>Nessun ordine fornitore collegato ancora (il costo reale comparirà quando generi e compili gli ordini).</div>}
+                <div style={{display:"flex",gap:18,flexWrap:"wrap",fontSize:13,alignItems:"center"}}>
+                  <span>Preventivato: <b>{eur(prev)}</b></span>
+                  <span>Reale (ordini): <b>{eur(reale)}</b></span>
+                  {ofColl.length>0 && <span style={{fontWeight:700,color:diff>0.009?"#c0392b":(diff<-0.009?"#127a3e":"#41505c")}}>
+                    Differenza: {diff>0?"+":""}{eur(diff)}{diff>0.009?" — stai spendendo di più":diff<-0.009?" — risparmio":""}</span>}
+                </div>
+                <div className="muted" style={{fontSize:11,marginTop:6}}>Solo informativo: non modifica il margine. Il prezzo realmente pagato si imposta nell'ordine fornitore.</div>
+              </div>; })()}
             {righe.some(r=>r.evasione==="neutro") && <div className="muted" style={{fontSize:12,marginTop:8}}>📦 <b>{righe.filter(r=>r.evasione==="neutro").length}</b> riga/e <b>neutre</b>: nessuna stampa/produzione, si spediscono così come sono.</div>}
           </div>
 

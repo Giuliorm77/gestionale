@@ -10125,25 +10125,33 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const margineReale=ricaviTot-costiTot;
 
   async function generaOrdineFornitore(){
-    if(nuova || !commessa?.id){ setErr("Salva prima la commessa, poi genera l'ordine fornitore."); return; }
+    if(nuova || !commessa?.id){ setErr("Salva prima la commessa, poi genera gli ordini fornitore."); return; }
     const fr=righe.filter(r=>r.evasione==="fornitore" && (r.descrizione||r.articolo_id));
     if(!fr.length){ setOfMsg("Nessuna riga con evasione «fornitore» in questa commessa."); return; }
     setBusy(true); setErr(""); setOfMsg("");
     try{
       const {data:esist}=await sb.from("ordini_fornitore").select("numero").eq("commessa_id",commessa.id);
-      if(esist&&esist.length && !window.confirm("Esiste già un ordine fornitore ("+esist[0].numero+") per questa commessa. Crearne un altro?")){ setBusy(false); return; }
+      if(esist&&esist.length && !window.confirm("Esiste già "+esist.length+" ordine/i fornitore per questa commessa. Generarne altri (uno separato per ogni riga)?")){ setBusy(false); return; }
       const {data:tutti}=await sb.from("ordini_fornitore").select("numero");
-      const numero=prossimoNumeroOF(tutti||[]);
-      const rec={numero, fornitore_id:null, fornitore_nome:"", data:new Date().toISOString().slice(0,10), data_prevista:null,
-        stato:"bozza", riferimento:"Commessa "+(commessa.numero||""), commessa_id:commessa.id,
-        note:"Righe da evadere via fornitore, dalla commessa "+(commessa.numero||""), totale:0, creato_da:profilo.id, aggiornato_il:new Date().toISOString()};
-      const {data:of,error}=await sb.from("ordini_fornitore").insert(rec).select("id,numero").single();
-      if(error) throw error;
-      const rows=fr.map((r,idx)=>({ordine_id:of.id, ordine:idx, articolo_id:r.articolo_id||null, descrizione:r.descrizione||"",
-        quantita:Number(r.quantita)||0, unita:r.unita||"", prezzo_unitario:0, quantita_ricevuta:0, note:"da commessa "+(commessa.numero||"")}));
-      const {error:e2}=await sb.from("ordini_fornitore_righe").insert(rows);
-      if(e2) throw e2;
-      setOfMsg("Ordine fornitore "+of.numero+" creato (bozza) con "+rows.length+" riga/e. Aprilo in «🛒 Ordini fornitori» per scegliere il fornitore e i costi d'acquisto.");
+      const anno=new Date().getFullYear();
+      // UN ORDINE FORNITORE SEPARATO PER OGNI RIGA (articolo/lavorazione), così viaggiano singolarmente.
+      let seq=(tutti||[]).filter(o=>String(o.numero||"").startsWith("OF-"+anno+"-")).length;
+      const creati=[];
+      for(const r of fr){
+        seq++;
+        const numero="OF-"+anno+"-"+String(seq).padStart(4,"0");
+        const rec={numero, fornitore_id:null, fornitore_nome:"", data:new Date().toISOString().slice(0,10), data_prevista:null,
+          stato:"bozza", riferimento:"Commessa "+(commessa.numero||""), commessa_id:commessa.id,
+          note:"Da commessa "+(commessa.numero||"")+" — "+(r.descrizione||"riga"), totale:0, creato_da:profilo.id, aggiornato_il:new Date().toISOString()};
+        const {data:of,error}=await sb.from("ordini_fornitore").insert(rec).select("id,numero").single();
+        if(error) throw error;
+        const row={ordine_id:of.id, ordine:0, articolo_id:r.articolo_id||null, descrizione:r.descrizione||"",
+          quantita:Number(r.quantita)||0, unita:r.unita||"", prezzo_unitario:0, quantita_ricevuta:0, note:"da commessa "+(commessa.numero||"")};
+        const {error:e2}=await sb.from("ordini_fornitore_righe").insert(row);
+        if(e2) throw e2;
+        creati.push(of.numero);
+      }
+      setOfMsg(creati.length+" ordine/i fornitore creato/i (bozza), uno per riga: "+creati.join(", ")+". Aprili in «🛒 Ordini fornitori» per scegliere il fornitore e i costi d'acquisto.");
     }catch(ex){ setErr(ex.message); }
     setBusy(false);
   }
@@ -10432,8 +10440,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
             </div>
             <button type="button" className="btn small" style={{marginTop:8}} onClick={addRiga}>+ Aggiungi articolo</button>
             {righe.some(r=>r.evasione==="fornitore") && <div style={{marginTop:12,padding:12,borderRadius:10,background:"#fff4e5",border:"1px solid #f0d8a8",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-              <div style={{flex:1,minWidth:200,fontSize:13}}>🚚 <b>{righe.filter(r=>r.evasione==="fornitore").length}</b> riga/e da evadere <b>via fornitore</b>: genera l'ordine fornitore (bozza) da completare.</div>
-              <button type="button" className="btn small primary" onClick={generaOrdineFornitore} disabled={busy}>🚚 Genera ordine fornitore</button>
+              <div style={{flex:1,minWidth:200,fontSize:13}}>🚚 <b>{righe.filter(r=>r.evasione==="fornitore").length}</b> riga/e da evadere <b>via fornitore</b>: genera <b>un ordine separato per ogni riga</b> (uno per articolo/lavorazione), così li invii singolarmente.</div>
+              <button type="button" className="btn small primary" onClick={generaOrdineFornitore} disabled={busy}>🚚 Genera ordini fornitore (uno per riga)</button>
             </div>}
             {ofMsg && <div className="banner" style={{background:"#e6f4ee",color:"#1f9c68",marginTop:8}}>✅ {ofMsg}</div>}
             {righe.some(r=>r.evasione==="neutro") && <div className="muted" style={{fontSize:12,marginTop:8}}>📦 <b>{righe.filter(r=>r.evasione==="neutro").length}</b> riga/e <b>neutre</b>: nessuna stampa/produzione, si spediscono così come sono.</div>}

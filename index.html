@@ -7534,6 +7534,56 @@ function ModuloPreventivi({profilo,perm}){
   );
 }
 
+// Allegato dell'offerta fornitore (prezzo d'acquisto): upload su bucket privato
+// "offerte-fornitori", riferimento (percorso) salvato sulla riga. Riutilizzato
+// in preventivo e commessa. onSet(path,nome) aggiorna la riga (null per rimuovere).
+const BUCKET_OFFERTE="offerte-fornitori";
+function AllegatoOfferta({riga,onSet}){
+  const [busy,setBusy]=useState(false);
+  const [err,setErr]=useState("");
+  const inputRef=React.useRef(null);
+  const path=riga.fornitore_prezzo_allegato;
+  const nome=riga.fornitore_prezzo_allegato_nome||"offerta";
+  async function carica(file){
+    if(!file){ return; }
+    if(file.size>15*1024*1024){ setErr("File troppo grande (max 15 MB)"); return; }
+    setBusy(true); setErr("");
+    try{
+      const safe=String(file.name||"offerta").replace(/[^a-zA-Z0-9._-]/g,"_").slice(-60);
+      const p="offerte/"+uid()+"_"+safe;
+      const {error}=await sb.storage.from(BUCKET_OFFERTE).upload(p,file,{upsert:false});
+      if(error) throw error;
+      onSet(p, file.name||safe);
+    }catch(ex){ setErr(ex.message||"Errore nel caricamento"); }
+    setBusy(false);
+  }
+  async function apri(){
+    setErr("");
+    try{
+      const {data,error}=await sb.storage.from(BUCKET_OFFERTE).createSignedUrl(path,120);
+      if(error) throw error; window.open(data.signedUrl,"_blank");
+    }catch(ex){ setErr(ex.message||"Impossibile aprire l'allegato"); }
+  }
+  async function rimuovi(){
+    setBusy(true); setErr("");
+    try{ await sb.storage.from(BUCKET_OFFERTE).remove([path]); }catch(e){}
+    onSet(null,null); setBusy(false);
+  }
+  return <div style={{display:"flex",flexDirection:"column",gap:3}}>
+    {path
+      ? <div style={{display:"flex",alignItems:"center",gap:4}}>
+          <button type="button" className="btn small" onClick={apri} title="Apri l'offerta allegata"
+            style={{padding:"3px 7px",fontSize:11.5,maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📎 {nome}</button>
+          <button type="button" className="btn small danger" onClick={rimuovi} disabled={busy} style={{padding:"2px 6px"}} title="Rimuovi allegato">×</button>
+        </div>
+      : <button type="button" className="btn small" onClick={()=>inputRef.current&&inputRef.current.click()} disabled={busy}
+          style={{padding:"3px 7px",fontSize:11.5}}>{busy?"⏳ carico…":"📎 Allega offerta"}</button>}
+    <input ref={inputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.eml,.msg,.doc,.docx,.xls,.xlsx" style={{display:"none"}}
+      onChange={e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=""; carica(f); }}/>
+    {err && <span style={{color:"#c0392b",fontSize:10.5}}>{err}</span>}
+  </div>;
+}
+
 function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodotti,imballi,corrieri,fornitori,bozza,numeroSuggerito,onClose,onSalvato}){
   const nuovo=!preventivo;
   const [f,setF]=useState(()=> (bozza&&bozza.f) ? bozza.f : ({
@@ -7714,6 +7764,7 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
       config:r.config||null,modalita_consegna:r.modalita_consegna||"corriere", pagato_intero:r.pagato_intero!==false,
       sede_id:r.sede_id||null,
       fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||"",
+      fornitore_prezzo_allegato:r.fornitore_prezzo_allegato||null, fornitore_prezzo_allegato_nome:r.fornitore_prezzo_allegato_nome||"",
       imballo_id:null, imballo_ids:imballiSel(r).filter(x=>x!=="__pluriball__"), imballo_pluriball:pluriballDaSalvare(r),
       imballo_costo:Math.round(costoImballoRiga(r)*100)/100}));
     if(rows.length){ const {error}=await sb.from("preventivi_righe").insert(rows); if(error) throw error; }
@@ -7768,6 +7819,7 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
           data_consegna:null, stato:"da_produrre", config:r.config||null,
           modalita_consegna:r.modalita_consegna||"corriere", sede_id:r.sede_id||null,
           fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||"",
+          fornitore_prezzo_allegato:r.fornitore_prezzo_allegato||null, fornitore_prezzo_allegato_nome:r.fornitore_prezzo_allegato_nome||"",
           imballo_id:null, imballo_ids:imballiSel(r).filter(x=>x!=="__pluriball__"), imballo_pluriball:pluriballDaSalvare(r),
           imballo_costo:Math.round(costoImballoRiga(r)*100)/100}));
       if(artRighe.length){ const {error:er}=await sb.from("commesse_righe").insert(artRighe); if(er) throw er; }
@@ -7904,6 +7956,7 @@ function PreventivoEditor({preventivo,profilo,clienti,articoli,imp,tariffe,prodo
                                 {r.fornitore_prezzo_id && <input value={r.fornitore_prezzo_nota||""} onChange={e=>setRiga(i,"fornitore_prezzo_nota",e.target.value)}
                                   placeholder="nota: data/rif./validità offerta" title="Es. offerta via email del 02/10, rif. 1234, valida 30 gg"
                                   style={{padding:"5px",borderRadius:7,border:"1px solid var(--line)",fontSize:12}}/>}
+                                {r.fornitore_prezzo_id && <AllegatoOfferta riga={r} onSet={(p,n)=>{ setRiga(i,"fornitore_prezzo_allegato",p); setRiga(i,"fornitore_prezzo_allegato_nome",n); }}/>}
                               </div>
                             </div>
                           : <span className="muted">—</span>}</td>
@@ -10211,7 +10264,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         imballo_id:null, imballo_ids:(Array.isArray(r.imballo_ids)&&r.imballo_ids.length? r.imballo_ids : (r.imballo_id?[r.imballo_id]:[])),
         imballo_pluriball:r.imballo_pluriball||null, imballo_costo:Math.round(costoImballoRiga(r)*100)/100,
         modalita_consegna:r.modalita_consegna||"corriere", evasione:r.evasione||"interna", sede_id:r.sede_id||null, aggiunta:!!r.aggiunta,
-        fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||""}));
+        fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||"",
+        fornitore_prezzo_allegato:r.fornitore_prezzo_allegato||null, fornitore_prezzo_allegato_nome:r.fornitore_prezzo_allegato_nome||""}));
       if(rowsR.length){ const {error}=await sb.from("commesse_righe").insert(rowsR); if(error) throw error; }
       try{ await sb.rpc("ricalcola_impegni"); }catch(e){}
       onSalvato();
@@ -10456,6 +10510,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                         </select>
                         {r.fornitore_prezzo_id && <input value={r.fornitore_prezzo_nota||""} onChange={e=>setRiga(i,"fornitore_prezzo_nota",e.target.value)}
                           placeholder="nota: data/rif./validità offerta" style={{width:"100%",padding:"5px",borderRadius:7,border:"1px solid var(--line)",fontSize:11.5}}/>}
+                        {r.fornitore_prezzo_id && <AllegatoOfferta riga={r} onSet={(p,n)=>{ setRiga(i,"fornitore_prezzo_allegato",p); setRiga(i,"fornitore_prezzo_allegato_nome",n); }}/>}
                       </div>}
                       </td>
                       <td><button type="button" className="btn small danger" onClick={()=>delRiga(i)}>✕</button></td>

@@ -6534,7 +6534,7 @@ function htmlEtichetta(p){
     '<div class="com">'+escHtml(p.commessa||"")+'</div>'+
     '</div></body></html>';
 }
-function htmlPreventivo(prev, righe, az, cli, tot, destinazione){
+function htmlPreventivo(prev, righe, az, cli, tot, destinazione, opts){
   const eurf=n=>Number(n||0).toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
   const destBanner = destinazione ? '<div style="margin:0 0 10px;padding:8px 12px;background:#eef4ff;border:1px solid #cfe0ff;border-radius:6px;font-size:13px"><b>📦 Consegna a:</b> '+escHtml(destinazione)+'</div>' : "";
   const dt=prev.data? new Date(prev.data):new Date();
@@ -6553,11 +6553,13 @@ function htmlPreventivo(prev, righe, az, cli, tot, destinazione){
     return `<tr><td>${escHtml(r.descrizione)}${mdNote}</td><td class="r">${q} ${escHtml(r.unita||"")}</td><td class="r">${eurf(pu)}</td><td class="r">${sc?sc+"%":"—"}</td><td class="r">${eurf(q*pu*(1-sc/100))}</td></tr>`;
   }).join("");
   const extra=[];
-  const imbRigheTot=(righe||[]).reduce((s,r)=>s+(Number(r.imballo_costo)||0),0);
-  if(imbRigheTot>0) extra.push(`<tr><td>Imballo</td><td></td><td></td><td></td><td class="r">${eurf(imbRigheTot)}</td></tr>`);
-  if(Number(prev.imballaggio)>0) extra.push(`<tr><td>Imballaggio</td><td></td><td></td><td></td><td class="r">${eurf(prev.imballaggio)}</td></tr>`);
-  if(Number(prev.trasporto)>0) extra.push(`<tr><td>Trasporto</td><td></td><td></td><td></td><td class="r">${eurf(prev.trasporto)}</td></tr>`);
-  else extra.push(`<tr><td>Trasporto</td><td></td><td></td><td></td><td class="r" style="font-style:italic;color:#666">escluso</td></tr>`);
+  if(!(opts&&opts.noExtra)){
+    const imbRigheTot=(righe||[]).reduce((s,r)=>s+(Number(r.imballo_costo)||0),0);
+    if(imbRigheTot>0) extra.push(`<tr><td>Imballo</td><td></td><td></td><td></td><td class="r">${eurf(imbRigheTot)}</td></tr>`);
+    if(Number(prev.imballaggio)>0) extra.push(`<tr><td>Imballaggio</td><td></td><td></td><td></td><td class="r">${eurf(prev.imballaggio)}</td></tr>`);
+    if(Number(prev.trasporto)>0) extra.push(`<tr><td>Trasporto</td><td></td><td></td><td></td><td class="r">${eurf(prev.trasporto)}</td></tr>`);
+    else extra.push(`<tr><td>Trasporto</td><td></td><td></td><td></td><td class="r" style="font-style:italic;color:#666">escluso</td></tr>`);
+  }
   const carta=az.carta_intestata||"";
   const mT=carta?(Number(az.carta_margine_top)||40):14;
   const mB=carta?(Number(az.carta_margine_bottom)||25):14;
@@ -7657,6 +7659,10 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
           if(!ids.length && r.imballo_id) ids.push(r.imballo_id);
           if(r.imballo_pluriball && !ids.includes("__pluriball__")) ids.push("__pluriball__");
           return {...r, imballo_ids:ids}; }) );
+  // Versione sintetica per il cliente (facoltativa): righe scritte a mano (descrizione+prezzo).
+  // Se compilata, il PDF cliente mostra queste al posto del dettaglio.
+  const [righeCliente,setRigheCliente]=useState(()=> (bozza&&bozza.righeCliente) ? bozza.righeCliente.map(x=>({...x}))
+    : (Array.isArray(preventivo?.righe_cliente)?preventivo.righe_cliente.map(x=>({...x})):[]) );
   const [cercaArt,setCercaArt]=useState("");
   const [configOpen,setConfigOpen]=useState(false);
   const [configEditIdx,setConfigEditIdx]=useState(null);
@@ -7684,6 +7690,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const setRiga=(i,k,v)=>setRighe(p=>p.map((r,j)=>j===i?{...r,[k]:v}:r));
   const delRiga=i=>setRighe(p=>p.filter((_,j)=>j!==i));
+  const addRigaCli=()=>setRigheCliente(p=>[...p,{descrizione:"",prezzo:""}]);
+  const setRigaCli=(i,k,v)=>setRigheCliente(p=>p.map((x,j)=>j===i?{...x,[k]:v}:x));
+  const delRigaCli=i=>setRigheCliente(p=>p.filter((_,j)=>j!==i));
   const apriConfigModifica=(i)=>{ setConfigEditIdx(i); setConfigOpen(true); };
   const aggiungiRigaConfig=(r)=>{
     // in modifica preservo le scelte di riga che il configuratore non gestisce (imballo, consegna)
@@ -7696,9 +7705,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const montato=React.useRef(false);
   useEffect(()=>{
     if(!montato.current){ montato.current=true; return; }
-    scriviBozza({key:preventivo?.id||"new", f, righe, ts:Date.now(),
+    scriviBozza({key:preventivo?.id||"new", f, righe, righeCliente, ts:Date.now(),
       etichetta:(f.numero||"")+" · "+((clienti.find(c=>c.id===f.cliente_id)||{}).ragione_sociale||"—")});
-  },[f,righe]);
+  },[f,righe,righeCliente]);
 
   const risultatiArt=useMemo(()=>{
     const s=cercaArt.trim().toLowerCase(); if(!s) return [];
@@ -7762,7 +7771,19 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     return data;
   }
   async function stampa(){ const cli=await caricaCli(); stampaHTML(htmlPreventivo(f, righeCalc, imp, cli, tot)); }
-  async function stampaCliente(){ const cli=await caricaCli(); stampaHTML(htmlPreventivo(f, righeVersioneCliente(righeCalc), imp, cli, tot)); }
+  async function stampaCliente(){
+    const cli=await caricaCli();
+    const rc=(righeCliente||[]).filter(x=>String(x.descrizione||"").trim()!==""||Number(x.prezzo)>0);
+    if(rc.length){
+      const rows=rc.map(x=>({descrizione:x.descrizione||"", quantita:1, unita:"", prezzo_unitario:Number(x.prezzo)||0, sconto_pct:0, modalita_consegna:"corriere", imballo_costo:0}));
+      const imp2=rows.reduce((s,r)=>s+(Number(r.prezzo_unitario)||0),0);
+      const ivaPct=Number(f.iva_pct)||0;
+      const totC={imponibile:imp2, iva:imp2*ivaPct/100, totale:imp2*(1+ivaPct/100), imbRighe:0};
+      stampaHTML(htmlPreventivo(f, rows, imp, cli, totC, null, {noExtra:true}));
+    } else {
+      stampaHTML(htmlPreventivo(f, righeVersioneCliente(righeCalc), imp, cli, tot));
+    }
+  }
   async function stampaCosti(){ const cli=await caricaCli(); stampaHTML(htmlPreventivoCosti(f, righeCalc, imp, cli, tot)); }
   // Preventivo per SINGOLA SEDE: solo le righe di quella destinazione, extra globali (imballaggio/trasporto) azzerati.
   async function stampaSede(sedeId){
@@ -7795,6 +7816,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       provvigione_pct: isMarg ? null : (f.provvigione_pct===""?null:Number(f.provvigione_pct)),
       prezzo_netto: isMarg ? (Number(f.prezzo_netto)||0) : null,
       quota_margine_pct: isMarg ? (Number(f.quota_margine_pct)||0) : null,
+      righe_cliente: righeCliente.filter(x=>String(x.descrizione||"").trim()!==""||Number(x.prezzo)>0).map(x=>({descrizione:x.descrizione||"",prezzo:Number(x.prezzo)||0})),
       aggiornato_il:new Date().toISOString()};
     let id=preventivo?.id;
     if(nuovo && !id){ rec.creato_da=profilo.id;
@@ -8108,6 +8130,25 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                     : <>Provvigione agente: <b style={{color:"var(--ok)"}}>{eur(provv)}</b>{f.provvigione_pct===""?<span> — lasciando vuoto userà la % del cliente o dell'agente</span>:null}</>}
                 </div>
               </>; })()}
+          </div>
+
+          <div className="section" style={{marginTop:18}}>
+            <h3>📄 Versione per il cliente (sintesi facoltativa)</h3>
+            <div className="muted" style={{fontSize:12,marginBottom:8}}>Se compili queste righe, il <b>👤 PDF cliente</b> mostrerà <b>solo queste</b> (es. "Allestimento Longoni") al posto del dettaglio. Lascia vuoto per la versione automatica (materiali con manodopera inclusa). Serve solo per la stampa: non cambia la commessa.</div>
+            {righeCliente.length>0 && <div style={{overflow:"auto"}}><table><thead><tr><th>Descrizione per il cliente</th><th style={{width:150}}>Prezzo €</th><th style={{width:40}}></th></tr></thead>
+              <tbody>{righeCliente.map((x,i)=>(
+                <tr key={i}>
+                  <td><input value={x.descrizione} onChange={e=>setRigaCli(i,"descrizione",e.target.value)} placeholder="es. Allestimento Longoni" style={{width:"100%",padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></td>
+                  <td><input type="number" step="any" value={x.prezzo} onChange={e=>setRigaCli(i,"prezzo",e.target.value)} style={numIn}/></td>
+                  <td><button type="button" className="btn small danger" onClick={()=>delRigaCli(i)}>✕</button></td>
+                </tr>))}</tbody></table></div>}
+            <div style={{display:"flex",gap:8,alignItems:"center",marginTop:8,flexWrap:"wrap"}}>
+              <button type="button" className="btn small" onClick={addRigaCli}>+ Aggiungi riga cliente</button>
+              <button type="button" className="btn small" onClick={()=>setRigheCliente([{descrizione:f.descrizione_breve||"",prezzo:Math.round((tot.imponibile||0)*100)/100}])} title="Crea una riga unica con l'intero imponibile (poi puoi dividerla)">↺ Riga unica col totale</button>
+              {righeCliente.length>0 && (()=>{ const somma=righeCliente.reduce((s,x)=>s+(Number(x.prezzo)||0),0); const diff=Math.round((somma-(tot.imponibile||0))*100)/100;
+                return <span style={{fontSize:12.5,marginLeft:"auto",fontWeight:600,color:Math.abs(diff)<0.01?"#127a3e":"#c0392b"}}>
+                  Somma righe cliente: {eur(somma)} · Imponibile reale: {eur(tot.imponibile)}{Math.abs(diff)>=0.01?(" · ⚠ differenza "+eur(diff)):" · ✓ coincide"}</span>; })()}
+            </div>
           </div>
 
           <div className="section" style={{marginTop:18}}>

@@ -9816,12 +9816,13 @@ function ModuloCommesse({profilo,perm}){
                     const cons=c.data_consegna? new Date(c.data_consegna):null;
                     const ritardo=cons && cons<oggi && c.stato!=="consegnata" && c.stato!=="chiusa";
                     const righe=c.commesse_righe||[];
+                    const nAgg=fasi.filter(x=>x.aggiunta).length+righe.filter(x=>x.aggiunta).length;
                     const dateMancanti=righe.some(r=>!r.data_consegna);
                     const prontiArt=righe.filter(r=>r.stato==="pronto"||r.stato==="consegnato").length;
                     return (
                       <tr key={c.id} onClick={()=>setEditor(c)}>
                         <td className="rs">{c.numero||"—"}</td>
-                        <td>{c.cliente_nome||"—"}</td>
+                        <td>{c.cliente_nome||"—"}{nAgg>0 && <span className="tag" style={{marginLeft:6,background:"#fff8e1",color:"#9a6b00",border:"1px solid #ffe08a"}} title={nAgg+" voci (lavorazioni/materiali) aggiunte dopo la creazione (fuori preventivo): da fatturare o aggiornare a preventivo"}>➕ {nAgg} fuori prev.</span>}</td>
                         <td className="muted" style={ritardo?{color:"var(--danger)",fontWeight:700}:null}>
                           {dateMancanti
                             ? <span className="tag" style={{background:"#fdecea",color:"#c0392b"}} title="Alcuni articoli non hanno la data di consegna">⚠ date mancanti</span>
@@ -9995,7 +9996,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   },[clienti,agenti,f.cliente_id,f.agente_id]);
 
   const setRiga=(i,k,v)=>setRighe(p=>p.map((r,j)=>j===i?{...r,[k]:v}:r));
-  const addRiga=()=>setRighe(p=>[...p,{descrizione:"",quantita:1,unita:"",data_consegna:"",stato:"da_produrre",note:"",config:null}]);
+  const addRiga=()=>setRighe(p=>[...p,{descrizione:"",quantita:1,unita:"",data_consegna:"",stato:"da_produrre",note:"",config:null,aggiunta:!nuova}]);
   const delRiga=i=>setRighe(p=>p.filter((_,j)=>j!==i));
   const righeSenzaData=righe.filter(r=>!r.data_consegna).length;
   async function importaDaPreventivo(){
@@ -10068,7 +10069,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   }
 
   const setFase=(i,k,v)=>setFasi(p=>p.map((fa,j)=>j===i?{...fa,[k]:v}:fa));
-  const addFase=()=>setFasi(p=>[...p,{chiave:uid(),reparto:"",descrizione:"",stato:"da_fare",ore_previste:0,quantita_lavorata:0,unita_lavorata:"",operatori:[],note:"",esterna:false,fornitore_id:"",fornitore_nome:"",costo_previsto:0,costo_reale:0,data_invio:"",data_rientro_prevista:"",data_rientro:""}]);
+  const addFase=()=>setFasi(p=>[...p,{chiave:uid(),reparto:"",descrizione:"",stato:"da_fare",ore_previste:0,quantita_lavorata:0,unita_lavorata:"",operatori:[],note:"",esterna:false,fornitore_id:"",fornitore_nome:"",costo_previsto:0,costo_reale:0,data_invio:"",data_rientro_prevista:"",data_rientro:"",aggiunta:!nuova}]);
   const delFase=i=>setFasi(p=>p.filter((_,j)=>j!==i));
   const addOpFase=(i,opId)=>{ const op=operatori.find(o=>o.id===opId); if(!op) return;
     setFasi(p=>p.map((fa,j)=>{ if(j!==i) return fa;
@@ -10178,6 +10179,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         esterna:!!fa.esterna, fornitore_id:fa.fornitore_id||null, fornitore_nome:fa.fornitore_nome||"",
         costo_previsto:Number(fa.costo_previsto)||0, costo_reale:Number(fa.costo_reale)||0,
         data_invio:fa.data_invio||null, data_rientro_prevista:fa.data_rientro_prevista||null, data_rientro:fa.data_rientro||null,
+        aggiunta:!!fa.aggiunta,
         note:fa.note||""}));
       if(rows.length){ const {error}=await sb.from("commesse_fasi").insert(rows); if(error) throw error; }
       const rowsR=righe.map((r,idx)=>({commessa_id:id, ordine:idx, descrizione:r.descrizione||"",
@@ -10185,7 +10187,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         data_consegna:r.data_consegna||null, stato:r.stato||"da_produrre", note:r.note||"", config:r.config||null,
         imballo_id:null, imballo_ids:(Array.isArray(r.imballo_ids)&&r.imballo_ids.length? r.imballo_ids : (r.imballo_id?[r.imballo_id]:[])),
         imballo_pluriball:r.imballo_pluriball||null, imballo_costo:Math.round(costoImballoRiga(r)*100)/100,
-        modalita_consegna:r.modalita_consegna||"corriere", evasione:r.evasione||"interna", sede_id:r.sede_id||null}));
+        modalita_consegna:r.modalita_consegna||"corriere", evasione:r.evasione||"interna", sede_id:r.sede_id||null, aggiunta:!!r.aggiunta}));
       if(rowsR.length){ const {error}=await sb.from("commesse_righe").insert(rowsR); if(error) throw error; }
       try{ await sb.rpc("ricalcola_impegni"); }catch(e){}
       onSalvato();
@@ -10339,6 +10341,10 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
             </div>}
             {commessa?.preventivo_id && <button type="button" className="btn small" style={{marginBottom:10}} onClick={importaDaPreventivo} disabled={busy}>⬇ Importa articoli dal preventivo</button>}
             {righeSenzaData>0 && <div className="banner err" style={{marginTop:0}}>⚠ {righeSenzaData} articolo/i senza data di consegna: compila le date per poter salvare.</div>}
+            {(()=>{ const agg=righe.filter(r=>r.aggiunta); if(!agg.length) return null; return (
+              <div className="card" style={{background:"#fff8e1",border:"1px solid #ffe08a",padding:"8px 12px",marginBottom:10,fontSize:13}}>
+                ➕ <b>{agg.length} material{agg.length===1?"e aggiunto":"i aggiunti"} dopo la creazione della commessa</b> (fuori preventivo): aggiorna il preventivo (<b>Nuova revisione</b>) oppure addebitalo in fattura. Quando l'hai recepito, premi <b>✓ Recepita</b> sulla riga.
+              </div>); })()}
             {righe.length>1 && Object.keys(contConsegna).length>1 && <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:8}}>
               <span className="muted" style={{fontSize:12}}>Raggruppa per consegna:</span>
               <button type="button" className="btn small" style={!filtroConsegna?{background:"var(--brand)",color:"#fff",borderColor:"var(--brand)"}:{}} onClick={()=>setFiltroConsegna("")}>Tutti ({righe.length})</button>
@@ -10364,7 +10370,11 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                     return (
                     <tr key={i} style={{background:st.bg==="#eef1f5"?"transparent":st.bg}}>
                       <td style={{minWidth:220}}><input value={r.descrizione} onChange={e=>setRiga(i,"descrizione",e.target.value)}
-                        style={{width:"100%",padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></td>
+                        style={{width:"100%",padding:"6px",border:"1px solid "+(r.aggiunta?"#f59f00":"var(--line)"),borderRadius:7}}/>
+                        {r.aggiunta && <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4,fontSize:11.5,color:"#9a6b00"}}>
+                          <span>➕ <b>Aggiunto dopo il preventivo</b></span>
+                          <button type="button" className="btn small" style={{padding:"1px 7px"}} onClick={()=>setRiga(i,"aggiunta",false)} title="Segna come recepito: inserito nel preventivo (nuova revisione) o da fatturare">✓ Recepita</button>
+                        </div>}</td>
                       <td><input type="number" step="0.01" value={r.quantita} onChange={e=>setRiga(i,"quantita",e.target.value)}
                         style={{width:72,padding:"6px",border:"1px solid var(--line)",borderRadius:7,textAlign:"right"}}/></td>
                       <td><input value={r.unita||""} onChange={e=>setRiga(i,"unita",e.target.value)}
@@ -10500,6 +10510,10 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               Avanzamento: <b>{fatte}/{fasi.length}</b> fasi fatte · Ore previste <b>{orePrevTot}</b> · Ore effettive <b>{oreEffTot}</b>
               {!nuova && <span> · 🔒 le <b>ore previste</b> delle fasi esistenti sono bloccate (riferimento preventivato vs reale); le nuove fasi si possono ancora impostare</span>}
             </div>
+            {(()=>{ const agg=fasi.filter(f=>f.aggiunta); if(!agg.length) return null; return (
+              <div className="card" style={{background:"#fff8e1",border:"1px solid #ffe08a",padding:"8px 12px",marginBottom:10,fontSize:13}}>
+                ➕ <b>{agg.length} lavorazion{agg.length===1?"e aggiunta":"i aggiunte"} dopo la creazione della commessa</b> (fuori preventivo): aggiorna il preventivo (<b>Nuova revisione</b>) oppure addebitala in fattura. Quando l'hai recepita, premi <b>✓ Recepita</b> sulla riga per togliere l'avviso.
+              </div>); })()}
             {fasi.length===0 && <div className="card empty" style={{marginBottom:10}}>Nessuna fase. Aggiungine una qui sotto (di solito arrivano dal preventivo).</div>}
             {fasi.map((fa,i)=>{
               const est=!!fa.esterna;
@@ -10507,7 +10521,11 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               const st=statiFa[fa.stato]||(est?STATI_FASE_ESTERNA.da_inviare:STATI_FASE.da_fare);
               const liberi=operatori.filter(o=>!(fa.operatori||[]).some(x=>x.id===o.id));
               return (
-                <div key={i} className="card" style={{padding:12,marginBottom:10,borderLeft:"4px solid "+st.c}}>
+                <div key={i} className="card" style={{padding:12,marginBottom:10,borderLeft:"4px solid "+(fa.aggiunta?"#f59f00":st.c),...(fa.aggiunta?{background:"#fffdf5"}:{})}}>
+                  {fa.aggiunta && <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,background:"#fff8e1",border:"1px solid #ffe08a",borderRadius:7,padding:"4px 10px",fontSize:12.5}}>
+                    <span>➕ <b>Aggiunta dopo il preventivo</b> — da aggiornare a preventivo o addebitare in fattura</span>
+                    <button type="button" className="btn small" style={{marginLeft:"auto",padding:"2px 8px"}} onClick={()=>setFase(i,"aggiunta",false)} title="Segna come recepita: l'hai inserita nel preventivo (nuova revisione) o la fatturerai">✓ Recepita</button>
+                  </div>}
                   <div className="row" style={{alignItems:"flex-end"}}>
                     <div className="field" style={{maxWidth:180}}><label>{est?"Lavorazione":"Reparto / lavorazione"}</label>
                       <input value={fa.reparto} onChange={e=>setFase(i,"reparto",e.target.value)}/></div>
@@ -12998,9 +13016,10 @@ function ModuloReport({profilo,perm}){
               <tbody>
                 {filtrate.length===0 ? <tr><td colSpan={7} className="muted" style={{padding:12}}>Nessuna commessa nel periodo.</td></tr>
                   : filtrate.map(c=>{ const x=consunt(c); const st=STATI_COMMESSA[c.stato]||STATI_COMMESSA.aperta;
+                    const nAgg=(c.commesse_fasi||[]).filter(f=>f.aggiunta).length+(c.commesse_righe||[]).filter(r=>r.aggiunta).length;
                     return <tr key={c.id}>
                       <td className="rs">{c.numero||"—"}</td>
-                      <td>{c.cliente_nome||"—"}</td>
+                      <td>{c.cliente_nome||"—"}{nAgg>0 && <span className="tag" style={{marginLeft:6,background:"#fff8e1",color:"#9a6b00",border:"1px solid #ffe08a"}} title={nAgg+" voci (lavorazioni/materiali) aggiunte dopo la creazione (fuori preventivo): da fatturare o aggiornare a preventivo"}>➕ {nAgg} fuori prev.</span>}</td>
                       <td><span className="tag" style={{background:st.bg,color:st.c}}>{st.l}</span></td>
                       <td style={{textAlign:"right"}}>{eur(x.ricavi)}</td>
                       <td style={{textAlign:"right"}}>{eur(x.costi)}</td>

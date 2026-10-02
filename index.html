@@ -7896,7 +7896,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       const {data:tutte}=await sb.from("commesse").select("numero");
       const numero=prossimoNumeroCommessa(tutte||[]);
       const cli=clienti.find(c=>c.id===f.cliente_id);
-      const rec={numero, preventivo_id:preventivo.id, cliente_id:f.cliente_id||null,
+      const rec={numero, preventivo_id:preventivo.id, preventivo_numero:f.numero||preventivo.numero||"", cliente_id:f.cliente_id||null,
         cliente_nome:cli?cli.ragione_sociale:(preventivo.cliente_nome||""),
         riferimento:f.riferimento||"", stato:"aperta", priorita:"normale",
         consumi:suggerisciConsumi(righe.map(r=>({...r, imballo_pluriball:pluriballDaSalvare(r)})), prodotti),
@@ -10021,7 +10021,7 @@ function ModuloCommesse({profilo,perm}){
                     const prontiArt=righe.filter(r=>r.stato==="pronto"||r.stato==="consegnato").length;
                     return (
                       <tr key={c.id} onClick={()=>setEditor(c)}>
-                        <td className="rs">{c.numero||"—"}</td>
+                        <td className="rs">{c.numero||"—"}{c.preventivo_numero && <div className="muted" style={{fontSize:10.5,fontWeight:400}}>📄 prev. {c.preventivo_numero}</div>}</td>
                         <td>{c.cliente_nome||"—"}{nAgg>0 && <span className="tag" style={{marginLeft:6,background:"#fff8e1",color:"#9a6b00",border:"1px solid #ffe08a"}} title={nAgg+" voci (lavorazioni/materiali) aggiunte dopo la creazione (fuori preventivo): da fatturare o aggiornare a preventivo"}>➕ {nAgg} fuori prev.</span>}</td>
                         <td className="muted" style={ritardo?{color:"var(--danger)",fontWeight:700}:null}>
                           {dateMancanti
@@ -10479,6 +10479,10 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
           {err && <div className="banner err">{err}</div>}
           {consMsg && <div className="banner" style={{background:"#e6f4ee",color:"#1f9c68"}}>✅ {consMsg}</div>}
 
+          {!nuova && commessa?.preventivo_numero &&
+            <div style={{fontSize:13,marginBottom:10,padding:"6px 12px",background:"#eef4ff",border:"1px solid #cfe0ff",borderRadius:7,display:"inline-block"}}>
+              📄 Generata dal preventivo <b>N. {commessa.preventivo_numero}</b></div>}
+
           {!nuova && (apertaDa||ultimoLavoro) &&
             <div className="muted" style={{fontSize:12.5,marginBottom:10,display:"flex",gap:16,flexWrap:"wrap"}}>
               {apertaDa && <span>🧾 Aperta da <b>{apertaDa}</b>
@@ -10633,9 +10637,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                           color:(EVASIONE[r.evasione||"interna"]||EVASIONE.interna).c,fontWeight:600}}>
                         {Object.keys(EVASIONE).map(m=><option key={m} value={m}>{EVASIONE[m].l}</option>)}
                       </select>
-                      {r.evasione==="fornitore" && <div style={{marginTop:4,paddingTop:4,borderTop:"1px dashed var(--line)",display:"flex",flexDirection:"column",gap:3}}>
+                      {(r.evasione==="fornitore" || r.fornitore_prezzo_id) && <div style={{marginTop:4,paddingTop:4,borderTop:"1px dashed var(--line)",display:"flex",flexDirection:"column",gap:3}}>
                         <select value={r.fornitore_prezzo_id||""} onChange={e=>{ const fo=(fornitori||[]).find(x=>x.id===e.target.value); setRiga(i,"fornitore_prezzo_id",e.target.value||null); setRiga(i,"fornitore_prezzo_nome",fo?fo.ragione_sociale:""); }}
-                          title="Fornitore che ci ha fatto il prezzo d'acquisto: precompila l'ordine fornitore di questa riga"
+                          title="Fornitore che ci ha fatto il prezzo d'acquisto (ereditato dal preventivo): tienilo o scegline un altro. Precompila l'ordine fornitore di questa riga."
                           style={{width:"100%",padding:"5px",borderRadius:7,border:"1px solid var(--line)",fontSize:11.5,background:r.fornitore_prezzo_id?"#eef6ff":"#fff"}}>
                           <option value="">💬 Fornitore del prezzo…</option>
                           {(fornitori||[]).map(fo=><option key={fo.id} value={fo.id}>{fo.ragione_sociale}</option>)}

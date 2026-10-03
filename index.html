@@ -1244,7 +1244,7 @@ function PostazioneOperatore({profilo,perm}){
 
   const carica=useCallback(async()=>{
     const [c,o,s]=await Promise.all([
-      sb.from("commesse").select("id,numero,cliente_nome,stato, commesse_fasi(id,chiave,reparto,descrizione,stato,ore_previste,ordine)").in("stato",["aperta","in_produzione"]).order("data_consegna",{ascending:true}),
+      sb.from("commesse").select("id,numero,cliente_nome,stato, commesse_fasi(id,chiave,reparto,descrizione,stato,ore_previste,ordine)").in("stato",["aperta","in_produzione"]).eq("rilasciata_produzione",true).order("data_consegna",{ascending:true}),
       sb.from("operatori_nomi").select("id,nome,tipo,has_pin").order("nome"),
       sb.from("segmenti_lavoro").select("*"),
     ]);
@@ -1500,6 +1500,13 @@ function DettaglioLavorazioneOp({commessa,onClose}){
         {!c ? <div className="empty">Caricamento…</div>
           : <>
               <div className="muted" style={{fontSize:13,marginBottom:10}}>📅 Consegna: <b>{fmt(c.data_consegna)}</b>{c.riferimento?" · rif. "+c.riferimento:""}</div>
+              {(c.avviso_produzione||"").trim() && <div style={{margin:"0 0 10px",padding:"10px 12px",background:"#fdecec",border:"2px solid #e3342f",borderRadius:9}}>
+                <div style={{fontWeight:800,color:"#c0392b",fontSize:14,marginBottom:3}}>🚨 VARIAZIONE / DISDETTA — leggere prima di produrre</div>
+                <div style={{whiteSpace:"pre-wrap",fontSize:13}}>{c.avviso_produzione}</div></div>}
+              <div style={{margin:"0 0 12px",padding:"8px 10px",border:"1px solid var(--line)",borderRadius:8,background:"#fafbfc"}}>
+                <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>🖨️ File di stampa / grafici</div>
+                <FileCommessa commessaId={commessa.id} canEdit={false}/>
+              </div>
               <h3 style={{margin:"6px 0"}}>Articoli da produrre</h3>
               {(c.commesse_righe||[]).length===0 ? <div className="muted" style={{fontSize:13}}>Nessun articolo indicato.</div>
                 : <div style={{overflowX:"auto"}}><table><thead><tr><th>Descrizione</th><th>Q.tà</th><th>Misure</th><th>Consegna</th><th>Stato</th></tr></thead>
@@ -7633,6 +7640,78 @@ function ModuloPreventivi({profilo,perm}){
 // Allegato dell'offerta fornitore (prezzo d'acquisto): upload su bucket privato
 // "offerte-fornitori", riferimento (percorso) salvato sulla riga. Riutilizzato
 // in preventivo e commessa. onSet(path,nome) aggiorna la riga (null per rimuovere).
+// File di stampa/grafici della commessa: upload nel bucket "commesse-file" OPPURE link
+// alla cartella del server (per i file enormi). Righe in tabella commesse_file.
+// Riutilizzato in CommessaEditor (canEdit) e in Postazione (sola lettura).
+const BUCKET_COMMESSE="commesse-file";
+function FileCommessa({commessaId, canEdit, uploaderId}){
+  const [files,setFiles]=useState([]);
+  const [busy,setBusy]=useState(false);
+  const [err,setErr]=useState("");
+  const [showLink,setShowLink]=useState(false);
+  const [linkUrl,setLinkUrl]=useState(""); const [linkNome,setLinkNome]=useState("");
+  const inputRef=React.useRef(null);
+  const carica=React.useCallback(()=>{ if(!commessaId){ setFiles([]); return; }
+    sb.from("commesse_file").select("*").eq("commessa_id",commessaId).order("caricato_il").then(({data})=>setFiles(data||[]));
+  },[commessaId]);
+  useEffect(()=>{ carica(); },[carica]);
+  async function uploadFiles(list){
+    if(!list||!list.length) return; setBusy(true); setErr("");
+    try{
+      for(const file of list){
+        const safe=String(file.name||"file").replace(/[^a-zA-Z0-9._-]/g,"_").slice(-80);
+        const p="commesse/"+commessaId+"/"+uid()+"_"+safe;
+        const {error}=await sb.storage.from(BUCKET_COMMESSE).upload(p,file,{upsert:false}); if(error) throw error;
+        const {error:e2}=await sb.from("commesse_file").insert({commessa_id:commessaId, tipo:"file", nome:file.name||safe, path:p, caricato_da:uploaderId||null}); if(e2) throw e2;
+      }
+      carica();
+    }catch(ex){ setErr(ex.message||"Errore nel caricamento (file troppo grande? usa il link al server)"); } setBusy(false);
+  }
+  async function aggiungiLink(){
+    const u=linkUrl.trim(); if(!u) return; setBusy(true); setErr("");
+    try{ const {error}=await sb.from("commesse_file").insert({commessa_id:commessaId, tipo:"link", nome:linkNome.trim()||u, url:u, caricato_da:uploaderId||null}); if(error) throw error;
+      setLinkUrl(""); setLinkNome(""); setShowLink(false); carica();
+    }catch(ex){ setErr(ex.message); } setBusy(false);
+  }
+  async function apri(f){
+    setErr("");
+    if(f.tipo==="link"){
+      if(/^https?:\/\//i.test(f.url||"")) { window.open(f.url,"_blank"); }
+      else { try{ await navigator.clipboard.writeText(f.url||""); alert("Percorso copiato:\n"+f.url+"\nIncollalo in Esplora file per aprirlo."); }catch(e){ alert(f.url); } }
+      return;
+    }
+    try{ const {data,error}=await sb.storage.from(BUCKET_COMMESSE).createSignedUrl(f.path,600); if(error) throw error; window.open(data.signedUrl,"_blank"); }
+    catch(ex){ setErr(ex.message||"Impossibile aprire il file"); }
+  }
+  async function elimina(f){
+    if(!window.confirm("Rimuovere «"+(f.nome||"")+"»?")) return; setBusy(true); setErr("");
+    try{ if(f.tipo==="file"&&f.path){ try{ await sb.storage.from(BUCKET_COMMESSE).remove([f.path]); }catch(e){} }
+      await sb.from("commesse_file").delete().eq("id",f.id); carica();
+    }catch(ex){ setErr(ex.message); } setBusy(false);
+  }
+  return <div>
+    {files.length===0
+      ? <div className="muted" style={{fontSize:12.5}}>Nessun file di stampa. {canEdit?"Carica i file o incolla il link alla cartella del server.":"Chiedi al back office di allegarli."}</div>
+      : <div style={{display:"flex",flexDirection:"column",gap:4}}>
+          {files.map(f=><div key={f.id} style={{display:"flex",alignItems:"center",gap:8,fontSize:13}}>
+            <button type="button" className="btn small" onClick={()=>apri(f)} title={f.tipo==="link"?(f.url||""):"Scarica/apri"} style={{maxWidth:380,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.tipo==="link"?"🔗":"📄"} {f.nome||(f.tipo==="link"?f.url:"file")}</button>
+            {canEdit && <button type="button" className="btn small danger" style={{padding:"2px 7px"}} onClick={()=>elimina(f)}>✕</button>}
+          </div>)}
+        </div>}
+    {canEdit && <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap",alignItems:"center"}}>
+      <button type="button" className="btn small" disabled={busy} onClick={()=>inputRef.current&&inputRef.current.click()}>{busy?"⏳ carico…":"📎 Carica file"}</button>
+      <button type="button" className="btn small" disabled={busy} onClick={()=>setShowLink(s=>!s)}>🔗 Aggiungi link al server</button>
+      <input ref={inputRef} type="file" multiple style={{display:"none"}} onChange={e=>{ const l=Array.from(e.target.files||[]); e.target.value=""; uploadFiles(l); }}/>
+      <span className="muted" style={{fontSize:11}}>file enormi → usa il link al server</span>
+    </div>}
+    {canEdit && showLink && <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
+      <input value={linkUrl} onChange={e=>setLinkUrl(e.target.value)} placeholder="percorso o link (es. \\server\stampe\C-2026-0015 oppure https://...)" style={{flex:1,minWidth:260,padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/>
+      <input value={linkNome} onChange={e=>setLinkNome(e.target.value)} placeholder="etichetta (facoltativa)" style={{width:180,padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/>
+      <button type="button" className="btn small primary" onClick={aggiungiLink} disabled={busy}>Aggiungi</button>
+    </div>}
+    {err && <div style={{color:"#c0392b",fontSize:11,marginTop:4}}>{err}</div>}
+  </div>;
+}
 const BUCKET_OFFERTE="offerte-fornitori";
 function AllegatoOfferta({riga,onSet}){
   const [busy,setBusy]=useState(false);
@@ -10075,7 +10154,7 @@ function ModuloCommesse({profilo,perm}){
                     return (
                       <tr key={c.id} onClick={()=>setEditor(c)}>
                         <td className="rs">{c.numero||"—"}{c.preventivo_numero && <div className="muted" style={{fontSize:10.5,fontWeight:400}}>📄 prev. {c.preventivo_numero}</div>}</td>
-                        <td>{c.cliente_nome||"—"}{(c.avviso_produzione||"").trim() && <span className="tag" style={{marginLeft:6,background:"#fdecec",color:"#c0392b",border:"1px solid #e3342f",fontWeight:700}} title={"Variazione/disdetta cliente: "+c.avviso_produzione}>🚨 VARIAZIONE</span>}{nAgg>0 && <span className="tag" style={{marginLeft:6,background:"#fff8e1",color:"#9a6b00",border:"1px solid #ffe08a"}} title={nAgg+" voci (lavorazioni/materiali) aggiunte dopo la creazione (fuori preventivo): da fatturare o aggiornare a preventivo"}>➕ {nAgg} fuori prev.</span>}</td>
+                        <td>{c.cliente_nome||"—"}{!c.rilasciata_produzione && c.stato!=="consegnata" && c.stato!=="chiusa" && <span className="tag" style={{marginLeft:6,background:"#fff4e5",color:"#b26a00",border:"1px solid #f0d8a8"}} title="Non ancora rilasciata in produzione: non compare in Postazione">🔧 in preparazione</span>}{(c.avviso_produzione||"").trim() && <span className="tag" style={{marginLeft:6,background:"#fdecec",color:"#c0392b",border:"1px solid #e3342f",fontWeight:700}} title={"Variazione/disdetta cliente: "+c.avviso_produzione}>🚨 VARIAZIONE</span>}{nAgg>0 && <span className="tag" style={{marginLeft:6,background:"#fff8e1",color:"#9a6b00",border:"1px solid #ffe08a"}} title={nAgg+" voci (lavorazioni/materiali) aggiunte dopo la creazione (fuori preventivo): da fatturare o aggiornare a preventivo"}>➕ {nAgg} fuori prev.</span>}</td>
                         <td className="muted" style={ritardo?{color:"var(--danger)",fontWeight:700}:null}>
                           {dateMancanti
                             ? <span className="tag" style={{background:"#fdecea",color:"#c0392b"}} title="Alcuni articoli non hanno la data di consegna">⚠ date mancanti</span>
@@ -10136,6 +10215,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     note:commessa?.note||"",
     avviso_produzione:commessa?.avviso_produzione||"",
   }));
+  const [rilasciata,setRilasciata]=useState(!!commessa?.rilasciata_produzione);
+  const [rilasciataIl,setRilasciataIl]=useState(commessa?.rilasciata_il||null);
   const [fasi,setFasi]=useState(()=> (commessa?.commesse_fasi||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0))
     .map(x=>({...x, operatori:Array.isArray(x.operatori)?x.operatori:[]})) );
   const [righe,setRighe]=useState(()=> (commessa?.commesse_righe||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0))
@@ -10292,6 +10373,24 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     const removed=righe.length-out.length;
     setRighe(out); setErr("");
     setConsMsg(removed>0 ? ("Rimosse "+removed+" righe duplicate — premi «Salva» per confermare.") : "Nessuna riga duplicata trovata.");
+  }
+  async function mandaInProduzione(){
+    if(nuova || !commessa?.id){ setErr("Salva prima la commessa, poi rilasciala in produzione."); return; }
+    setBusy(true); setErr("");
+    try{ const il=new Date().toISOString();
+      const {error}=await sb.from("commesse").update({rilasciata_produzione:true, rilasciata_il:il, aggiornato_il:il}).eq("id",commessa.id);
+      if(error) throw error; setRilasciata(true); setRilasciataIl(il);
+      setConsMsg("🚀 Commessa rilasciata in produzione: ora è visibile agli operatori in Postazione.");
+    }catch(ex){ setErr(ex.message); } setBusy(false);
+  }
+  async function riportaInPreparazione(){
+    if(nuova || !commessa?.id) return;
+    if(!window.confirm("Riportare la commessa IN PREPARAZIONE? Sparirà dalla Postazione finché non la rilasci di nuovo.")) return;
+    setBusy(true); setErr("");
+    try{ const {error}=await sb.from("commesse").update({rilasciata_produzione:false, rilasciata_il:null, aggiornato_il:new Date().toISOString()}).eq("id",commessa.id);
+      if(error) throw error; setRilasciata(false); setRilasciataIl(null);
+      setConsMsg("Commessa riportata in preparazione: non è più visibile in Postazione.");
+    }catch(ex){ setErr(ex.message); } setBusy(false);
   }
 
   // ---- Magazzino: consumi materiali ----
@@ -10575,6 +10674,18 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
             <div style={{fontSize:13,marginBottom:10,padding:"6px 12px",background:"#eef4ff",border:"1px solid #cfe0ff",borderRadius:7,display:"inline-block"}}>
               📄 Generata dal preventivo <b>N. {commessa.preventivo_numero}</b></div>}
 
+          {!nuova && <div style={{margin:"0 0 12px",padding:"8px 12px",borderRadius:9,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",
+              background:rilasciata?"#e6f4ee":"#fff4e5",border:"1px solid "+(rilasciata?"#9fd8bd":"#f0d8a8")}}>
+            <div style={{fontSize:13,flex:1,minWidth:200}}>
+              {rilasciata
+                ? <><span style={{color:"#127a3e",fontWeight:700}}>🚀 In produzione</span>{rilasciataIl && <span className="muted" style={{marginLeft:8,fontSize:12}}>rilasciata il {new Date(rilasciataIl).toLocaleString("it-IT")}</span>}</>
+                : <><span style={{color:"#b26a00",fontWeight:700}}>🔧 In preparazione</span><span className="muted" style={{marginLeft:8,fontSize:12}}>non compare in Postazione finché non la mandi in produzione</span></>}
+            </div>
+            {perm.economici && (rilasciata
+              ? <button type="button" className="btn small" onClick={riportaInPreparazione} disabled={busy}>↩ Riporta in preparazione</button>
+              : <button type="button" className="btn small primary" onClick={mandaInProduzione} disabled={busy}>🚀 Manda in produzione</button>)}
+          </div>}
+
           {!nuova && (apertaDa||ultimoLavoro) &&
             <div className="muted" style={{fontSize:12.5,marginBottom:10,display:"flex",gap:16,flexWrap:"wrap"}}>
               {apertaDa && <span>🧾 Aperta da <b>{apertaDa}</b>
@@ -10808,6 +10919,12 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               </div>; })()}
             {righe.some(r=>r.evasione==="neutro") && <div className="muted" style={{fontSize:12,marginTop:8}}>📦 <b>{righe.filter(r=>r.evasione==="neutro").length}</b> riga/e <b>neutre</b>: nessuna stampa/produzione, si spediscono così come sono.</div>}
           </div>
+
+          {!nuova && <div className="section">
+            <h3>🖨️ File di stampa / grafici per la produzione</h3>
+            <div className="muted" style={{fontSize:12,marginBottom:8}}>Allega i file da passare alla produzione (o incolla il link alla cartella del server per quelli grossi). La produzione li trova qui e nella Postazione — niente più email.</div>
+            <FileCommessa commessaId={commessa.id} canEdit={perm.scrivi} uploaderId={profilo.id}/>
+          </div>}
 
           {koFile.length>0 && <div className="section">
             <h3>📎 File grafici del cliente (Komunigo)</h3>

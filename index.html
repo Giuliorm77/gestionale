@@ -427,7 +427,7 @@ function imballoIncoerente(imb, modalita){
   if(!modalita || modalita==="ritiro_cliente") return false;   // ritiro in sede: nessun vincolo
   return imb.consigliato_per!==modalita;
 }
-const MODI_VOCE  = [{v:"mq",l:"a superficie (€/mq)"},{v:"mtl",l:"a metro lineare (€/mtl)"},{v:"perimetro",l:"a perimetro (€/mtl) — 2×(base+alt.)"},{v:"pellicola",l:"pellicola 50cm a giri (€/mtl)"},{v:"scatola",l:"a scatola (€/cad) — per n° scatole"},{v:"mc",l:"a volume (€/mc)"},{v:"pz",l:"a pezzo (€/cad)"},{v:"ora",l:"a tempo (€/ora)"},{v:"passaggio",l:"a passaggio foglio (€/passaggio)"},{v:"battuta",l:"a battuta (€/battuta)"},{v:"fisso",l:"fisso (una tantum)"}];
+const MODI_VOCE  = [{v:"mq",l:"a superficie (€/mq)"},{v:"mtl",l:"a metro lineare (€/mtl)"},{v:"perimetro",l:"a perimetro (€/mtl) — 2×(base+alt.)"},{v:"pellicola",l:"pellicola 50cm a giri (€/mtl)"},{v:"scotch",l:"scotch a pezzi (€/cad, n° scelto sulla riga)"},{v:"scatola",l:"a scatola (€/cad) — per n° scatole"},{v:"mc",l:"a volume (€/mc)"},{v:"pz",l:"a pezzo (€/cad)"},{v:"ora",l:"a tempo (€/ora)"},{v:"passaggio",l:"a passaggio foglio (€/passaggio)"},{v:"battuta",l:"a battuta (€/battuta)"},{v:"fisso",l:"fisso (una tantum)"}];
 const UNITA = ["mq","cad (pezzo)","ml (metro lineare)","foglio (fg)","ora","kg","forfait","altro"];
 // peso (kg) di UN foglio, da grammatura (g/m2) e formato (L x H, cm)
 function pesoFoglioKg(a){ const g=Number(a&&a.grammatura)||0, L=Number(a&&a.formato_l)||0, H=Number(a&&a.formato_h)||0;
@@ -7928,7 +7928,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const costoUnImballo=(r,id)=>{
     if(id==="__pluriball__"){ const p=pluriballRiga(r); return p? p.mtl_tot*p.prezzo_unit : 0; }
     const imb=imballiProdPrev.find(x=>x.id===id); if(!imb) return 0;
-    return calcolaImballo(imb,(r.config&&r.config.mis)||{},Number(r.quantita)||0,{}); };
+    return calcolaImballo(imb,(r.config&&r.config.mis)||{},Number(r.quantita)||0,r.imballo_input||{}); };
   const costoImballoRiga=r=> imballiSel(r).reduce((s,id)=>s+costoUnImballo(r,id),0);
   const addImballo=(i,id)=>{ if(!id) return; setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:[...imballiSel(x).filter(v=>v!==id),id]}:x)); };
   const removeImballo=(i,id)=>setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:imballiSel(x).filter(v=>v!==id)}:x));
@@ -8009,6 +8009,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||"",
       fornitore_prezzo_allegato:r.fornitore_prezzo_allegato||null, fornitore_prezzo_allegato_nome:r.fornitore_prezzo_allegato_nome||"",
       imballo_id:null, imballo_ids:imballiSel(r).filter(x=>x!=="__pluriball__"), imballo_pluriball:pluriballDaSalvare(r),
+      imballo_input:r.imballo_input||null,
       imballo_costo:Math.round(costoImballoRiga(r)*100)/100}));
     if(rows.length){ const {error}=await sb.from("preventivi_righe").insert(rows); if(error) throw error; }
     // Ribalta la provvigione decisa qui sulla trattativa CRM collegata (base dei report; l'agente la vede in sola lettura).
@@ -8065,6 +8066,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
           fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||"",
           fornitore_prezzo_allegato:r.fornitore_prezzo_allegato||null, fornitore_prezzo_allegato_nome:r.fornitore_prezzo_allegato_nome||"",
           imballo_id:null, imballo_ids:imballiSel(r).filter(x=>x!=="__pluriball__"), imballo_pluriball:pluriballDaSalvare(r),
+          imballo_input:r.imballo_input||null,
           imballo_costo:Math.round(costoImballoRiga(r)*100)/100}));
       if(artRighe.length){ const {error:er}=await sb.from("commesse_righe").insert(artRighe); if(er) throw er; }
       try{ await sb.rpc("ricalcola_impegni"); }catch(e){}
@@ -8194,6 +8196,13 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                                   </select>
                                   {p && !p.coperto && <span style={{color:"#c0392b"}}>⚠ bobina più bassa del lato corto</span>}
                                 </div>; })()}
+                              {imballiSel(r).filter(id=>id!=="__pluriball__").map(id=>{ const imb=imballiProdPrev.find(x=>x.id===id); if(!imb) return null;
+                                const manuali=(imb.imballi_voci||[]).filter(v=>imbVoceRichiedeInput(v,imb.unita_calcolo));
+                                return manuali.map(v=><div key={id+"_"+v.id} style={{fontSize:11,display:"flex",alignItems:"center",gap:4,marginBottom:2}}>
+                                  <span className="muted">{v.descrizione||"voce"} — n° pezzi:</span>
+                                  <input type="number" step="1" min="0" value={(r.imballo_input&&r.imballo_input["q_"+v.id])??""} onChange={e=>{ const val=e.target.value; setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_input:{...(x.imballo_input||{}),["q_"+v.id]:(val===""?0:Number(val))}}:x)); }}
+                                    style={{width:60,padding:"3px 5px",border:"1px solid var(--line)",borderRadius:6,fontSize:11}}/>
+                                </div>); })}
                               <select value="" onChange={e=>{addImballo(i,e.target.value); e.target.value="";}}
                                 style={{padding:"5px",borderRadius:7,border:"1px solid var(--line)",fontSize:12}}>
                                 <option value="">＋ aggiungi imballo…</option>
@@ -10557,10 +10566,10 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     let tot=0;
     if(r.imballo_pluriball){ const p=r.imballo_pluriball; tot+=(Number(p.mtl_tot)||0)*(Number(p.prezzo_unit)||0); }
     const ids=Array.isArray(r.imballo_ids)&&r.imballo_ids.length? r.imballo_ids : (r.imballo_id?[r.imballo_id]:[]);
-    ids.forEach(id=>{ const imb=(imballi||[]).find(x=>x.id===id); if(imb) tot+=calcolaImballo(imb,(r.config&&r.config.mis)||{},Number(r.quantita)||0,{}); });
+    ids.forEach(id=>{ const imb=(imballi||[]).find(x=>x.id===id); if(imb) tot+=calcolaImballo(imb,(r.config&&r.config.mis)||{},Number(r.quantita)||0,r.imballo_input||{}); });
     return tot; };
   const imballiSelC=r=> Array.isArray(r.imballo_ids)&&r.imballo_ids.length? r.imballo_ids : (r.imballo_id?[r.imballo_id]:[]);
-  const costoUnImballoC=(r,id)=>{ const imb=(imballi||[]).find(x=>x.id===id); if(!imb) return 0; return calcolaImballo(imb,(r.config&&r.config.mis)||{},Number(r.quantita)||0,{}); };
+  const costoUnImballoC=(r,id)=>{ const imb=(imballi||[]).find(x=>x.id===id); if(!imb) return 0; return calcolaImballo(imb,(r.config&&r.config.mis)||{},Number(r.quantita)||0,r.imballo_input||{}); };
   const addImballoC=(i,id)=>{ if(!id) return; setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:[...imballiSelC(x).filter(v=>v!==id),id]}:x)); };
   const removeImballoC=(i,id)=>setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:imballiSelC(x).filter(v=>v!==id)}:x));
   const imballoTot=righe.reduce((s,r)=>s+costoImballoRiga(r),0);
@@ -10667,7 +10676,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         articolo_id:r.articolo_id||null, quantita:Number(r.quantita)||0, unita:r.unita||"",
         data_consegna:r.data_consegna||null, stato:r.stato||"da_produrre", note:r.note||"", config:r.config||null,
         imballo_id:null, imballo_ids:(Array.isArray(r.imballo_ids)&&r.imballo_ids.length? r.imballo_ids : (r.imballo_id?[r.imballo_id]:[])),
-        imballo_pluriball:r.imballo_pluriball||null, imballo_costo:Math.round(costoImballoRiga(r)*100)/100,
+        imballo_pluriball:r.imballo_pluriball||null, imballo_input:r.imballo_input||null, imballo_costo:Math.round(costoImballoRiga(r)*100)/100,
         modalita_consegna:r.modalita_consegna||"corriere", evasione:r.evasione||"interna", sede_id:r.sede_id||null, aggiunta:!!r.aggiunta,
         costo_unitario:Number(r.costo_unitario)||0, prezzo_unitario:Number(r.prezzo_unitario)||0,
         fornitore_prezzo_id:r.fornitore_prezzo_id||null, fornitore_prezzo_nome:r.fornitore_prezzo_nome||"", fornitore_prezzo_nota:r.fornitore_prezzo_nota||"",
@@ -10958,6 +10967,13 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                                 <button type="button" onClick={()=>removeImballoC(i,id)} style={{border:"none",background:"none",cursor:"pointer",color:"#c0392b",fontWeight:700,padding:0,lineHeight:1}}>×</button>
                               </span>; })}
                           </div>}
+                          {sel.map(id=>{ const imb=(imballi||[]).find(x=>x.id===id); if(!imb) return null;
+                            const manuali=(imb.imballi_voci||[]).filter(v=>imbVoceRichiedeInput(v,imb.unita_calcolo));
+                            return manuali.map(v=><div key={id+"_"+v.id} style={{fontSize:11,display:"flex",alignItems:"center",gap:4,marginBottom:2}}>
+                              <span className="muted">{v.descrizione||"voce"} — n° pezzi:</span>
+                              <input type="number" step="1" min="0" value={(r.imballo_input&&r.imballo_input["q_"+v.id])??""} onChange={e=>{ const val=e.target.value; setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_input:{...(x.imballo_input||{}),["q_"+v.id]:(val===""?0:Number(val))}}:x)); }}
+                                style={{width:60,padding:"3px 5px",border:"1px solid var(--line)",borderRadius:6,fontSize:11}}/>
+                            </div>); })}
                           <select value="" onChange={e=>{addImballoC(i,e.target.value); e.target.value="";}}
                             style={{width:"100%",padding:"6px",borderRadius:7,border:"1px solid var(--line)",fontSize:12}}>
                             <option value="">＋ aggiungi imballo…</option>

@@ -10432,8 +10432,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     if(nuova || !commessa?.id){ setErr("Salva prima la commessa, poi rilasciala in produzione."); return; }
     setBusy(true); setErr("");
     try{ const il=new Date().toISOString();
-      const {error}=await sb.from("commesse").update({rilasciata_produzione:true, rilasciata_il:il, aggiornato_il:il}).eq("id",commessa.id);
-      if(error) throw error; setRilasciata(true); setRilasciataIl(il);
+      const nuovoStato=(f.stato==="aperta")?"in_produzione":f.stato;
+      const {error}=await sb.from("commesse").update({rilasciata_produzione:true, rilasciata_il:il, stato:nuovoStato, aggiornato_il:il}).eq("id",commessa.id);
+      if(error) throw error; setRilasciata(true); setRilasciataIl(il); if(nuovoStato!==f.stato) set("stato",nuovoStato);
       setConsMsg("🚀 Commessa rilasciata in produzione: ora è visibile agli operatori in Postazione.");
     }catch(ex){ setErr(ex.message); } setBusy(false);
   }
@@ -10441,8 +10442,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     if(nuova || !commessa?.id) return;
     if(!window.confirm("Riportare la commessa IN PREPARAZIONE? Sparirà dalla Postazione finché non la rilasci di nuovo.")) return;
     setBusy(true); setErr("");
-    try{ const {error}=await sb.from("commesse").update({rilasciata_produzione:false, rilasciata_il:null, aggiornato_il:new Date().toISOString()}).eq("id",commessa.id);
-      if(error) throw error; setRilasciata(false); setRilasciataIl(null);
+    try{ const nuovoStato=(f.stato==="in_produzione")?"aperta":f.stato;
+      const {error}=await sb.from("commesse").update({rilasciata_produzione:false, rilasciata_il:null, stato:nuovoStato, aggiornato_il:new Date().toISOString()}).eq("id",commessa.id);
+      if(error) throw error; setRilasciata(false); setRilasciataIl(null); if(nuovoStato!==f.stato) set("stato",nuovoStato);
       setConsMsg("Commessa riportata in preparazione: non è più visibile in Postazione.");
     }catch(ex){ setErr(ex.message); } setBusy(false);
   }
@@ -10596,8 +10598,10 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     // REGOLA DI VALIDITÀ (per tutti i ruoli): ogni articolo deve avere la data di consegna
     if(righeSenzaData>0){ setErr("Ogni articolo deve avere la sua data di consegna (obbligatoria): mancano "+righeSenzaData+" data/e."); return; }
     if(chiusaProd && sbloccata && !motivoMod.trim()){ setErr("Scrivi il MOTIVO della modifica: è obbligatorio per modificare una commessa chiusa."); return; }
-    const diffList = (chiusaProd && sbloccata) ? calcDiffCommessa() : null;
     setBusy(true); setErr("");
+    // calcolo del "cosa è cambiato" PROTETTO: non deve mai bloccare il salvataggio della commessa
+    let diffList=null;
+    if(chiusaProd && sbloccata){ try{ diffList=calcDiffCommessa(); }catch(e){ diffList=[]; } }
     try{
       const cli=clienti.find(c=>c.id===f.cliente_id);
       // consegna della commessa = la più lontana tra le date delle righe (l'ultima consegna)

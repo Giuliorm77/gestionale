@@ -10226,6 +10226,10 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   }));
   const [rilasciata,setRilasciata]=useState(!!commessa?.rilasciata_produzione);
   const [rilasciataIl,setRilasciataIl]=useState(commessa?.rilasciata_il||null);
+  // Commessa chiusa dalla produzione (pronta) o consegnata: sola lettura, salvo sblocco dei responsabili
+  const [sbloccata,setSbloccata]=useState(false);
+  const chiusaProd = !nuova && ["pronta","consegnata","chiusa"].includes(commessa?.stato||"");
+  const readonly = chiusaProd && !sbloccata;
   const [fasi,setFasi]=useState(()=> (commessa?.commesse_fasi||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0))
     .map(x=>({...x, operatori:Array.isArray(x.operatori)?x.operatori:[]})) );
   const [righe,setRighe]=useState(()=> (commessa?.commesse_righe||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0))
@@ -10674,6 +10678,20 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         <div className="body">
           {err && <div className="banner err">{err}</div>}
           {consMsg && <div className="banner" style={{background:"#e6f4ee",color:"#1f9c68"}}>✅ {consMsg}</div>}
+
+          {chiusaProd && <div style={{margin:"0 0 12px",padding:"10px 12px",borderRadius:9,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",
+              background:readonly?"#eef1f5":"#fff8e1",border:"1px solid "+(readonly?"#d5d9e0":"#ffe08a")}}>
+            <div style={{flex:1,minWidth:200,fontSize:13}}>
+              {readonly
+                ? <><span style={{fontWeight:700}}>🔒 Commessa {STATI_COMMESSA[commessa.stato]?STATI_COMMESSA[commessa.stato].l.toLowerCase():commessa.stato}</span> — in sola lettura (chiusa dalla produzione/consegnata). Per correggerla, sbloccala.</>
+                : <><span style={{fontWeight:700,color:"#b26a00"}}>🔓 Sbloccata per modifica</span> — ricordati di salvare. Modifica solo se necessario.</>}
+            </div>
+            {perm.economici && (readonly
+              ? <button type="button" className="btn small" onClick={()=>setSbloccata(true)}>✏️ Sblocca per modifica</button>
+              : <button type="button" className="btn small" onClick={()=>setSbloccata(false)}>🔒 Ri-blocca</button>)}
+          </div>}
+
+          <fieldset disabled={readonly} style={{border:0,margin:0,padding:0,minInlineSize:0}}>
 
           {(f.avviso_produzione||"").trim() && <div style={{margin:"0 0 12px",padding:"12px 14px",background:"#fdecec",border:"2px solid #e3342f",borderRadius:9}}>
             <div style={{fontWeight:800,color:"#c0392b",fontSize:15,marginBottom:3}}>🚨 VARIAZIONE / DISDETTA CLIENTE — LEGGERE PRIMA DI PRODURRE</div>
@@ -11223,6 +11241,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
             <h3>Note</h3>
             <div className="field"><textarea rows={2} value={f.note} onChange={e=>set("note",e.target.value)} placeholder="Note di produzione, indicazioni per i reparti…"/></div>
           </div>
+          </fieldset>
         </div>
         <footer>
           <button type="button" className="btn" onClick={stampaScheda} title="Stampa la scheda di lavorazione per il reparto">🖨️ Scheda</button>
@@ -11232,10 +11251,10 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
           {!nuova && perm.economici &&
             <button type="button" className="btn" onClick={generaConsuntivo} disabled={busy}
               title="Crea un preventivo (bozza) con i materiali scaricati e le ore reali per reparto, da rivedere e inviare">📄 Genera consuntivo</button>}
-          {!nuova && perm.elimina &&
+          {!nuova && perm.elimina && !readonly &&
             <button type="button" className="btn danger" onClick={elimina} disabled={busy}>Elimina</button>}
-          <button type="button" className="btn" style={{marginLeft:"auto"}} onClick={onClose}>Annulla</button>
-          <button className="btn primary" disabled={busy}>{busy?<span className="spin"/>:"Salva commessa"}</button>
+          <button type="button" className="btn" style={{marginLeft:"auto"}} onClick={onClose}>{readonly?"Chiudi":"Annulla"}</button>
+          {!readonly && <button className="btn primary" disabled={busy}>{busy?<span className="spin"/>:"Salva commessa"}</button>}
         </footer>
       </form>
       {intEditor && <InterventoEditor intervento={intEditor.id?intEditor:null} commessa={commessa} profilo={profilo} perm={perm}

@@ -10511,6 +10511,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   }
   async function mandaInProduzione(){
     if(nuova || !commessa?.id){ setErr("Salva prima la commessa, poi rilasciala in produzione."); return; }
+    if(righe.length===0){ setErr("⛔ La commessa non ha righe: non puoi mandarla in produzione."); return; }
+    if(righeSenzaData>0){ setErr("⛔ Imposta la DATA DI CONSEGNA su tutte le righe prima di mandare in produzione ("+righeSenzaData+" senza data)."); return; }
     setBusy(true); setErr("");
     try{ const il=new Date().toISOString();
       const nuovoStato=(f.stato==="aperta")?"in_produzione":f.stato;

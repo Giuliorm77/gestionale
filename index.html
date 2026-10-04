@@ -1327,13 +1327,8 @@ function PostazioneOperatore({profilo,perm}){
       const ch=fa.chiave||await assicuraChiave(fa);
       for(const s of aperti(ch)){ await sb.from("segmenti_lavoro").update({fine:new Date().toISOString(), motivo:"fine"}).eq("id",s.id); }
       await sb.from("commesse_fasi").update({stato:"fatto"}).eq("id",fa.id);
-      // se tutte le fasi della commessa sono completate, la commessa diventa "pronta"
-      try{
-        const {data:ff}=await sb.from("commesse_fasi").select("stato").eq("commessa_id",c.id);
-        const tutteFatto=(ff||[]).length>0 && ff.every(x=>x.stato==="fatto");
-        if(tutteFatto && c.stato!=="consegnata" && c.stato!=="chiusa"){
-          await sb.from("commesse").update({stato:"pronta"}).eq("id",c.id); }
-      }catch(e){}
+      // se TUTTE le fasi sono completate: commessa -> "pronta" E articoli -> "pronto" (spedibili)
+      try{ await sb.rpc("commessa_segna_pronta",{p_commessa_id:c.id}); }catch(e){}
       const ss=((await sb.from("segmenti_lavoro").select("*").eq("fase_chiave",ch)).data)||[];
       const dur=x=>((x.fine?ms(x.fine):ms(x.inizio))-ms(x.inizio));
       const nettoV=ss.reduce((t,x)=>t+dur(x),0);
@@ -10599,6 +10594,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         fornitore_prezzo_allegato:r.fornitore_prezzo_allegato||null, fornitore_prezzo_allegato_nome:r.fornitore_prezzo_allegato_nome||""}));
       if(rowsR.length){ const {error}=await sb.from("commesse_righe").insert(rowsR); if(error) throw error; }
       try{ await sb.rpc("ricalcola_impegni"); }catch(e){}
+      // se tutte le fasi sono "fatto": commessa -> pronta e articoli -> pronto (automatico)
+      try{ await sb.rpc("commessa_segna_pronta",{p_commessa_id:id}); }catch(e){}
       onSalvato();
     }catch(ex){ setErr(ex.message); setBusy(false); }
   }

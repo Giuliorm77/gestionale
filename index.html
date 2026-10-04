@@ -1326,7 +1326,7 @@ function PostazioneOperatore({profilo,perm}){
     try{
       const ch=fa.chiave||await assicuraChiave(fa);
       for(const s of aperti(ch)){ await sb.from("segmenti_lavoro").update({fine:new Date().toISOString(), motivo:"fine"}).eq("id",s.id); }
-      await sb.from("commesse_fasi").update({stato:"fatto"}).eq("id",fa.id);
+      await sb.from("commesse_fasi").update({stato:"fatto", chiusa_da_id:me||null, chiusa_da_nome:meNome||"", chiusa_il:new Date().toISOString()}).eq("id",fa.id);
       // se TUTTE le fasi sono completate: commessa -> "pronta" E articoli -> "pronto" (spedibili)
       try{ await sb.rpc("commessa_segna_pronta",{p_commessa_id:c.id}); }catch(e){}
       const ss=((await sb.from("segmenti_lavoro").select("*").eq("fase_chiave",ch)).data)||[];
@@ -10444,7 +10444,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   },[commessa?.creato_da]);
   useEffect(()=>{
     if(!commessa?.id){ setSegmenti([]); return; }
-    sb.from("segmenti_lavoro").select("operatore_id,operatore_nome,reparto,inizio,fine")
+    sb.from("segmenti_lavoro").select("operatore_id,operatore_nome,reparto,inizio,fine,fase_chiave")
       .eq("commessa_id",commessa.id).order("inizio")
       .then(({data})=>setSegmenti(data||[]));
   },[commessa?.id]);
@@ -10465,6 +10465,18 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       .then(({data})=>{ const m={}; (data||[]).forEach(x=>{ m[x.articolo_id+"|"+x.fornitore_id]=Number(x.prezzo)||0; }); setPrezzoForn(m); });
   },[commessa?.id]);
 
+  /* Consuntivo PER LAVORAZIONE (fase): operatori + tempo timbrato in Postazione,
+     raggruppati per fase_chiave. Serve al report "chi ha lavorato su cosa". */
+  const consuntivoFase=React.useMemo(()=>{
+    const m={};
+    segmenti.forEach(s=>{ const k=s.fase_chiave; if(!k) return;
+      if(!m[k]) m[k]={perOp:{}, tot:0, inCorso:false};
+      const a=new Date(s.inizio).getTime(); const b=s.fine? new Date(s.fine).getTime() : null;
+      const dur=b? (b-a) : 0; if(!b) m[k].inCorso=true;
+      const n=(s.operatore_nome||"?"); m[k].perOp[n]=(m[k].perOp[n]||0)+dur; m[k].tot+=dur;
+    });
+    return m;
+  },[segmenti]);
   /* Elenco partecipanti: sessioni cronometrate (Postazione) + ore scritte a
      mano nelle fasi + aiuti imprevisti, uniti per persona. */
   const partecipanti=React.useMemo(()=>{
@@ -10751,6 +10763,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         costo_previsto:Number(fa.costo_previsto)||0, costo_reale:Number(fa.costo_reale)||0,
         data_invio:fa.data_invio||null, data_rientro_prevista:fa.data_rientro_prevista||null, data_rientro:fa.data_rientro||null,
         aggiunta:!!fa.aggiunta,
+        chiusa_da_id:fa.chiusa_da_id||null, chiusa_da_nome:fa.chiusa_da_nome||"", chiusa_il:fa.chiusa_il||null,
         note:fa.note||""}));
       if(rows.length){ const {error}=await sb.from("commesse_fasi").insert(rows); if(error) throw error; }
       const rowsR=righe.map((r,idx)=>({commessa_id:id, ordine:idx, descrizione:r.descrizione||"",
@@ -11257,6 +11270,13 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                       <input value={fa.unita_lavorata||""} onChange={e=>setFase(i,"unita_lavorata",e.target.value)} placeholder="mq" style={{width:60,padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></div>}
                     <button type="button" className="btn small danger" style={{marginBottom:4}} onClick={()=>delFase(i)} title="Elimina fase">✕</button>
                   </div>
+                  {(()=>{ if(!perm.economici) return null;   // consuntivo visibile solo ad amministratore + Back office
+                    const cf=consuntivoFase[fa.chiave]; const chiusa=fa.chiusa_da_nome||fa.chiusa_il;
+                    if(!cf && !chiusa) return null;
+                    return <div style={{marginTop:8,padding:"6px 10px",background:"#f8fafc",border:"1px solid var(--line)",borderRadius:7,fontSize:12}}>
+                      <span><b>⏱️ Consuntivo:</b> {cf? (Object.keys(cf.perOp).length? Object.entries(cf.perOp).map(([n,v])=>n+" "+(v/3600000).toFixed(1)+"h").join(" · ") : "nessuna timbratura") : "nessuna timbratura"}{cf&&cf.inCorso?" · ▶ in corso":""}{cf&&cf.tot>0?<> — totale <b>{(cf.tot/3600000).toFixed(1)}h</b></>:null}</span>
+                      {chiusa && <div style={{marginTop:2,color:"#1f7a4d"}}>✓ Chiusa da <b>{fa.chiusa_da_nome||"—"}</b>{fa.chiusa_il?" il "+new Date(fa.chiusa_il).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):""}</div>}
+                    </div>; })()}
                   <label style={{display:"inline-flex",alignItems:"center",gap:6,marginTop:8,fontSize:13,cursor:"pointer"}}>
                     <input type="checkbox" checked={est} onChange={e=>{ const v=e.target.checked; setFase(i,"esterna",v); setFase(i,"stato",v?"da_inviare":"da_fare"); }}/>
                     🔗 Lavorazione esterna (conto terzi)

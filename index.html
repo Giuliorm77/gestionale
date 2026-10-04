@@ -1467,12 +1467,14 @@ function DettaglioLavorazioneOp({commessa,onClose}){
   const [c,setC]=useState(null);
   const [pezzi,setPezzi]=useState([]);
   const [fotoMap,setFotoMap]=useState({});
+  const [imballi,setImballi]=useState([]);
   const [err,setErr]=useState("");
   useEffect(()=>{ let vivo=true;
     Promise.all([
       sb.from("commesse").select("numero,cliente_nome,data_consegna,priorita,riferimento,note,prodotto,stato,avviso_produzione,avviso_il, commesse_righe(*), commesse_fasi(*)").eq("id",commessa.id).maybeSingle(),
       sb.from("magazzino_pezzi_op").select("codice,nome_articolo,larghezza_cm,altezza_cm,spessore_mm,mq,stato,ubicazione").eq("commessa_id",commessa.id).order("codice"),
-    ]).then(async ([cm,pz])=>{ if(!vivo) return; if(cm.error){setErr(cm.error.message);return;} setC(cm.data); setPezzi(pz.data||[]);
+      sb.from("imballi").select("*, imballi_voci(*)"),
+    ]).then(async ([cm,pz,imb])=>{ if(!vivo) return; if(cm.error){setErr(cm.error.message);return;} setC(cm.data); setPezzi(pz.data||[]); setImballi((imb&&imb.data)||[]);
       const ids=[...new Set((cm.data&&cm.data.commesse_righe||[]).map(r=>r.articolo_id).filter(Boolean))];
       if(ids.length){ const {data}=await sb.from("articoli_magazzino").select("id,foto_urls,link_foto").in("id",ids);
         const m={}; (data||[]).forEach(a=>{ const u=(Array.isArray(a.foto_urls)&&a.foto_urls[0])||a.link_foto||""; if(u) m[a.id]=u; });
@@ -1486,9 +1488,8 @@ function DettaglioLavorazioneOp({commessa,onClose}){
   const misP=p=>[p.larghezza_cm,p.altezza_cm].filter(v=>v!=null&&v!=="").map(_mm).join("×");
   const STLP={uscito:"in lavorazione",in_magazzino:"a magazzino",consumato:"consumato",perso:"perso"};
   async function stampaScheda(){
-    if(!c) return; let az={}, imballi=[];
+    if(!c) return; let az={};
     try{ const {data}=await sb.from("impostazioni").select("azienda_nome").eq("id",1).maybeSingle(); az=data||{}; }catch(e){}
-    try{ const {data}=await sb.from("imballi").select("*, imballi_voci(*)"); imballi=data||[]; }catch(e){}
     const fasi=(c.commesse_fasi||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0));
     const righe=(c.commesse_righe||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0));
     stampaHTML(htmlSchedaCommessa({...c, numero:commessa.numero}, fasi, righe, az, imballi));
@@ -1527,6 +1528,21 @@ function DettaglioLavorazioneOp({commessa,onClose}){
               <h3 style={{margin:"14px 0 4px"}}>Fasi / lavorazioni</h3>
               {(c.commesse_fasi||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0)).map(fa=>
                 <div key={fa.id} style={{fontSize:13.5,padding:"2px 0"}}>• {fa.descrizione||fa.reparto||"—"} <span className="muted">— {String(fa.stato||"").replace("_"," ")}</span></div>)}
+
+              {(()=>{ const rows=[];
+                (c.commesse_righe||[]).forEach(r=>{ const parts=[];
+                  const p=r.imballo_pluriball; if(p&&p.articolo_id&&Number(p.mtl_tot)>0) parts.push((p.nome||"Pluriball")+": "+(Math.round(Number(p.mtl_tot)*100)/100)+" mtl");
+                  const ids=Array.isArray(r.imballo_ids)?r.imballo_ids:(r.imballo_id?[r.imballo_id]:[]);
+                  ids.forEach(id=>{ const imbo=(imballi||[]).find(x=>x.id===id); if(imbo) vociImballoQty(imbo,(r.config&&r.config.mis)||{},r.quantita,r.imballo_input).forEach(q=>parts.push(q.descrizione+": "+q.qty+(q.um?" "+q.um:""))); });
+                  if(parts.length) rows.push({descr:r.descrizione||"—", qta:r.quantita, parts});
+                });
+                if(!rows.length) return null;
+                return <><h3 style={{margin:"14px 0 4px"}}>📦 Come imballare</h3>
+                  {rows.map((x,k)=><div key={k} style={{fontSize:13.5,padding:"5px 0",borderBottom:"1px solid var(--line)"}}>
+                    <b>{x.descr}</b> <span className="muted">×{x.qta}</span>
+                    <div style={{color:"#41505c",marginTop:2}}>{x.parts.join("  ·  ")}</div>
+                  </div>)}
+                </>; })()}
 
               <h3 style={{margin:"14px 0 4px"}}>🏷️ Etichette / materiale dal magazzino</h3>
               {pezzi.length===0

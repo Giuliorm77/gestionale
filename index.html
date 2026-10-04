@@ -1486,11 +1486,12 @@ function DettaglioLavorazioneOp({commessa,onClose}){
   const misP=p=>[p.larghezza_cm,p.altezza_cm].filter(v=>v!=null&&v!=="").map(_mm).join("×");
   const STLP={uscito:"in lavorazione",in_magazzino:"a magazzino",consumato:"consumato",perso:"perso"};
   async function stampaScheda(){
-    if(!c) return; let az={};
+    if(!c) return; let az={}, imballi=[];
     try{ const {data}=await sb.from("impostazioni").select("azienda_nome").eq("id",1).maybeSingle(); az=data||{}; }catch(e){}
+    try{ const {data}=await sb.from("imballi").select("*, imballi_voci(*)"); imballi=data||[]; }catch(e){}
     const fasi=(c.commesse_fasi||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0));
     const righe=(c.commesse_righe||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0));
-    stampaHTML(htmlSchedaCommessa({...c, numero:commessa.numero}, fasi, righe, az));
+    stampaHTML(htmlSchedaCommessa({...c, numero:commessa.numero}, fasi, righe, az, imballi));
   }
   return (
     <div className="overlay"><div className="modal" style={{maxWidth:640}} onClick={e=>e.stopPropagation()}>
@@ -6808,7 +6809,30 @@ function suggerisciConsumi(righe, prodotti){
   return Object.values(map).map(c=>({...c, quantita:Math.round(c.quantita*100)/100, scaricato:false, movimento_id:null}));
 }
 // Scheda di lavorazione stampabile (documento interno di reparto, senza prezzi)
-function htmlSchedaCommessa(c, fasi, righe, az){
+// quantità per voce di un imballo (per le istruzioni al magazzino): [{descrizione, qty, um}]
+function vociImballoQty(imb, mis, N, vInput){
+  if(!imb) return [];
+  const u=imb.unita_calcolo;
+  const L=Number(mis&&mis.L)||0, H=Number(mis&&mis.H)||0, sp=Number(mis&&mis.sp)||0;
+  const Npz=Number(N)||0;
+  const capienza=Number(imb.capienza)||0;
+  const nScatole=capienza>0?Math.ceil(Npz/capienza):Npz;
+  const out=[];
+  (imb.imballi_voci||[]).forEach(v=>{
+    const abb=Number(v.abbondanza_cm)||0; const Lv=L+2*abb, Hv=H+2*abb;
+    let qty=0, um="";
+    if(v.modo==="perimetro"){ qty=(2*((Lv+Hv)/100))*Npz; um="mtl"; }
+    else if(v.modo==="pellicola"){ const ALT=50; const giri=Math.ceil((L||0)/ALT)+Math.ceil((H||0)/ALT); qty=giri*(2*((L+H)/100))*Npz; um="mtl ("+giri+" giri)"; }
+    else if(v.modo==="scatola"){ qty=nScatole; um="scatole"; }
+    else if(v.modo==="pz"){ qty=Npz*(Number(v.qta_pezzo)>0?Number(v.qta_pezzo):1); um="pz"; }
+    else if(v.modo==="fisso"){ qty=1; um=""; }
+    else if(v.modo===u){ if(u==="mq"){qty=(Lv/100)*(Hv/100)*Npz;um="mq";} else if(u==="mtl"){qty=(Lv/100)*Npz;um="mtl";} else if(u==="mc"){qty=(Lv/100)*(Hv/100)*(sp/1000)*Npz;um="mc";} else {qty=Npz;um="";} }
+    else { qty=Number(vInput&&vInput["q_"+v.id])||0; um="pz"; }
+    if(qty>0) out.push({descrizione:v.descrizione||v.modo, qty:Math.round(qty*100)/100, um});
+  });
+  return out;
+}
+function htmlSchedaCommessa(c, fasi, righe, az, imballi){
   const stc=STATI_COMMESSA[c.stato]||STATI_COMMESSA.aperta;
   const prc=PRIORITA_COMMESSA[c.priorita]||PRIORITA_COMMESSA.normale;
   const fmt=d=> d? new Date(d).toLocaleDateString("it-IT") : "—";
@@ -6849,12 +6873,17 @@ function htmlSchedaCommessa(c, fasi, righe, az){
       <td class="c">&#9744;</td>
     </tr>`;
   }).join("");
-  // materiale da imballo (pluriball) dai prodotti configurati — senza prezzi, per chi impacchetta
-  const imb=[];
-  (righe||[]).forEach(r=>{ const p=r.imballo_pluriball;
-    if(p&&p.articolo_id&&Number(p.mtl_tot)>0){ const e=imb.find(x=>x.nome===(p.nome||"Pluriball"));
-      if(e) e.mtl+=Number(p.mtl_tot)||0; else imb.push({nome:p.nome||"Pluriball", mtl:Number(p.mtl_tot)||0}); } });
-  const imbHtml=imb.map(x=>`<tr><td><b>${escHtml(x.nome)}</b></td><td class="c"><b>${Math.round(x.mtl*100)/100} mtl</b></td><td class="c">&#9744;</td></tr>`).join("");
+  // ISTRUZIONI IMBALLO per il magazzino (senza prezzi): per ogni articolo, cosa e quanto usare
+  const imbRows=[];
+  (righe||[]).forEach(r=>{
+    const parts=[];
+    const p=r.imballo_pluriball;
+    if(p&&p.articolo_id&&Number(p.mtl_tot)>0) parts.push({descrizione:(p.nome||"Pluriball"), qty:Math.round(Number(p.mtl_tot)*100)/100, um:"mtl"});
+    const ids=Array.isArray(r.imballo_ids)?r.imballo_ids:(r.imballo_id?[r.imballo_id]:[]);
+    ids.forEach(id=>{ const imbo=(imballi||[]).find(x=>x.id===id); if(imbo) vociImballoQty(imbo,(r.config&&r.config.mis)||{},r.quantita,r.imballo_input).forEach(q=>parts.push(q)); });
+    if(parts.length) imbRows.push({descr:r.descrizione||"—", qta:Number(r.quantita)||0, parts});
+  });
+  const imbHtml=imbRows.map(x=>`<tr><td><b>${escHtml(x.descr)}</b> <span class="mut">×${x.qta}</span></td><td>${x.parts.map(pp=>escHtml(pp.descrizione)+": <b>"+pp.qty+(pp.um?" "+escHtml(pp.um):"")+"</b>").join(" &nbsp;·&nbsp; ")}</td><td class="c">&#9744;</td></tr>`).join("");
   return `<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Scheda ${escHtml(c.numero||"")}</title>
 <style>*{box-sizing:border-box}html,body{margin:0;padding:0}
 body{font-family:Arial,Helvetica,sans-serif;color:#1d2430;font-size:12.5px;padding:14mm}
@@ -6912,8 +6941,8 @@ ${c.prodotto?`<div style="margin:2px 0 14px;padding:10px 14px;background:#eef4ff
   <th style="width:90px" class="c">Ore reali</th>
   <th style="width:90px" class="c">Stato</th><th style="width:44px" class="c">Fatto</th>
 </tr></thead><tbody>${fasiHtml||`<tr><td colspan="7" class="c mut" style="padding:16px">Nessuna fase.</td></tr>`}</tbody></table>
-${imb.length?`<div class="stt">Imballo</div>
-<table class="f"><thead><tr><th>Materiale</th><th class="c" style="width:120px">Da usare</th><th class="c" style="width:60px">Fatto</th></tr></thead>
+${imbRows.length?`<div class="stt">Istruzioni imballo (magazzino)</div>
+<table class="f"><thead><tr><th style="width:34%">Articolo</th><th>Come imballare</th><th class="c" style="width:50px">Fatto</th></tr></thead>
 <tbody>${imbHtml}</tbody></table>`:""}
 <div class="tot">Ore reali totali: ____________</div>
 <div class="note"><div class="k">Note di produzione</div>${escHtml(c.note||"")}</div>
@@ -10705,7 +10734,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   async function stampaScheda(){
     let az={};
     try{ const {data}=await sb.from("impostazioni").select("azienda_nome").eq("id",1).maybeSingle(); az=data||{}; }catch(e){}
-    stampaHTML(htmlSchedaCommessa(f, fasi, righe, az));
+    stampaHTML(htmlSchedaCommessa(f, fasi, righe, az, imballi));
   }
 
   // Crea un PREVENTIVO (in bozza) dal lavoro REALE della commessa:

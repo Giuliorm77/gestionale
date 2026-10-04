@@ -4008,6 +4008,7 @@ function ModuloMagazzino({profilo,perm}){
   const [troncato,setTroncato]=useState(false);
   const [impegni,setImpegni]=useState({});       // dettaglio "impegnato" per articolo_id: [{numero,cliente_nome,stato,quantita}]
   const [dettImp,setDettImp]=useState(null);     // articolo di cui mostrare il dettaglio impegni (modale)
+  const [filtroArt,setFiltroArt]=useState(null); // {id,nome}: filtra lo storico movimenti su un articolo
   // la ricerca aspetta 300ms prima di interrogare il DB
   useEffect(()=>{ const t=setTimeout(()=>setCercaDeb(cerca),300); return ()=>clearTimeout(t); },[cerca]);
 
@@ -4055,12 +4056,13 @@ function ModuloMagazzino({profilo,perm}){
     if(!movimenti) return [];
     const q=cercaDeb.trim().toLowerCase();
     return movimenti.filter(mv=>{
+      if(filtroArt && mv.articolo_id!==filtroArt.id) return false;
       if(filtroTipo && mv.tipo!==filtroTipo) return false;
       if(!q) return true;
       const a=movArt[mv.articolo_id]||{};
       return [a.nome_articolo,a.codice,mv.causale,mv.riferimento].join(" ").toLowerCase().includes(q);
     });
-  },[movimenti,cercaDeb,filtroTipo,movArt]);
+  },[movimenti,cercaDeb,filtroTipo,movArt,filtroArt]);
 
   const dataIt=d=> d? new Date(d).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
   const num=v=>{ const n=Number(v); return Number.isFinite(n)? (Math.round(n*100)/100) : 0; };
@@ -4117,14 +4119,15 @@ function ModuloMagazzino({profilo,perm}){
                         const esaurito = disp<=0;
                         const sotto = !esaurito && sc>0 && disp<=sc;
                         return (
-                          <tr key={a.id}>
+                          <tr key={a.id} onClick={canMov?(()=>{ setFiltroArt({id:a.id,nome:a.nome_articolo||a.codice||"articolo"}); setVista("movimenti"); }):undefined}
+                            style={canMov?{cursor:"pointer"}:{cursor:"default"}} title={canMov?"Apri lo storico movimenti di questo articolo":""}>
                             <td className="rs">{a.nome_articolo||"—"}<div className="muted" style={{fontSize:12}}>{a.codice}</div></td>
                             <td className="muted" style={{textTransform:"capitalize"}}>{a.tipo||"—"}</td>
                             <td style={{textAlign:"right"}}>{gi}{a.unita?<span className="muted" style={{fontSize:12}}> {a.unita}</span>:null}
                               {mql>0 && <div className="muted" style={{fontSize:11}}>~{Math.round(gi/mql*10)/10} lastre</div>}</td>
                             <td style={{textAlign:"right"}} className="muted">
                               {imp>0
-                                ? <button className="btn small" title="Vedi a quali commesse è assegnato" onClick={()=>setDettImp(a)}
+                                ? <button className="btn small" title="Vedi a quali commesse è assegnato" onClick={e=>{e.stopPropagation();setDettImp(a);}}
                                     style={{padding:"1px 8px",fontWeight:700}}>{imp} 👥</button>
                                 : "—"}</td>
                             <td style={{textAlign:"right",fontWeight:700,color:esaurito?"var(--danger)":sotto?"#b45309":"var(--ok)"}}>{disp}
@@ -4151,6 +4154,10 @@ function ModuloMagazzino({profilo,perm}){
                 <option value="scarico">Solo scarichi</option>
                 <option value="rettifica">Solo rettifiche</option>
               </select>
+              {filtroArt && <span className="tag" style={{background:"#eef4ff",color:"#1e46c4",display:"inline-flex",alignItems:"center",gap:6}}>
+                storico di: <b>{filtroArt.nome}</b>
+                <button type="button" onClick={()=>setFiltroArt(null)} style={{border:"none",background:"none",cursor:"pointer",color:"#1e46c4",fontWeight:700,padding:0,lineHeight:1}}>×</button>
+              </span>}
               <span className="muted">{filtrati.length} movimenti</span>
             </div>
             {movimenti===null ? <div className="empty">Caricamento…</div>

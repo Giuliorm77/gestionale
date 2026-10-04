@@ -96,11 +96,12 @@
 
   /* modal */
   .overlay{position:fixed;inset:0;background:rgba(16,24,40,.45);display:flex;justify-content:center;align-items:flex-start;
-    padding:32px 16px;overflow:auto;z-index:50}
-  .modal{background:#fff;border-radius:14px;width:100%;max-width:760px;box-shadow:0 24px 60px rgba(16,24,40,.28);overflow:hidden}
+    padding:16px;overflow:auto;z-index:50}
+  /* finestre a (quasi) tutto schermo: più larghe => i campi non si accorciano. Vince sugli stili inline. */
+  .modal{background:#fff;border-radius:14px;width:96vw !important;max-width:1800px !important;box-shadow:0 24px 60px rgba(16,24,40,.28);overflow:hidden}
   .modal header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
   .modal header h2{margin:0;font-size:18px}
-  .modal .body{padding:22px;max-height:70vh;overflow:auto}
+  .modal .body{padding:22px;max-height:84vh;overflow:auto}
   .modal footer{padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px}
   .x{border:0;background:none;font-size:22px;line-height:1;color:var(--muted);cursor:pointer}
 

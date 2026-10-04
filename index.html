@@ -7975,7 +7975,12 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     const imb=imballiProdPrev.find(x=>x.id===id); if(!imb) return 0;
     return calcolaImballo(imb,(r.config&&r.config.mis)||{},Number(r.quantita)||0,r.imballo_input||{}); };
   const costoImballoRiga=r=> imballiSel(r).reduce((s,id)=>s+costoUnImballo(r,id),0);
-  const addImballo=(i,id)=>{ if(!id) return; setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:[...imballiSel(x).filter(v=>v!==id),id]}:x)); };
+  const addImballo=(i,id)=>{ if(!id) return;
+    const imb=(imballiProdPrev||[]).find(x=>x.id===id);
+    const manuali=imb?(imb.imballi_voci||[]).filter(v=>imbVoceRichiedeInput(v,imb.unita_calcolo)):[];
+    let extra=null;
+    if(manuali.length){ extra={}; for(const v of manuali){ const risp=window.prompt("📦 "+(imb.nome||"Imballo")+" — quanti pezzi di «"+(v.descrizione||"voce")+"»?",""); if(risp===null) return; extra["q_"+v.id]=Number((risp+"").replace(",","."))||0; } }
+    setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:[...imballiSel(x).filter(v=>v!==id),id],imballo_input:extra?{...(x.imballo_input||{}),...extra}:x.imballo_input}:x)); };
   const removeImballo=(i,id)=>setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:imballiSel(x).filter(v=>v!==id)}:x));
   const nomeImballo=(r,id)=> id==="__pluriball__"
     ? ("Pluriball"+(pluriballRiga(r)?" "+pluriballRiga(r).mtl_tot+" mtl":""))
@@ -10615,7 +10620,12 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     return tot; };
   const imballiSelC=r=> Array.isArray(r.imballo_ids)&&r.imballo_ids.length? r.imballo_ids : (r.imballo_id?[r.imballo_id]:[]);
   const costoUnImballoC=(r,id)=>{ const imb=(imballi||[]).find(x=>x.id===id); if(!imb) return 0; return calcolaImballo(imb,(r.config&&r.config.mis)||{},Number(r.quantita)||0,r.imballo_input||{}); };
-  const addImballoC=(i,id)=>{ if(!id) return; setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:[...imballiSelC(x).filter(v=>v!==id),id]}:x)); };
+  const addImballoC=(i,id)=>{ if(!id) return;
+    const imb=(imballi||[]).find(x=>x.id===id);
+    const manuali=imb?(imb.imballi_voci||[]).filter(v=>imbVoceRichiedeInput(v,imb.unita_calcolo)):[];
+    let extra=null;
+    if(manuali.length){ extra={}; for(const v of manuali){ const risp=window.prompt("📦 "+(imb.nome||"Imballo")+" — quanti pezzi di «"+(v.descrizione||"voce")+"»?",""); if(risp===null) return; extra["q_"+v.id]=Number((risp+"").replace(",","."))||0; } }
+    setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:[...imballiSelC(x).filter(v=>v!==id),id],imballo_input:extra?{...(x.imballo_input||{}),...extra}:x.imballo_input}:x)); };
   const removeImballoC=(i,id)=>setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:imballiSelC(x).filter(v=>v!==id)}:x));
   const imballoTot=righe.reduce((s,r)=>s+costoImballoRiga(r),0);
   // ---- Consuntivo reale ----

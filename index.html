@@ -7633,6 +7633,7 @@ function ModuloPreventivi({profilo,perm}){
   }
 
   async function eliminaPreventivo(p){
+    if(profilo.ruolo!=="amministratore"){ setErr("Solo l'amministratore può eliminare un preventivo."); return; }
     if(!window.confirm("Eliminare definitivamente il preventivo "+(p.numero||"")+"?\nOperazione non annullabile.")) return;
     setErr("");
     try{
@@ -7696,7 +7697,7 @@ function ModuloPreventivi({profilo,perm}){
                         <td style={{textAlign:"right",fontWeight:700}}>{eur(t.totale)}</td>
                         <td style={{whiteSpace:"nowrap"}} onClick={e=>e.stopPropagation()}>
                           {perm.scrivi && <button type="button" className="btn small" title="Crea una nuova revisione copiando tutte le righe (l'originale resta come storico)" onClick={()=>nuovaRevisione(p)}>🔁 Revisione</button>}
-                          {perm.elimina && <button type="button" className="btn small danger" style={{marginLeft:6}} title="Elimina questo preventivo (non annullabile; bloccato se ha una commessa collegata)" onClick={()=>eliminaPreventivo(p)}>🗑</button>}
+                          {profilo.ruolo==="amministratore" && <button type="button" className="btn small danger" style={{marginLeft:6}} title="Elimina questo preventivo (solo amministratore; non annullabile; bloccato se ha una commessa collegata)" onClick={()=>eliminaPreventivo(p)}>🗑</button>}
                         </td>
                       </tr>
                     );
@@ -10774,6 +10775,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
 
   async function elimina(){
     if(!commessa?.id) return;
+    if(profilo.ruolo!=="amministratore"){ setErr("Solo l'amministratore può eliminare una commessa."); return; }
     if(!window.confirm("Eliminare definitivamente la commessa "+(f.numero||"")+"? I suoi articoli e le sue fasi verranno cancellati.")) return;
     setBusy(true); setErr("");
     try{ const {error}=await sb.from("commesse").delete().eq("id",commessa.id); if(error) throw error;
@@ -11444,7 +11446,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
           {!nuova && perm.economici &&
             <button type="button" className="btn" onClick={generaConsuntivo} disabled={busy}
               title="Crea un preventivo (bozza) con i materiali scaricati e le ore reali per reparto, da rivedere e inviare">📄 Genera consuntivo</button>}
-          {!nuova && perm.elimina && !readonly &&
+          {!nuova && profilo.ruolo==="amministratore" && !readonly &&
             <button type="button" className="btn danger" onClick={elimina} disabled={busy}>Elimina</button>}
           <button type="button" className="btn" style={{marginLeft:"auto"}} onClick={onClose}>{readonly?"Chiudi":"Annulla"}</button>
           {!readonly && <button className="btn primary" disabled={busy}>{busy?<span className="spin"/>:"Salva commessa"}</button>}

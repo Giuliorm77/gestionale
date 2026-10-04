@@ -505,6 +505,7 @@ const MODULO_REQ = {
   imballi:"economici", commesse:"commesse", postazione:"commesse", ordinifor:"economici", trasporti:"economici",
   report:"economici", utenti:"utenti", crm:"crm", agenda:"crm", mezzi:"commesse", ddt:"magazzino",
   vetrina:"economici", ordinishop:"commesse", clientikomunigo:"economici", qualita:"economici",
+  inarrivo:"magazzino",
 };
 const PERM_FLAGS = ["scrivi","elimina","economici","fiscali","utenti","commesse","magazzino","crm"];
 // permessi EFFETTIVI = default del ruolo + deroghe per-utente (profiles.permessi)
@@ -528,6 +529,7 @@ const NAV_ITEMS = [
   {m:"agenda", ico:"📅", label:"Agenda & Follow-up"},
   {m:"catalogo", ico:"📦", label:"Catalogo"},
   {m:"magazzino", ico:"🏬", label:"Magazzino"},
+  {m:"inarrivo", ico:"📥", label:"Materiale in arrivo"},
   {m:"pezzi", ico:"🏷️", label:"Pezzi & Etichette"},
   {m:"operatori", ico:"👷", label:"Operatori"},
   {m:"fornitori", ico:"🚚", label:"Anagrafica Fornitori"},
@@ -925,6 +927,7 @@ function Gestionale({profilo}){
         {modulo==="clienti" && <ModuloClienti profilo={profilo} perm={perm}/>}
         {modulo==="catalogo" && <ModuloCatalogo profilo={profilo} perm={perm}/>}
         {modulo==="magazzino" && <ModuloMagazzino profilo={profilo} perm={perm}/>}
+        {modulo==="inarrivo" && <ModuloMaterialeInArrivo profilo={profilo} perm={perm}/>}
         {modulo==="pezzi" && <ModuloPezzi profilo={profilo} perm={perm}/>}
         {modulo==="operatori" && <ModuloOperatori profilo={profilo} perm={perm}/>}
         {modulo==="fornitori" && <ModuloFornitori profilo={profilo} perm={perm}/>}
@@ -11295,6 +11298,53 @@ ${o.note?`<div class="note"><b>Note</b><br>${escHtml(o.note)}</div>`:""}
 </body></html>`;
 }
 
+// Vista "Materiale in arrivo" per il magazzino: ordini fornitore non ancora ricevuti,
+// con consegna prevista e q.tà attese. SENZA prezzi (via RPC security-definer).
+function ModuloMaterialeInArrivo({profilo,perm}){
+  const [righe,setRighe]=useState(null);
+  const [err,setErr]=useState("");
+  const carica=useCallback(async()=>{
+    setErr("");
+    const {data,error}=await sb.rpc("materiale_in_arrivo");
+    if(error){ setErr(error.message); return; }
+    setRighe(data||[]);
+  },[]);
+  useEffect(()=>{ carica(); },[carica]);
+  const oggi=new Date(); oggi.setHours(0,0,0,0);
+  const ordini=useMemo(()=>{
+    const m={};
+    (righe||[]).forEach(r=>{ const o=m[r.ordine_id]||(m[r.ordine_id]={ordine_id:r.ordine_id,numero:r.numero,fornitore:r.fornitore_nome,commessa:r.commessa_numero,cliente:r.cliente_nome,data_prevista:r.data_prevista,stato:r.stato,voci:[]});
+      o.voci.push({descr:r.riga_descrizione, q:Number(r.quantita)||0, ric:Number(r.quantita_ricevuta)||0}); });
+    return Object.values(m).sort((a,b)=>String(a.data_prevista||"9999").localeCompare(String(b.data_prevista||"9999")));
+  },[righe]);
+  const statoData=d=>{ if(!d) return {l:"senza data",c:"#697386",bg:"#eef1f5"}; const dd=new Date(d); dd.setHours(0,0,0,0);
+    const gg=Math.round((dd-oggi)/86400000);
+    if(gg<0) return {l:"in ritardo",c:"#c0392b",bg:"#fdecec"};
+    if(gg<=2) return {l:gg===0?"oggi":gg+"g",c:"#b26a00",bg:"#fff4e5"};
+    return {l:"tra "+gg+"g",c:"#1f9c68",bg:"#e6f4ee"}; };
+  return <>
+    <div className="topbar"><h1>📥 Materiale in arrivo</h1>
+      <button className="btn" onClick={carica}>↻ Aggiorna</button></div>
+    {err && <div className="banner err">{err}</div>}
+    <div className="muted" style={{fontSize:13,marginBottom:12}}>Ordini ai fornitori non ancora arrivati (o arrivati in parte). Quando ricevi, segnala al back office che fa il carico a magazzino.</div>
+    {righe===null ? <div className="empty">Caricamento…</div>
+      : ordini.length===0 ? <div className="card empty">Nessun materiale in arrivo 👍</div>
+      : <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {ordini.map(o=>{ const sd=statoData(o.data_prevista);
+            return <div key={o.ordine_id} className="card" style={{padding:14,borderLeft:"4px solid "+sd.c}}>
+              <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:10,marginBottom:6}}>
+                <b style={{fontSize:15}}>{o.fornitore||"(fornitore)"}</b>
+                <span className="tag">{o.numero}</span>
+                {o.commessa && <span className="tag" style={{background:"#eef4ff",color:"#1e46c4"}}>🏭 {o.commessa}{o.cliente?" · "+o.cliente:""}</span>}
+                <span className="tag" style={{marginLeft:"auto",background:sd.bg,color:sd.c,fontWeight:700}}>📅 {o.data_prevista?new Date(o.data_prevista).toLocaleDateString("it-IT"):"—"} · {sd.l}</span>
+              </div>
+              <table><thead><tr><th>Articolo atteso</th><th style={{width:120,textAlign:"right"}}>Da ricevere</th></tr></thead>
+                <tbody>{o.voci.map((v,k)=><tr key={k}><td>{v.descr}</td><td style={{textAlign:"right",fontWeight:600}}>{Math.max(0,v.q-v.ric)}{v.ric>0?<span className="muted" style={{fontWeight:400}}> (di {v.q})</span>:null}</td></tr>)}</tbody>
+              </table>
+            </div>; })}
+        </div>}
+  </>;
+}
 function ModuloOrdiniFornitori({profilo,perm}){
   const [ordini,setOrdini]=useState(null);
   const [fornitori,setFornitori]=useState([]);

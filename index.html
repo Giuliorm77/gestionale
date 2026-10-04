@@ -7070,12 +7070,13 @@ function bobinePluriball(articoli){
 }
 // Metri di pluriball per UN pannello L×H (cm) + bobina scelta in automatico dalla larghezza.
 // Regola Creatio: metri = (lato lungo × 2) × 1,02 (2% di abbondanza); bobina = la piu' piccola che copre il lato corto.
-function calcolaPluriball(mis, bobine){
+function calcolaPluriball(mis, bobine, forcedBobinaId){
   const L=Number(mis&&mis.L)||0, H=Number(mis&&mis.H)||0;
   if(!(L>0&&H>0) || !bobine.length) return null;
   const lungoM=Math.max(L,H)/100, corto=Math.min(L,H);
-  const bob=bobine.find(b=>b.altezza>=corto) || bobine[bobine.length-1];
-  const metri=Math.round((lungoM*2*1.02)*100)/100;
+  // bobina: scelta a mano se indicata, altrimenti la più piccola che copre il lato corto
+  const bob=(forcedBobinaId && bobine.find(b=>b.id===forcedBobinaId)) || bobine.find(b=>b.altezza>=corto) || bobine[bobine.length-1];
+  const metri=Math.round((lungoM*2*1.02)*100)/100;    // doppio del lato lungo + 2%
   return {bobina:bob, metri, coperto:bob.altezza>=corto};
 }
 function imbVoceRichiedeInput(v, unitaImb){ return v.modo!==unitaImb && v.modo!=="fisso" && v.modo!=="pz"; }
@@ -7800,7 +7801,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
         .map(r=>{ const ids=Array.isArray(r.imballo_ids)?[...r.imballo_ids]:[];
           if(!ids.length && r.imballo_id) ids.push(r.imballo_id);
           if(r.imballo_pluriball && !ids.includes("__pluriball__")) ids.push("__pluriball__");
-          return {...r, imballo_ids:ids}; }) );
+          return {...r, imballo_ids:ids, pluriball_bobina_id:(r.imballo_pluriball&&r.imballo_pluriball.articolo_id)||null}; }) );
   // Versione sintetica per il cliente (facoltativa): righe scritte a mano (descrizione+prezzo).
   // Se compilata, il PDF cliente mostra queste al posto del dettaglio.
   // normalizza una voce cliente: supporta sia il vecchio formato {descrizione,prezzo} sia il nuovo {quantita,unita,prezzo_un}
@@ -7915,7 +7916,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const artMap=React.useMemo(()=>{ const m={}; (articoli||[]).forEach(a=>m[a.id]=a); return m; },[articoli]);
   const tracciaAvanzo=r=> !!(r && r.articolo_id && artMap[r.articolo_id] && artMap[r.articolo_id].traccia_avanzo);
   // pluriball di una riga: calcolato dalle misure della riga (serve un prodotto configurato con misure)
-  const pluriballRiga=r=>{ const mis=(r.config&&r.config.mis)||{}; const pa=calcolaPluriball(mis,bobinePrev); if(!pa) return null;
+  const pluriballRiga=r=>{ const mis=(r.config&&r.config.mis)||{}; const pa=calcolaPluriball(mis,bobinePrev,r.pluriball_bobina_id); if(!pa) return null;
     const N=Number(r.quantita)||0; const bob=pa.bobina;
     const prezzoUnit=Number(bob.prezzo_pubblico)>0? Number(bob.prezzo_pubblico) : (Number(bob.costo)||0);
     return {articolo_id:bob.id, nome:bob.nome_articolo, mtl:pa.metri, mtl_tot:Math.round(pa.metri*N*100)/100, prezzo_unit:prezzoUnit, coperto:pa.coperto}; };
@@ -8178,6 +8179,17 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                                   <button type="button" onClick={()=>removeImballo(i,id)} style={{border:"none",background:"none",cursor:"pointer",color:"#c0392b",fontWeight:700,padding:0,lineHeight:1}}>×</button>
                                 </span>)}
                               </div>}
+                              {imballiSel(r).includes("__pluriball__") && (()=>{ const p=pluriballRiga(r);
+                                const corto=Math.min(Number(r.config&&r.config.mis&&r.config.mis.L)||0,Number(r.config&&r.config.mis&&r.config.mis.H)||0);
+                                const autoAlt=(bobinePrev.find(b=>b.altezza>=corto)||bobinePrev[bobinePrev.length-1]||{}).altezza;
+                                return <div style={{fontSize:11,marginBottom:2,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+                                  <span className="muted">Bobina pluriball:</span>
+                                  <select value={r.pluriball_bobina_id||""} onChange={e=>setRiga(i,"pluriball_bobina_id",e.target.value||null)} style={{padding:"3px 5px",border:"1px solid var(--line)",borderRadius:6,fontSize:11}}>
+                                    <option value="">Auto{autoAlt?" (H"+autoAlt+")":""}</option>
+                                    {bobinePrev.map(b=><option key={b.id} value={b.id}>H{b.altezza}</option>)}
+                                  </select>
+                                  {p && !p.coperto && <span style={{color:"#c0392b"}}>⚠ bobina più bassa del lato corto</span>}
+                                </div>; })()}
                               <select value="" onChange={e=>{addImballo(i,e.target.value); e.target.value="";}}
                                 style={{padding:"5px",borderRadius:7,border:"1px solid var(--line)",fontSize:12}}>
                                 <option value="">＋ aggiungi imballo…</option>

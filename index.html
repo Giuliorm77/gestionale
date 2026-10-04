@@ -10598,8 +10598,6 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         fornitore_prezzo_allegato:r.fornitore_prezzo_allegato||null, fornitore_prezzo_allegato_nome:r.fornitore_prezzo_allegato_nome||""}));
       if(rowsR.length){ const {error}=await sb.from("commesse_righe").insert(rowsR); if(error) throw error; }
       try{ await sb.rpc("ricalcola_impegni"); }catch(e){}
-      // se tutte le fasi sono "fatto": commessa -> pronta e articoli -> pronto (automatico)
-      try{ await sb.rpc("commessa_segna_pronta",{p_commessa_id:id}); }catch(e){}
       onSalvato();
     }catch(ex){ setErr(ex.message); setBusy(false); }
   }

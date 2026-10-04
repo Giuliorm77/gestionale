@@ -7076,6 +7076,23 @@ function calcolaConfigurato(prod, va, mis, N, vInput, artMap, abbCm){
   if(Number(prod.minimo)>0 && prezzo<Number(prod.minimo)) prezzo=Number(prod.minimo);
   return {costoTot:costo, prezzoTot:prezzo, baseTot, basePezzo, fascia:fa};
 }
+// Lavorazioni (fasi) di una riga di prodotto configurato: le voci "lavorazione" del
+// configuratore + le opzioni SELEZIONATE a cui è assegnata una lavorazione (reparto).
+// Diventano fasi di produzione quando il preventivo si trasforma in commessa.
+function fasiDaConfigurato(r, prodotti){
+  if(!r || !r.config || !r.config.prodotto_id) return [];
+  const prod=(prodotti||[]).find(p=>p.id===r.config.prodotto_id);
+  if(!prod) return [];
+  const vInput=(r.config&&r.config.vInput)||{};
+  const out=[];
+  (prod.prodotti_config_voci||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0)).forEach(v=>{
+    if(v.opzionale && !vInput["on_"+v.id]) return;          // opzione non scelta -> niente fase
+    const isLav = v.tipo==="lavorazione" || !!v.lavorazione; // è una lavorazione (reparto assegnato)
+    if(!isLav) return;
+    out.push({reparto:v.lavorazione||"", descrizione:v.descrizione||v.lavorazione||"Lavorazione"});
+  });
+  return out;
+}
 // costo di un imballo (ricetta) date misure {L,H}, N pezzi e input manuali
 function calcolaImballo(imb, mis, N, vInput){
   if(!imb) return 0;
@@ -8101,11 +8118,17 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
         valore:Math.round((tot.imponibile||0)*100)/100, creato_da:profilo.id, aggiornato_il:new Date().toISOString()};
       const {data:nc,error}=await sb.from("commesse").insert(rec).select("id").single();
       if(error) throw error;
-      // fasi dalle righe di manodopera (una per lavorazione)
-      const fasi=righe.filter(r=>r.tipo==="manodopera"&&(r.lavorazione||r.descrizione))
-        .map((r,idx)=>({commessa_id:nc.id, ordine:idx, chiave:uid(), reparto:r.lavorazione||"",
-          descrizione:r.descrizione||r.lavorazione||"", stato:"da_fare",
-          ore_previste:Number(r.quantita)||0, operatori:[]}));
+      // fasi: righe di manodopera + lavorazioni dei prodotti configurati (stampa, taglio, finiture scelte)
+      const fasiRaw=[];
+      righe.forEach(r=>{
+        if(r.tipo==="manodopera" && (r.lavorazione||r.descrizione)){
+          fasiRaw.push({reparto:r.lavorazione||"", descrizione:r.descrizione||r.lavorazione||"", ore_previste:Number(r.quantita)||0});
+        } else if((r.tipo==="materiale"||r.tipo==="altro") && r.config && r.config.prodotto_id){
+          fasiDaConfigurato(r,prodotti).forEach(fx=>fasiRaw.push({reparto:fx.reparto, descrizione:fx.descrizione, ore_previste:0}));
+        }
+      });
+      const fasi=fasiRaw.map((fx,idx)=>({commessa_id:nc.id, ordine:idx, chiave:uid(), reparto:fx.reparto,
+        descrizione:fx.descrizione, stato:"da_fare", ore_previste:fx.ore_previste, operatori:[]}));
       if(fasi.length){ const {error:ef}=await sb.from("commesse_fasi").insert(fasi); if(ef) throw ef; }
       // righe articolo dagli articoli/prodotti del preventivo (data consegna da compilare)
       const artRighe=righe.filter(r=>(r.tipo==="materiale"||r.tipo==="altro") && String(r.descrizione||"").trim())

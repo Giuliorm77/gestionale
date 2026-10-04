@@ -10621,8 +10621,14 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       if(nuova){ rec.creato_da=profilo.id;
         const {data,error}=await sb.from("commesse").insert(rec).select("id").single(); if(error) throw error; id=data.id;
       }else{ const {error}=await sb.from("commesse").update(rec).eq("id",id); if(error) throw error;
-        await sb.from("commesse_fasi").delete().eq("commessa_id",id);
-        await sb.from("commesse_righe").delete().eq("commessa_id",id); }
+        // Scollega eventuali DDT dalle righe PRIMA di cancellarle: il vincolo ddt_righe.commessa_riga_id
+        // altrimenti impedisce la cancellazione (silenziosa) e le righe si RADDOPPIANO a ogni salvataggio.
+        try{ const {data:vecchie}=await sb.from("commesse_righe").select("id").eq("commessa_id",id);
+          const oldIds=(vecchie||[]).map(r=>r.id);
+          if(oldIds.length){ await sb.from("ddt_righe").update({commessa_riga_id:null}).in("commessa_riga_id",oldIds); }
+        }catch(e){}
+        const {error:ef}=await sb.from("commesse_fasi").delete().eq("commessa_id",id); if(ef) throw ef;
+        const {error:er}=await sb.from("commesse_righe").delete().eq("commessa_id",id); if(er) throw er; }
       const rows=fasi.map((fa,idx)=>({commessa_id:id, ordine:idx, chiave:fa.chiave||uid(), reparto:fa.reparto||"",
         descrizione:fa.descrizione||"", stato:fa.stato||(fa.esterna?"da_inviare":"da_fare"),
         ore_previste:Number(fa.ore_previste)||0,

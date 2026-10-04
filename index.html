@@ -10530,7 +10530,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         const {data:of,error}=await sb.from("ordini_fornitore").insert(rec).select("id,numero").single();
         if(error) throw error;
         const row={ordine_id:of.id, ordine:0, articolo_id:r.articolo_id||null, descrizione:r.descrizione||"",
-          quantita:Number(r.quantita)||0, unita:r.unita||"", prezzo_unitario:0, quantita_ricevuta:0, note:"da commessa "+(commessa.numero||"")};
+          quantita:Number(r.quantita)||0, unita:r.unita||"", prezzo_unitario:(r.articolo_id&&r.fornitore_prezzo_id?Number(prezzoForn[r.articolo_id+"|"+r.fornitore_prezzo_id])||0:0), prezzo_verificato:false, quantita_ricevuta:0, note:"da commessa "+(commessa.numero||"")};
         const {error:e2}=await sb.from("ordini_fornitore_righe").insert(row);
         if(e2) throw e2;
         creati.push(of.numero);
@@ -11311,7 +11311,7 @@ function ModuloOrdiniFornitori({profilo,perm}){
       sb.from("ordini_fornitore").select("*, ordini_fornitore_righe(*)").order("creato_il",{ascending:false}),
       sb.from("fornitori").select("*").order("ragione_sociale"),
       caricaArticoliTutti("id,codice,nome_articolo,unita,costo,giacenza,impegnato,scorta_minima"),
-      sb.from("commesse").select("id,numero,cliente_nome").order("creato_il",{ascending:false}),
+      sb.from("commesse").select("id,numero,cliente_nome,data_consegna").order("creato_il",{ascending:false}),
     ]);
     if(o.error){ setErr(o.error.message); return; }
     setOrdini(o.data||[]); setFornitori(fo.data||[]); setArticoli(a); setCommesse(cm.data||[]);
@@ -11395,6 +11395,10 @@ function OrdineFornitoreEditor({ordine,profilo,perm,fornitori,articoli,commesse,
   const [err,setErr]=useState("");
   const [msg,setMsg]=useState("");
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  // Controllo date: la consegna del fornitore deve essere PRIMA della consegna della commessa
+  const commSel=(commesse||[]).find(c=>c.id===f.commessa_id)||null;
+  const commConsegna=commSel?commSel.data_consegna:null;
+  const dataKO = f.data_prevista && commConsegna && f.data_prevista > commConsegna;   // fornitore consegna DOPO
   const setRiga=(i,k,v)=>setRighe(p=>p.map((r,j)=>j===i?{...r,[k]:v}:r));
   const delRiga=i=>setRighe(p=>p.filter((_,j)=>j!==i));
   const addLibera=()=>setRighe(p=>[...p,{articolo_id:null,descrizione:"",quantita:1,unita:"",prezzo_unitario:0,quantita_ricevuta:0,note:""}]);
@@ -11426,7 +11430,7 @@ function OrdineFornitoreEditor({ordine,profilo,perm,fornitori,articoli,commesse,
     }else{ const {error}=await sb.from("ordini_fornitore").update(rec).eq("id",id); if(error) throw error;
       await sb.from("ordini_fornitore_righe").delete().eq("ordine_id",id); }
     const rows=righe.map((r,idx)=>({ordine_id:id, ordine:idx, articolo_id:r.articolo_id||null, descrizione:r.descrizione||"",
-      quantita:Number(r.quantita)||0, unita:r.unita||"", prezzo_unitario:Number(r.prezzo_unitario)||0,
+      quantita:Number(r.quantita)||0, unita:r.unita||"", prezzo_unitario:Number(r.prezzo_unitario)||0, prezzo_verificato:!!r.prezzo_verificato,
       quantita_ricevuta:Number(r.quantita_ricevuta)||0, note:r.note||""}));
     if(rows.length){ const {error}=await sb.from("ordini_fornitore_righe").insert(rows); if(error) throw error; }
     return id;
@@ -11435,6 +11439,7 @@ function OrdineFornitoreEditor({ordine,profilo,perm,fornitori,articoli,commesse,
   async function salva(e){
     e.preventDefault();
     if(!f.fornitore_id && !f.fornitore_nome){ setErr("Scegli un fornitore."); return; }
+    if(dataKO){ setErr("La consegna prevista del fornitore è DOPO la consegna della commessa ("+new Date(commConsegna).toLocaleDateString("it-IT")+"): correggi la data, altrimenti il materiale arriva in ritardo."); return; }
     setBusy(true); setErr("");
     try{ await persistiOrdine(ordine?.id); onSalvato(); }
     catch(ex){ setErr(ex.message); setBusy(false); }
@@ -11443,6 +11448,9 @@ function OrdineFornitoreEditor({ordine,profilo,perm,fornitori,articoli,commesse,
   async function ricevi(){
     if(nuovo || !ordine?.id){ setErr("Salva prima l'ordine, poi registra la ricezione."); return; }
     if(!daRicevere){ setErr("Niente da ricevere: le quantità risultano già caricate."); return; }
+    if(dataKO){ setErr("La consegna prevista è DOPO la consegna della commessa: correggi la data prima di ricevere."); return; }
+    const nonContr=righe.filter(r=>r.articolo_id && (Number(r.quantita)||0)-(Number(r.quantita_ricevuta)||0)>0 && !r.prezzo_verificato);
+    if(nonContr.length){ setErr("Prima di ricevere, controlla i prezzi in rosso e spunta «controllato» su: "+nonContr.map(r=>r.descrizione||"riga").join(", ")); return; }
     if(!window.confirm("Registrare la ricezione e caricare a magazzino "+daRicevere+" articolo/i?")) return;
     setBusy(true); setErr(""); setMsg("");
     try{
@@ -11463,7 +11471,7 @@ function OrdineFornitoreEditor({ordine,profilo,perm,fornitori,articoli,commesse,
       await sb.from("ordini_fornitore").update({stato:tuttoRic?"ricevuto":"ricevuto_parziale", aggiornato_il:new Date().toISOString()}).eq("id",ordine.id);
       await sb.from("ordini_fornitore_righe").delete().eq("ordine_id",ordine.id);
       const rows=nuoveRighe.map((r,idx)=>({ordine_id:ordine.id, ordine:idx, articolo_id:r.articolo_id||null, descrizione:r.descrizione||"",
-        quantita:Number(r.quantita)||0, unita:r.unita||"", prezzo_unitario:Number(r.prezzo_unitario)||0,
+        quantita:Number(r.quantita)||0, unita:r.unita||"", prezzo_unitario:Number(r.prezzo_unitario)||0, prezzo_verificato:!!r.prezzo_verificato,
         quantita_ricevuta:Number(r.quantita_ricevuta)||0, note:r.note||""}));
       if(rows.length){ const {error}=await sb.from("ordini_fornitore_righe").insert(rows); if(error) throw error; }
       setMsg("Merce ricevuta e caricata a magazzino ✓"); setBusy(false);
@@ -11512,8 +11520,11 @@ function OrdineFornitoreEditor({ordine,profilo,perm,fornitori,articoli,commesse,
             <div className="row">
               <div className="field" style={{maxWidth:160}}><label>Data</label>
                 <input type="date" value={f.data} onChange={e=>set("data",e.target.value)}/></div>
-              <div className="field" style={{maxWidth:180}}><label>Consegna prevista</label>
-                <input type="date" value={f.data_prevista||""} onChange={e=>set("data_prevista",e.target.value)}/></div>
+              <div className="field" style={{maxWidth:220}}><label>Consegna prevista</label>
+                <input type="date" value={f.data_prevista||""} onChange={e=>set("data_prevista",e.target.value)}
+                  style={dataKO?{borderColor:"#e3342f",background:"#fff6f6"}:{}}/>
+                {dataKO && <div style={{color:"#c0392b",fontSize:11,fontWeight:600,marginTop:3}}>⚠ Il fornitore consegna DOPO la commessa ({new Date(commConsegna).toLocaleDateString("it-IT")}): il materiale arriverebbe in ritardo. Correggi la data.</div>}
+                {!dataKO && commConsegna && <div className="muted" style={{fontSize:11,marginTop:3}}>Consegna commessa: {new Date(commConsegna).toLocaleDateString("it-IT")}</div>}</div>
               <div className="field"><label>Riferimento</label>
                 <input value={f.riferimento} onChange={e=>set("riferimento",e.target.value)}/></div>
               <div className="field" style={{maxWidth:220}}><label>Commessa collegata</label>
@@ -11548,7 +11559,13 @@ function OrdineFornitoreEditor({ordine,profilo,perm,fornitori,articoli,commesse,
                           style={{width:"100%",padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></td>
                         <td><input type="number" step="any" value={r.quantita} onChange={e=>setRiga(i,"quantita",e.target.value)} style={numIn}/></td>
                         <td><input value={r.unita||""} onChange={e=>setRiga(i,"unita",e.target.value)} style={{width:60,padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></td>
-                        <td><input type="number" step="any" value={r.prezzo_unitario} onChange={e=>setRiga(i,"prezzo_unitario",e.target.value)} style={numIn}/></td>
+                        <td><input type="number" step="any" value={r.prezzo_unitario} onChange={e=>setRiga(i,"prezzo_unitario",e.target.value)}
+                            style={{...numIn,...((r.articolo_id && !r.prezzo_verificato)?{borderColor:"#e3342f",color:"#c0392b",fontWeight:700,background:"#fff6f6"}:{})}}
+                            title={r.articolo_id?"Prezzo precompilato dal listino: verificalo con l'offerta del fornitore e spunta 'controllato'":""}/>
+                          {r.articolo_id && <label style={{display:"flex",alignItems:"center",gap:4,fontSize:10.5,marginTop:3,cursor:"pointer",color:r.prezzo_verificato?"#127a3e":"#c0392b",fontWeight:600}}>
+                            <input type="checkbox" checked={!!r.prezzo_verificato} onChange={e=>setRiga(i,"prezzo_verificato",e.target.checked)}/>
+                            {r.prezzo_verificato?"✓ controllato":"⚠ da controllare"}
+                          </label>}</td>
                         <td style={{textAlign:"center"}}>{Number(r.quantita_ricevuta)||0}{ric&&<span title="Ricevuto" style={{color:"var(--ok)",marginLeft:4}}>✓</span>}</td>
                         <td style={{textAlign:"right",fontWeight:600}}>{eur(rt)}</td>
                         <td><button type="button" className="btn small danger" onClick={()=>delRiga(i)}>✕</button></td>

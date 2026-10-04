@@ -10228,8 +10228,49 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const [rilasciataIl,setRilasciataIl]=useState(commessa?.rilasciata_il||null);
   // Commessa chiusa dalla produzione (pronta) o consegnata: sola lettura, salvo sblocco dei responsabili
   const [sbloccata,setSbloccata]=useState(false);
+  const [motivoMod,setMotivoMod]=useState("");   // motivo obbligatorio della modifica a commessa chiusa
+  const [modLog,setModLog]=useState([]);          // dettaglio modifiche (solo amministratore)
   const chiusaProd = !nuova && ["pronta","consegnata","chiusa"].includes(commessa?.stato||"");
   const readonly = chiusaProd && !sbloccata;
+  const isAdmin = !!(profilo && profilo.ruolo==="amministratore");
+  const nModifiche = Number(commessa?.modifiche_post_chiusura)||0;
+  useEffect(()=>{ if(!(commessa?.id && chiusaProd && isAdmin)){ setModLog([]); return; }
+    sb.from("commesse_modifiche").select("*").eq("commessa_id",commessa.id).order("data",{ascending:false})
+      .then(({data})=>setModLog(data||[]));
+  },[commessa?.id,chiusaProd,isAdmin]);
+  // Calcola una lista leggibile di COSA è cambiato (per il registro, solo admin)
+  function calcDiffCommessa(){
+    const out=[]; const o=commessa||{};
+    const cmp=(label,a,b)=>{ const sa=(a==null?"":String(a)), sb2=(b==null?"":String(b)); if(sa!==sb2) out.push(label+": «"+(sa||"—")+"» → «"+(sb2||"—")+"»"); };
+    cmp("Stato", o.stato, f.stato);
+    cmp("Prodotto", o.prodotto, f.prodotto);
+    cmp("Riferimento", o.riferimento, f.riferimento);
+    cmp("Priorità", o.priorita, f.priorita);
+    cmp("Note", o.note, f.note);
+    cmp("Avviso produzione", o.avviso_produzione, f.avviso_produzione);
+    if((Number(o.valore)||0)!==(Number(f.valore)||0)) out.push("Valore: "+eur(o.valore||0)+" → "+eur(f.valore||0));
+    if((Number(o.trasporto)||0)!==(Number(f.trasporto)||0)) out.push("Trasporto: "+eur(o.trasporto||0)+" → "+eur(f.trasporto||0));
+    // righe (match per id)
+    const or=(o.commesse_righe||[]); const orById={}; or.forEach(r=>{ if(r.id) orById[r.id]=r; });
+    const newIds=new Set(righe.map(r=>r.id).filter(Boolean));
+    righe.forEach(r=>{ if(!r.id){ out.push("Articolo aggiunto: "+(r.descrizione||"—")+" ×"+(Number(r.quantita)||0)); return; }
+      const ov=orById[r.id]; if(!ov) return;
+      if((Number(ov.quantita)||0)!==(Number(r.quantita)||0)) out.push("«"+(r.descrizione||ov.descrizione||"art.")+"» quantità "+(Number(ov.quantita)||0)+" → "+(Number(r.quantita)||0));
+      if((ov.stato||"")!==(r.stato||"")) out.push("«"+(r.descrizione||ov.descrizione||"art.")+"» stato "+(ov.stato||"—")+" → "+(r.stato||"—"));
+      if((ov.descrizione||"")!==(r.descrizione||"")) out.push("Descrizione articolo: «"+(ov.descrizione||"—")+"» → «"+(r.descrizione||"—")+"»");
+      if((Number(ov.prezzo_unitario)||0)!==(Number(r.prezzo_unitario)||0)) out.push("«"+(r.descrizione||"art.")+"» prezzo "+eur(ov.prezzo_unitario||0)+" → "+eur(r.prezzo_unitario||0));
+    });
+    or.forEach(r=>{ if(r.id && !newIds.has(r.id)) out.push("Articolo rimosso: "+(r.descrizione||"—")); });
+    // fasi (match per chiave)
+    const of=(o.commesse_fasi||[]); const ofByCh={}; of.forEach(fa=>{ if(fa.chiave) ofByCh[fa.chiave]=fa; });
+    const newCh=new Set(fasi.map(fa=>fa.chiave).filter(Boolean));
+    fasi.forEach(fa=>{ const ov=fa.chiave?ofByCh[fa.chiave]:null; if(!ov){ out.push("Lavorazione aggiunta: "+(fa.reparto||fa.descrizione||"—")); return; }
+      if((ov.stato||"")!==(fa.stato||"")) out.push("Lavorazione «"+(fa.reparto||fa.descrizione||"—")+"» stato "+(ov.stato||"—")+" → "+(fa.stato||"—"));
+      if((Number(ov.ore_previste)||0)!==(Number(fa.ore_previste)||0)) out.push("Lavorazione «"+(fa.reparto||"—")+"» ore prev. "+(Number(ov.ore_previste)||0)+" → "+(Number(fa.ore_previste)||0));
+    });
+    of.forEach(fa=>{ if(fa.chiave && !newCh.has(fa.chiave)) out.push("Lavorazione rimossa: "+(fa.reparto||fa.descrizione||"—")); });
+    return out;
+  }
   const [fasi,setFasi]=useState(()=> (commessa?.commesse_fasi||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0))
     .map(x=>({...x, operatori:Array.isArray(x.operatori)?x.operatori:[]})) );
   const [righe,setRighe]=useState(()=> (commessa?.commesse_righe||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0))
@@ -10554,6 +10595,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     if(!f.cliente_id && !f.cliente_nome){ setErr("Indica un cliente."); return; }
     // REGOLA DI VALIDITÀ (per tutti i ruoli): ogni articolo deve avere la data di consegna
     if(righeSenzaData>0){ setErr("Ogni articolo deve avere la sua data di consegna (obbligatoria): mancano "+righeSenzaData+" data/e."); return; }
+    if(chiusaProd && sbloccata && !motivoMod.trim()){ setErr("Scrivi il MOTIVO della modifica: è obbligatorio per modificare una commessa chiusa."); return; }
+    const diffList = (chiusaProd && sbloccata) ? calcDiffCommessa() : null;
     setBusy(true); setErr("");
     try{
       const cli=clienti.find(c=>c.id===f.cliente_id);
@@ -10569,6 +10612,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         note:f.note||"", avviso_produzione:(f.avviso_produzione||"").trim()||null,
         avviso_il:(f.avviso_produzione||"").trim() ? (commessa?.avviso_il||new Date().toISOString()) : null,
         consumi:consumi.map(c=>({...c})), aiuti:aiuti.map(a=>({...a})), straordinari:straordinari.map(a=>({...a})), aggiornato_il:new Date().toISOString()};
+      if(chiusaProd && sbloccata) rec.modifiche_post_chiusura = nModifiche+1;
       let id=commessa?.id;
       if(nuova){ rec.creato_da=profilo.id;
         const {data,error}=await sb.from("commesse").insert(rec).select("id").single(); if(error) throw error; id=data.id;
@@ -10598,6 +10642,11 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         fornitore_prezzo_allegato:r.fornitore_prezzo_allegato||null, fornitore_prezzo_allegato_nome:r.fornitore_prezzo_allegato_nome||""}));
       if(rowsR.length){ const {error}=await sb.from("commesse_righe").insert(rowsR); if(error) throw error; }
       try{ await sb.rpc("ricalcola_impegni"); }catch(e){}
+      // registro modifiche a commessa CHIUSA (dettaglio visibile solo all'amministratore)
+      if(chiusaProd && sbloccata){
+        try{ await sb.from("commesse_modifiche").insert({commessa_id:id, utente_id:profilo.id, utente_nome:profilo.nome||"",
+          motivo:motivoMod.trim(), dettaglio:(diffList&&diffList.length?diffList.join("\n"):"(nessuna differenza nei campi principali)")}); }catch(e){}
+      }
       onSalvato();
     }catch(ex){ setErr(ex.message); setBusy(false); }
   }
@@ -10677,16 +10726,34 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
           {err && <div className="banner err">{err}</div>}
           {consMsg && <div className="banner" style={{background:"#e6f4ee",color:"#1f9c68"}}>✅ {consMsg}</div>}
 
-          {chiusaProd && <div style={{margin:"0 0 12px",padding:"10px 12px",borderRadius:9,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",
+          {chiusaProd && <div style={{margin:"0 0 12px",padding:"10px 12px",borderRadius:9,
               background:readonly?"#eef1f5":"#fff8e1",border:"1px solid "+(readonly?"#d5d9e0":"#ffe08a")}}>
-            <div style={{flex:1,minWidth:200,fontSize:13}}>
-              {readonly
-                ? <><span style={{fontWeight:700}}>🔒 Commessa {STATI_COMMESSA[commessa.stato]?STATI_COMMESSA[commessa.stato].l.toLowerCase():commessa.stato}</span> — in sola lettura (chiusa dalla produzione/consegnata). Per correggerla, sbloccala.</>
-                : <><span style={{fontWeight:700,color:"#b26a00"}}>🔓 Sbloccata per modifica</span> — ricordati di salvare. Modifica solo se necessario.</>}
+            <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+              <div style={{flex:1,minWidth:200,fontSize:13}}>
+                {readonly
+                  ? <><span style={{fontWeight:700}}>🔒 Commessa {STATI_COMMESSA[commessa.stato]?STATI_COMMESSA[commessa.stato].l.toLowerCase():commessa.stato}</span> — in sola lettura (chiusa dalla produzione/consegnata). Per correggerla, sbloccala.</>
+                  : <><span style={{fontWeight:700,color:"#b26a00"}}>🔓 Sbloccata per modifica</span> — scrivi il motivo e salva. Modifica solo se necessario.</>}
+                {nModifiche>0 && <div style={{marginTop:3,fontSize:12,color:"#c0392b",fontWeight:600}}>⚠ Questa commessa è stata <b>modificata dopo la chiusura {nModifiche} {nModifiche===1?"volta":"volte"}</b>{isAdmin?" (dettaglio sotto)":" — il dettaglio è visibile all'amministratore"}.</div>}
+              </div>
+              {perm.economici && (readonly
+                ? <button type="button" className="btn small" onClick={()=>setSbloccata(true)}>✏️ Sblocca per modifica</button>
+                : <button type="button" className="btn small" onClick={()=>{setSbloccata(false);setMotivoMod("");}}>🔒 Ri-blocca</button>)}
             </div>
-            {perm.economici && (readonly
-              ? <button type="button" className="btn small" onClick={()=>setSbloccata(true)}>✏️ Sblocca per modifica</button>
-              : <button type="button" className="btn small" onClick={()=>setSbloccata(false)}>🔒 Ri-blocca</button>)}
+            {!readonly && <div style={{marginTop:8}}>
+              <label style={{fontSize:12,fontWeight:600,color:"#c0392b"}}>Motivo della modifica (obbligatorio)</label>
+              <textarea rows={2} value={motivoMod} onChange={e=>setMotivoMod(e.target.value)} placeholder="es. il cliente ha chiesto di aggiungere 2 pz · correzione errore quantità…"
+                style={{width:"100%",padding:"6px",border:"2px solid "+(motivoMod.trim()?"var(--line)":"#e3342f"),borderRadius:7,background:motivoMod.trim()?"#fff":"#fff8f8"}}/>
+            </div>}
+            {isAdmin && modLog.length>0 && <details style={{marginTop:8}}>
+              <summary style={{cursor:"pointer",fontSize:12.5,fontWeight:600}}>📜 Storico modifiche ({modLog.length}) — solo amministratore</summary>
+              <div style={{marginTop:6,display:"flex",flexDirection:"column",gap:8}}>
+                {modLog.map(m=><div key={m.id} style={{fontSize:12.5,padding:"8px 10px",background:"#fff",border:"1px solid var(--line)",borderRadius:7}}>
+                  <div style={{fontWeight:600}}>{new Date(m.data).toLocaleString("it-IT")} · {m.utente_nome||"—"}</div>
+                  {m.motivo && <div style={{marginTop:2}}><b>Motivo:</b> {m.motivo}</div>}
+                  {m.dettaglio && <div style={{marginTop:2,whiteSpace:"pre-wrap",color:"#41505c"}}>{m.dettaglio}</div>}
+                </div>)}
+              </div>
+            </details>}
           </div>}
 
           <fieldset disabled={readonly} style={{border:0,margin:0,padding:0,minInlineSize:0}}>

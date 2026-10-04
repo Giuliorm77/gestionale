@@ -11303,12 +11303,21 @@ ${o.note?`<div class="note"><b>Note</b><br>${escHtml(o.note)}</div>`:""}
 function ModuloMaterialeInArrivo({profilo,perm}){
   const [righe,setRighe]=useState(null);
   const [err,setErr]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [msg,setMsg]=useState("");
   const carica=useCallback(async()=>{
     setErr("");
     const {data,error}=await sb.rpc("materiale_in_arrivo");
     if(error){ setErr(error.message); return; }
     setRighe(data||[]);
   },[]);
+  async function riceviOrd(o){
+    if(!window.confirm("Confermi che la merce dell'ordine "+o.numero+(o.fornitore?(" ("+o.fornitore+")"):"")+" è ARRIVATA?\nVerrà caricata a magazzino.")) return;
+    setBusy(true); setErr(""); setMsg("");
+    try{ const {error}=await sb.rpc("ricevi_materiale",{p_ordine_id:o.ordine_id}); if(error) throw error;
+      setMsg("Merce dell'ordine "+o.numero+" ricevuta e caricata a magazzino ✓"); await carica();
+    }catch(ex){ setErr(ex.message); } setBusy(false);
+  }
   useEffect(()=>{ carica(); },[carica]);
   const oggi=new Date(); oggi.setHours(0,0,0,0);
   const ordini=useMemo(()=>{
@@ -11326,7 +11335,8 @@ function ModuloMaterialeInArrivo({profilo,perm}){
     <div className="topbar"><h1>📥 Materiale in arrivo</h1>
       <button className="btn" onClick={carica}>↻ Aggiorna</button></div>
     {err && <div className="banner err">{err}</div>}
-    <div className="muted" style={{fontSize:13,marginBottom:12}}>Ordini ai fornitori non ancora arrivati (o arrivati in parte). Quando ricevi, segnala al back office che fa il carico a magazzino.</div>
+    {msg && <div className="banner" style={{background:"#e6f4ee",color:"#1f9c68"}}>✅ {msg}</div>}
+    <div className="muted" style={{fontSize:13,marginBottom:12}}>Ordini ai fornitori non ancora arrivati (o arrivati in parte). Quando la merce arriva, premi <b>📥 Segna ricevuto</b>: viene caricata a magazzino.</div>
     {righe===null ? <div className="empty">Caricamento…</div>
       : ordini.length===0 ? <div className="card empty">Nessun materiale in arrivo 👍</div>
       : <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -11341,6 +11351,9 @@ function ModuloMaterialeInArrivo({profilo,perm}){
               <table><thead><tr><th>Articolo atteso</th><th style={{width:120,textAlign:"right"}}>Da ricevere</th></tr></thead>
                 <tbody>{o.voci.map((v,k)=><tr key={k}><td>{v.descr}</td><td style={{textAlign:"right",fontWeight:600}}>{Math.max(0,v.q-v.ric)}{v.ric>0?<span className="muted" style={{fontWeight:400}}> (di {v.q})</span>:null}</td></tr>)}</tbody>
               </table>
+              {perm.scrivi && <div style={{marginTop:10,textAlign:"right"}}>
+                <button type="button" className="btn small primary" disabled={busy} onClick={()=>riceviOrd(o)}>📥 Segna ricevuto (carica a magazzino)</button>
+              </div>}
             </div>; })}
         </div>}
   </>;

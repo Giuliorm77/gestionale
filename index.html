@@ -427,7 +427,7 @@ function imballoIncoerente(imb, modalita){
   if(!modalita || modalita==="ritiro_cliente") return false;   // ritiro in sede: nessun vincolo
   return imb.consigliato_per!==modalita;
 }
-const MODI_VOCE  = [{v:"mq",l:"a superficie (€/mq)"},{v:"mtl",l:"a metro lineare (€/mtl)"},{v:"perimetro",l:"a perimetro (€/mtl) — 2×(base+alt.)"},{v:"scatola",l:"a scatola (€/cad) — per n° scatole"},{v:"mc",l:"a volume (€/mc)"},{v:"pz",l:"a pezzo (€/cad)"},{v:"ora",l:"a tempo (€/ora)"},{v:"passaggio",l:"a passaggio foglio (€/passaggio)"},{v:"battuta",l:"a battuta (€/battuta)"},{v:"fisso",l:"fisso (una tantum)"}];
+const MODI_VOCE  = [{v:"mq",l:"a superficie (€/mq)"},{v:"mtl",l:"a metro lineare (€/mtl)"},{v:"perimetro",l:"a perimetro (€/mtl) — 2×(base+alt.)"},{v:"pellicola",l:"pellicola 50cm a giri (€/mtl)"},{v:"scatola",l:"a scatola (€/cad) — per n° scatole"},{v:"mc",l:"a volume (€/mc)"},{v:"pz",l:"a pezzo (€/cad)"},{v:"ora",l:"a tempo (€/ora)"},{v:"passaggio",l:"a passaggio foglio (€/passaggio)"},{v:"battuta",l:"a battuta (€/battuta)"},{v:"fisso",l:"fisso (una tantum)"}];
 const UNITA = ["mq","cad (pezzo)","ml (metro lineare)","foglio (fg)","ora","kg","forfait","altro"];
 // peso (kg) di UN foglio, da grammatura (g/m2) e formato (L x H, cm)
 function pesoFoglioKg(a){ const g=Number(a&&a.grammatura)||0, L=Number(a&&a.formato_l)||0, H=Number(a&&a.formato_h)||0;
@@ -7045,6 +7045,10 @@ function calcolaImballo(imb, mis, N, vInput){
     const Lv=L+2*abb, Hv=H+2*abb;                // misura con abbondanza per questa voce
     let qty;
     if(v.modo==="perimetro") qty=(2*((Lv+Hv)/100))*Npz;         // bordo/profilo = perimetro (di default = misura pannello)
+    else if(v.modo==="pellicola"){                                // pellicola alt. 50cm: più giri per coprire il pannello
+      const ALT=50; const giri=Math.ceil((L||0)/ALT)+Math.ceil((H||0)/ALT);
+      qty=giri*(2*((L+H)/100))*Npz;                               // metri = giri × perimetro
+    }
     else if(v.modo==="scatola") qty=nScatole;
     else if(v.modo==="pz") qty=Npz*(Number(v.qta_pezzo)>0?Number(v.qta_pezzo):1);   // es. 4 angolari per pannello
     else if(v.modo==="fisso") qty=1;

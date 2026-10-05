@@ -13342,6 +13342,7 @@ function ModuloReport({profilo,perm}){
   const [crmTratt,setCrmTratt]=useState([]);      // trattative CRM (per report vendite/provvigioni agenti)
   const [segmenti,setSegmenti]=useState(null);   // storico timbrature postazione
   const [filtroOp,setFiltroOp]=useState("");
+  const [filtroReparto,setFiltroReparto]=useState("");
   useEffect(()=>{ sb.from("segmenti_lavoro").select("*").order("inizio",{ascending:false}).limit(1000)
     .then(({data})=>setSegmenti(data||[])); },[]);
   // costi di struttura annui (F) per il punto di pareggio — solo amministratore
@@ -13652,21 +13653,56 @@ function ModuloReport({profilo,perm}){
           {segmenti===null ? <div className="muted">Caricamento…</div> : (()=>{
             const commInfo={}; (commesse||[]).forEach(c=>commInfo[c.id]={numero:c.numero,cliente:c.cliente_nome});
             const ops=[...new Set(segmenti.map(s=>s.operatore_nome).filter(Boolean))].sort();
+            const reparti=[...new Set(segmenti.map(s=>s.reparto).filter(Boolean))].sort();
             const rows=segmenti.filter(s=>{ const d=(s.inizio||"").slice(0,10);
               if(dal && d<dal) return false; if(al && d>al) return false;
-              if(filtroOp && s.operatore_nome!==filtroOp) return false; return true; });
+              if(filtroOp && s.operatore_nome!==filtroOp) return false;
+              if(filtroReparto && s.reparto!==filtroReparto) return false; return true; });
             const durH=s=> s.fine? (new Date(s.fine)-new Date(s.inizio))/3600000 : null;
             const fmtDur=h=> h==null? "in corso" : durataOre(h);
             const dt=x=> x? new Date(x).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"}) : "—";
             const totH=rows.reduce((t,s)=>t+(durH(s)||0),0);
+            // aggregati per operatore e per reparto (solo durate chiuse)
+            const perOp={}, perRep={};
+            rows.forEach(s=>{ const h=durH(s)||0; const o=s.operatore_nome||"—"; perOp[o]=(perOp[o]||0)+h; const r=s.reparto||"(senza reparto)"; perRep[r]=(perRep[r]||0)+h; });
+            const perOpArr=Object.entries(perOp).sort((a,b)=>b[1]-a[1]);
+            const perRepArr=Object.entries(perRep).sort((a,b)=>b[1]-a[1]);
+            const r2=h=>Math.round((Number(h)||0)*100)/100;
+            const esporta=()=>{ try{
+              const det=rows.map(s=>{ const ci=commInfo[s.commessa_id]||{}; return {Operatore:s.operatore_nome||"", Commessa:ci.numero||"", Cliente:ci.cliente||"", Reparto:s.reparto||"", Fase:s.fase_descr||"", Inizio:dt(s.inizio), Fine:s.fine?dt(s.fine):"in corso", Ore:s.fine?r2((new Date(s.fine)-new Date(s.inizio))/3600000):0}; });
+              const op=perOpArr.map(([n,h])=>({Operatore:n, Ore:r2(h)}));
+              const rep=perRepArr.map(([n,h])=>({Reparto:n, Ore:r2(h)}));
+              const wb=XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(det.length?det:[{Operatore:""}]), "Timbrature");
+              XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(op.length?op:[{Operatore:""}]), "Per operatore");
+              XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rep.length?rep:[{Reparto:""}]), "Per reparto");
+              XLSX.writeFile(wb, "Report_lavorazioni_"+(dal||"inizio")+"_"+(al||"oggi")+".xlsx");
+            }catch(e){ alert("Export non riuscito: "+(e.message||e)); } };
             return <>
               <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
                 <select className="btn" value={filtroOp} onChange={e=>setFiltroOp(e.target.value)} style={{maxWidth:220}}>
                   <option value="">Tutti gli operatori</option>
                   {ops.map(o=><option key={o} value={o}>{o}</option>)}
                 </select>
+                <select className="btn" value={filtroReparto} onChange={e=>setFiltroReparto(e.target.value)} style={{maxWidth:200}}>
+                  <option value="">Tutti i reparti</option>
+                  {reparti.map(r=><option key={r} value={r}>{r}</option>)}
+                </select>
                 <span className="muted">{rows.length} timbrature · totale {fmtDur(totH)}</span>
+                <button className="btn small" onClick={esporta} disabled={!rows.length} style={{marginLeft:"auto"}}>⬇ Esporta Excel</button>
               </div>
+              {rows.length>0 && <div style={{display:"flex",gap:16,flexWrap:"wrap",marginBottom:12}}>
+                <div style={{flex:"1 1 280px",minWidth:260}}>
+                  <div className="muted" style={{fontSize:11,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Ore per operatore</div>
+                  <table><thead><tr><th>Operatore</th><th style={{textAlign:"right"}}>Ore</th></tr></thead>
+                  <tbody>{perOpArr.map(([n,h])=><tr key={n}><td className="rs">{n}</td><td style={{textAlign:"right",fontWeight:600}}>{durataOre(h)}</td></tr>)}</tbody></table>
+                </div>
+                <div style={{flex:"1 1 280px",minWidth:260}}>
+                  <div className="muted" style={{fontSize:11,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Ore per reparto</div>
+                  <table><thead><tr><th>Reparto</th><th style={{textAlign:"right"}}>Ore</th></tr></thead>
+                  <tbody>{perRepArr.map(([n,h])=><tr key={n}><td className="rs">{n}</td><td style={{textAlign:"right",fontWeight:600}}>{durataOre(h)}</td></tr>)}</tbody></table>
+                </div>
+              </div>}
               <div style={{overflow:"auto",maxHeight:420}}>
                 <table><thead><tr><th>Operatore</th><th>Commessa</th><th>Fase / reparto</th><th>Inizio</th><th>Fine</th><th style={{textAlign:"right"}}>Durata</th></tr></thead>
                 <tbody>

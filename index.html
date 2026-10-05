@@ -10477,6 +10477,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     });
     return m;
   },[segmenti]);
+  // durata ms -> "Zs" / "Ym" / "Xh YYm" (leggibile anche per tempi brevi)
+  const fmtDur=ms=>{ const s=Math.max(0,Math.floor((Number(ms)||0)/1000)); if(s<60) return s+"s";
+    const mm=Math.floor(s/60); if(mm<60) return mm+"m"; const h=Math.floor(mm/60); return h+"h "+String(mm%60).padStart(2,"0")+"m"; };
   /* Elenco partecipanti: sessioni cronometrate (Postazione) + ore scritte a
      mano nelle fasi + aiuti imprevisti, uniti per persona. */
   const partecipanti=React.useMemo(()=>{
@@ -11274,7 +11277,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                     const cf=consuntivoFase[fa.chiave]; const chiusa=fa.chiusa_da_nome||fa.chiusa_il;
                     if(!cf && !chiusa) return null;
                     return <div style={{marginTop:8,padding:"6px 10px",background:"#f8fafc",border:"1px solid var(--line)",borderRadius:7,fontSize:12}}>
-                      <span><b>⏱️ Consuntivo:</b> {cf? (Object.keys(cf.perOp).length? Object.entries(cf.perOp).map(([n,v])=>n+" "+(v/3600000).toFixed(1)+"h").join(" · ") : "nessuna timbratura") : "nessuna timbratura"}{cf&&cf.inCorso?" · ▶ in corso":""}{cf&&cf.tot>0?<> — totale <b>{(cf.tot/3600000).toFixed(1)}h</b></>:null}</span>
+                      <span><b>⏱️ Consuntivo:</b> {cf? (Object.keys(cf.perOp).length? Object.entries(cf.perOp).map(([n,v])=>n+" "+fmtDur(v)).join(" · ") : "nessuna timbratura") : "nessuna timbratura"}{cf&&cf.inCorso?" · ▶ in corso":""}{cf&&cf.tot>0?<> — totale <b>{fmtDur(cf.tot)}</b></>:null}</span>
                       {chiusa && <div style={{marginTop:2,color:"#1f7a4d"}}>✓ Chiusa da <b>{fa.chiusa_da_nome||"—"}</b>{fa.chiusa_il?" il "+new Date(fa.chiusa_il).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):""}</div>}
                     </div>; })()}
                   <label style={{display:"inline-flex",alignItems:"center",gap:6,marginTop:8,fontSize:13,cursor:"pointer"}}>

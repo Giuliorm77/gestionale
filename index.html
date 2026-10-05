@@ -4843,6 +4843,15 @@ function ValorizzaModal({pezzo,onClose,onSalvato}){
 /* ================================================================ IMPOSTAZIONI (5.9 - parziale) */
 // prezzo di vendita di una tariffa = costo × (1 + margine%)
 function prezzoVend(r){ const c=Number(r.tariffa_oraria)||0, m=Number(r.margine_obiettivo)||0; return c>0? Math.round(c*(1+m/100)*100)/100 : ""; }
+// costo reale di una lavorazione dalla distinta consumi (modello misto): voci a forfait
+// (€/unità), voci a €/mq (× superficie media), voci a % del prezzo. null se non c'è distinta.
+function costoDaConsumi(consumi, supMediaMq, prezzo){
+  if(!Array.isArray(consumi) || !consumi.length) return null;
+  const sup=Number(supMediaMq)||0, pz=Number(prezzo)||0; let c=0;
+  consumi.forEach(v=>{ const val=Number(v.valore)||0;
+    if(v.modo==="mq") c+=val*sup; else if(v.modo==="pct") c+=pz*val/100; else c+=val; });
+  return Math.round(c*10000)/10000;
+}
 // quota di una voce che finisce nei costi di struttura (per i "misti" = annuo − ore produzione × costo orario)
 // categorie di costo struttura che ammettono la divisione "misto" (persona / condiviso)
 function catAmmetteMisto(v){ return v==="personale_indiretto" || v==="altro"; }
@@ -4991,6 +5000,7 @@ function PagamentiKomunigo({perm}){
 function ModuloImpostazioni({profilo,perm}){
   const [gen,setGen]=useState(null);
   const [tariffe,setTariffe]=useState([]);
+  const [distintaOpen,setDistintaOpen]=useState(null);   // lavorazione con distinta consumi aperta
   const [err,setErr]=useState(""); const [ok,setOk]=useState("");
   const [busy,setBusy]=useState(false);
   const [nuovaLav,setNuovaLav]=useState("");
@@ -5032,7 +5042,9 @@ function ModuloImpostazioni({profilo,perm}){
     setTariffe(uniq.map(l=>{ const r={lavorazione:l,
       modo:map[l]?.modo || "ora",
       tariffa_oraria:map[l]?.tariffa_oraria ?? "",
-      margine_obiettivo:map[l]?.margine_obiettivo ?? ""};
+      margine_obiettivo:map[l]?.margine_obiettivo ?? "",
+      consumi:Array.isArray(map[l]?.consumi)?map[l].consumi:[],
+      sup_media_mq:map[l]?.sup_media_mq ?? ""};
       return {...r, prezzo_vendita:prezzoVend(r)}; }));
     // eventuale bozza non salvata: NON la ripristino da sola (causava un loop che
     // riscriveva la bozza e nascondeva i dati aggiornati). Mostro sempre i dati del
@@ -5068,7 +5080,27 @@ function ModuloImpostazioni({profilo,perm}){
     return nr;
   })); };
   const addLav=()=>{ const l=nuovaLav.trim(); if(!l) return; window.__gestDirty=true;
-    setTariffe(p=>p.some(r=>r.lavorazione===l)?p:[...p,{lavorazione:l,tariffa_oraria:"",margine_obiettivo:"",prezzo_vendita:""}]); setNuovaLav(""); };
+    setTariffe(p=>p.some(r=>r.lavorazione===l)?p:[...p,{lavorazione:l,tariffa_oraria:"",margine_obiettivo:"",prezzo_vendita:"",consumi:[],sup_media_mq:""}]); setNuovaLav(""); };
+  // --- Distinta consumi: ricalcola il costo della tariffa dalle voci, tenendo fisso il prezzo (ricava il margine) ---
+  const MODI_CONSUMO=[{v:"cad",l:"€ per unità (forfait)"},{v:"mq",l:"€/mq × superficie media"},{v:"pct",l:"% del prezzo"}];
+  const ricalcTariffa=(r)=>{ const c=costoDaConsumi(r.consumi,r.sup_media_mq,r.prezzo_vendita);
+    if(c==null) return r; const nr={...r, tariffa_oraria:c}; const pz=Number(nr.prezzo_vendita)||0;
+    if(pz>0 && c>0) nr.margine_obiettivo=Math.round((pz/c-1)*10000)/100; else nr.prezzo_vendita=prezzoVend(nr);
+    return nr; };
+  const setConsumo=(i,j,k,v)=>{ window.__gestDirty=true; setTariffe(p=>p.map((r,idx)=>{ if(idx!==i) return r;
+    const consumi=(r.consumi||[]).map((c,cj)=>cj===j?{...c,[k]:v}:c); return ricalcTariffa({...r,consumi}); })); };
+  const addConsumo=(i)=>{ window.__gestDirty=true; setTariffe(p=>p.map((r,idx)=>idx===i?{...r,consumi:[...(r.consumi||[]),{descrizione:"",modo:"cad",valore:""}]}:r)); };
+  const delConsumo=(i,j)=>{ window.__gestDirty=true; setTariffe(p=>p.map((r,idx)=>{ if(idx!==i) return r;
+    const consumi=(r.consumi||[]).filter((_,cj)=>cj!==j); return ricalcTariffa({...r,consumi}); })); };
+  const setSupMedia=(i,v)=>{ window.__gestDirty=true; setTariffe(p=>p.map((r,idx)=>idx===i?ricalcTariffa({...r,sup_media_mq:v}):r)); };
+  const esempioConsumi=(i)=>{ window.__gestDirty=true; setTariffe(p=>p.map((r,idx)=>{ if(idx!==i) return r;
+    const consumi=[
+      {descrizione:"Emulsione/gelatina telaio",modo:"cad",valore:0.006},
+      {descrizione:"Corrente macchina",modo:"cad",valore:0.001},
+      {descrizione:"Ammortamento macchina",modo:"cad",valore:0.02},
+      {descrizione:"Inchiostro",modo:"mq",valore:0.25},
+    ];
+    return ricalcTariffa({...r,consumi,sup_media_mq:(Number(r.sup_media_mq)||0.3)}); })); };
   // gestione elenco lavorazioni (tabella "lavorazioni")
   const setLavNome=(i,v)=>setLavList(p=>p.map((x,j)=>j===i?{...x,nome:v}:x));
   async function aggiungiLavM(){ const n=lavNuovaM.trim(); if(!n) return;
@@ -5134,8 +5166,10 @@ function ModuloImpostazioni({profilo,perm}){
         if(eStr) throw eStr;
       }
       await sb.from("impostazioni_lavorazioni").delete().neq("id","00000000-0000-0000-0000-000000000000");
-      const rows=tariffe.filter(r=>r.lavorazione && (r.tariffa_oraria!==""||r.margine_obiettivo!==""))
-        .map(r=>({lavorazione:r.lavorazione,modo:r.modo||"ora",tariffa_oraria:Number(r.tariffa_oraria)||0,margine_obiettivo:Number(r.margine_obiettivo)||0}));
+      const rows=tariffe.filter(r=>r.lavorazione && (r.tariffa_oraria!==""||r.margine_obiettivo!==""||(Array.isArray(r.consumi)&&r.consumi.length)))
+        .map(r=>({lavorazione:r.lavorazione,modo:r.modo||"ora",tariffa_oraria:Number(r.tariffa_oraria)||0,margine_obiettivo:Number(r.margine_obiettivo)||0,
+          consumi:(Array.isArray(r.consumi)&&r.consumi.length)?r.consumi.map(c=>({descrizione:c.descrizione||"",modo:c.modo||"cad",valore:Number(c.valore)||0})):null,
+          sup_media_mq:Number(r.sup_media_mq)||0}));
       if(rows.length){ const {error:e2}=await sb.from("impostazioni_lavorazioni").insert(rows); if(e2) throw e2; }
       window.__gestDirty=false; cancellaBozzaImp(); setBozzaImp(null);
       setOk("Impostazioni salvate."); setTimeout(()=>setOk(""),2500);
@@ -5391,17 +5425,44 @@ function ModuloImpostazioni({profilo,perm}){
             <table>
               <thead><tr><th>Lavorazione</th><th>Modo di calcolo</th><th>Costo (€/unità)</th><th>Margine (%)</th><th>Prezzo di vendita €</th><th></th></tr></thead>
               <tbody>
-                {tariffe.map((r,i)=>
-                  <tr key={r.lavorazione}>
+                {tariffe.map((r,i)=>{ const hasD=Array.isArray(r.consumi)&&r.consumi.length>0; const aperto=distintaOpen===r.lavorazione;
+                  return <React.Fragment key={r.lavorazione}>
+                  <tr>
                     <td className="rs">{r.lavorazione}</td>
                     <td><select value={r.modo||"ora"} onChange={e=>setT(i,"modo",e.target.value)} style={{...inputSt,maxWidth:190}}>
                       {MODI_VOCE.map(mo=><option key={mo.v} value={mo.v}>{mo.l}</option>)}
                     </select></td>
-                    <td><input type="number" step="0.01" value={r.tariffa_oraria} onChange={e=>setTC(i,"tariffa_oraria",e.target.value)} style={inputSt}/></td>
+                    <td>{hasD
+                      ? <span title="Calcolato dalla distinta consumi" style={{fontWeight:700}}>{eur(Number(r.tariffa_oraria)||0)}</span>
+                      : <input type="number" step="0.01" value={r.tariffa_oraria} onChange={e=>setTC(i,"tariffa_oraria",e.target.value)} style={inputSt}/>}</td>
                     <td><input type="number" step="0.1" value={r.margine_obiettivo} onChange={e=>setTC(i,"margine_obiettivo",e.target.value)} style={inputSt}/></td>
                     <td><input type="number" step="0.01" value={r.prezzo_vendita ?? ""} onChange={e=>setTC(i,"prezzo_vendita",e.target.value)} style={{...inputSt,fontWeight:700,color:"var(--ok)"}}/></td>
-                    <td><button type="button" className="btn small danger" title="Elimina lavorazione e tariffa" onClick={()=>eliminaLavTariffa(r.lavorazione)}>✕</button></td>
-                  </tr>)}
+                    <td style={{whiteSpace:"nowrap"}}>
+                      <button type="button" className="btn small" title="Distinta consumi: calcola il costo reale" onClick={()=>setDistintaOpen(aperto?null:r.lavorazione)} style={hasD?{background:"#eef6ff"}:null}>📋{hasD?" "+r.consumi.length:""}</button>
+                      <button type="button" className="btn small danger" title="Elimina lavorazione e tariffa" onClick={()=>eliminaLavTariffa(r.lavorazione)} style={{marginLeft:4}}>✕</button>
+                    </td>
+                  </tr>
+                  {aperto && <tr><td colSpan={6} style={{background:"#f8fafc",padding:"10px 14px"}}>
+                    <div style={{fontSize:12.5,fontWeight:700,marginBottom:4}}>📋 Distinta consumi — {r.lavorazione}</div>
+                    <div className="muted" style={{fontSize:11,marginBottom:8}}>Il costo reale si calcola da qui. <b>Forfait</b> = € per unità (gelatina, corrente, ammortamento). <b>€/mq</b> = inchiostro (× superficie media). <b>% del prezzo</b> = scarti/sfrido.</div>
+                    {(r.consumi||[]).map((c,j)=>
+                      <div key={j} style={{display:"flex",gap:6,alignItems:"center",marginBottom:6,flexWrap:"wrap"}}>
+                        <input value={c.descrizione} onChange={e=>setConsumo(i,j,"descrizione",e.target.value)} placeholder="es. Inchiostro" style={{flex:"1 1 180px",minWidth:140,padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/>
+                        <select value={c.modo} onChange={e=>setConsumo(i,j,"modo",e.target.value)} style={{padding:"6px",border:"1px solid var(--line)",borderRadius:7}}>
+                          {MODI_CONSUMO.map(m=><option key={m.v} value={m.v}>{m.l}</option>)}
+                        </select>
+                        <input type="number" step="0.0001" value={c.valore} onChange={e=>setConsumo(i,j,"valore",e.target.value)} placeholder="valore" style={{width:110,padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/>
+                        <button type="button" className="btn small danger" onClick={()=>delConsumo(i,j)}>✕</button>
+                      </div>)}
+                    <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",marginTop:4}}>
+                      <button type="button" className="btn small" onClick={()=>addConsumo(i)}>+ Voce consumo</button>
+                      {!(r.consumi||[]).length && <button type="button" className="btn small" onClick={()=>esempioConsumi(i)}>✨ Esempio stampa</button>}
+                      {(r.consumi||[]).some(c=>c.modo==="mq") && <span style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:12}}>Superficie media (mq):
+                        <input type="number" step="0.01" value={r.sup_media_mq} onChange={e=>setSupMedia(i,e.target.value)} style={{width:90,padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></span>}
+                      <span style={{marginLeft:"auto",fontWeight:700}}>Costo calcolato: {eur(costoDaConsumi(r.consumi,r.sup_media_mq,r.prezzo_vendita)||0)}/unità</span>
+                    </div>
+                  </td></tr>}
+                  </React.Fragment>; })}
               </tbody>
             </table>
           </div>

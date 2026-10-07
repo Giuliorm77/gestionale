@@ -861,8 +861,7 @@ function App(){
     const onSubmit=e=>{
       const form=e.target; const ov=form && form.closest && form.closest('.overlay'); if(!ov) return;
       if(bypass || clickSubmit) return;          // click deliberato su Salva => salva diretto
-      if(ov.dataset.dirty!=='1') return;         // niente modifiche => lascia fare
-      e.preventDefault(); e.stopImmediatePropagation(); apriDialog(ov, form, form);
+      e.preventDefault(); e.stopImmediatePropagation(); apriDialog(ov, form, form);  // Invio => chiede SEMPRE
     };
     document.addEventListener('input', setDirty, true);
     document.addEventListener('change', setDirty, true);
@@ -4893,6 +4892,18 @@ function ValorizzaModal({pezzo,onClose,onSalvato}){
 /* ================================================================ IMPOSTAZIONI (5.9 - parziale) */
 // prezzo di vendita di una tariffa = costo × (1 + margine%)
 function prezzoVend(r){ const c=Number(r.tariffa_oraria)||0, m=Number(r.margine_obiettivo)||0; return c>0? Math.round(c*(1+m/100)*100)/100 : ""; }
+// Icona ⓘ cliccabile con popover di aiuto, da mettere accanto alle etichette dei campi non ovvi.
+function InfoI({t}){ const [open,setOpen]=React.useState(false);
+  if(!t) return null;
+  return <span style={{position:"relative",display:"inline-flex",verticalAlign:"middle"}}>
+    <button type="button" title={t} onClick={e=>{e.preventDefault();e.stopPropagation();setOpen(o=>!o);}}
+      style={{width:16,height:16,borderRadius:"50%",border:"1px solid #93b4f5",background:open?"#2f5bea":"#eef6ff",color:open?"#fff":"#2f5bea",fontSize:11,lineHeight:"13px",fontWeight:800,fontStyle:"italic",cursor:"pointer",padding:0,marginLeft:5}}>i</button>
+    {open && <>
+      <span onClick={()=>setOpen(false)} style={{position:"fixed",inset:0,zIndex:120}}/>
+      <span style={{position:"absolute",top:21,left:0,zIndex:121,background:"#101828",color:"#fff",padding:"8px 11px",borderRadius:8,fontSize:12,fontWeight:400,fontStyle:"normal",width:250,maxWidth:"70vw",boxShadow:"0 10px 30px rgba(16,24,40,.3)",lineHeight:1.45,whiteSpace:"normal",textTransform:"none",letterSpacing:0}}>{t}</span>
+    </>}
+  </span>;
+}
 // Ricarico (markup sul costo) <-> Margine lordo (utile sul prezzo). Ingresso a RICARICO,
 // visualizzazione del margine lordo. ricarico r% -> prezzo=costo×(1+r/100); margine lordo
 // = utile/prezzo. m=100·r/(100+r); r=100·m/(100−m) (null se m>=100, impossibile).
@@ -5310,7 +5321,7 @@ function ModuloImpostazioni({profilo,perm}){
           <div className="row">
             <div className="field"><label>Spese generali (%)</label>
               <input type="number" step="0.1" value={gen.spese_generali_pct} onChange={e=>setG("spese_generali_pct",e.target.value)}/></div>
-            <div className="field"><label>Margine minimo di avviso (%)</label>
+            <div className="field"><label>Margine minimo di avviso (%) <InfoI t="Soglia di margine lordo sotto la quale il preventivo ti avvisa (in rosso). È il pavimento: le categorie possono solo alzarla, mai scendere sotto."/></label>
               <input type="number" step="0.1" value={gen.margine_minimo_pct} onChange={e=>setG("margine_minimo_pct",e.target.value)}/></div>
             <div className="field"><label>IVA (%)</label>
               <input type="number" step="0.1" value={gen.iva_pct} onChange={e=>setG("iva_pct",e.target.value)}/></div>
@@ -6510,10 +6521,10 @@ function OperatoreForm({operatore,perm,profilo,repartiEsistenti,onClose,onSalvat
             <div className="muted" style={{fontSize:11,marginTop:3}}>Serve all'operatore per timbrare sulla Postazione (evita timbrature a nome altrui). Vuoto = nessun PIN richiesto.</div></div>
           {isAdmin && <>
           <div className="row" style={{alignItems:"flex-end"}}>
-            <div className="field" style={{maxWidth:170}}><label title="Quanto costa all'azienda un'ora di questo operatore">Costo orario (€/h)</label>
+            <div className="field" style={{maxWidth:190}}><label>Costo orario (€/h) <InfoI t="Quanto costa all'azienda un'ora di questo operatore (stipendio + contributi). Serve a calcolare il costo reale della manodopera a tempo."/></label>
               <input type="number" step="0.01" min="0" value={f.costo_orario}
                      onChange={e=>set("costo_orario",e.target.value)}/></div>
-            <div className="field" style={{maxWidth:180}}><label title="Quanto vendi al cliente un'ora di questo operatore. Usata nei preventivi quando scegli l'operatore su una lavorazione a tempo.">Vendita cliente (€/h)</label>
+            <div className="field" style={{maxWidth:200}}><label>Vendita cliente (€/h) <InfoI t="Quanto vendi al cliente un'ora di questo operatore. Nel preventivo, scegliendo l'operatore su una lavorazione a tempo, la riga prende COSTO e PREZZO da qui."/></label>
               <input type="number" step="0.01" min="0" value={f.vendita_oraria}
                      onChange={e=>set("vendita_oraria",e.target.value)}/>
               {(Number(f.vendita_oraria)||0)>0 && (Number(f.costo_orario)||0)>0 && <div className="muted" style={{fontSize:11}}>margine {Math.round((1-(Number(f.costo_orario)||0)/(Number(f.vendita_oraria)||0))*100)}%</div>}</div>

@@ -6425,6 +6425,7 @@ function OperatoreForm({operatore,perm,profilo,repartiEsistenti,onClose,onSalvat
     nome:operatore?.nome||"",
     reparti:operatore?.reparti || (operatore?.reparto? [operatore.reparto]:[]),
     costo_orario:operatore?.costo_orario ?? "",
+    vendita_oraria:operatore?.vendita_oraria ?? "",
     tipo:operatore?.tipo||"produzione",
     costo_annuo:operatore?.costo_annuo ?? "",
     ore_produzione:operatore?.ore_produzione ?? "",
@@ -6455,7 +6456,7 @@ function OperatoreForm({operatore,perm,profilo,repartiEsistenti,onClose,onSalvat
     e.preventDefault();
     if(!f.nome.trim()){ setErr("Il nome è obbligatorio."); return; }
     setBusy(true); setErr("");
-    const rec={...f,costo_orario:normalizzaPrezzo(f.costo_orario)||0,
+    const rec={...f,costo_orario:normalizzaPrezzo(f.costo_orario)||0, vendita_oraria:normalizzaPrezzo(f.vendita_oraria)||0,
       costo_annuo:Number(f.costo_annuo)||0, ore_produzione:Number(f.ore_produzione)||0, pin:String(f.pin||"").trim()};
     try{
       if(nuovo){
@@ -6491,9 +6492,13 @@ function OperatoreForm({operatore,perm,profilo,repartiEsistenti,onClose,onSalvat
             <div className="muted" style={{fontSize:11,marginTop:3}}>Serve all'operatore per timbrare sulla Postazione (evita timbrature a nome altrui). Vuoto = nessun PIN richiesto.</div></div>
           {isAdmin && <>
           <div className="row" style={{alignItems:"flex-end"}}>
-            <div className="field" style={{maxWidth:170}}><label>Costo orario (€/h)</label>
+            <div className="field" style={{maxWidth:170}}><label title="Quanto costa all'azienda un'ora di questo operatore">Costo orario (€/h)</label>
               <input type="number" step="0.01" min="0" value={f.costo_orario}
                      onChange={e=>set("costo_orario",e.target.value)}/></div>
+            <div className="field" style={{maxWidth:180}}><label title="Quanto vendi al cliente un'ora di questo operatore. Usata nei preventivi quando scegli l'operatore su una lavorazione a tempo.">Vendita cliente (€/h)</label>
+              <input type="number" step="0.01" min="0" value={f.vendita_oraria}
+                     onChange={e=>set("vendita_oraria",e.target.value)}/>
+              {(Number(f.vendita_oraria)||0)>0 && (Number(f.costo_orario)||0)>0 && <div className="muted" style={{fontSize:11}}>margine {Math.round((1-(Number(f.costo_orario)||0)/(Number(f.vendita_oraria)||0))*100)}%</div>}</div>
             <div className="field" style={{maxWidth:160}}><label>Costo annuo €</label>
               <input type="number" step="0.01" value={f.costo_annuo} onChange={e=>set("costo_annuo",e.target.value)}/></div>
             <div className="field" style={{maxWidth:230}}><label>Tipo risorsa</label>
@@ -7686,6 +7691,7 @@ function ModuloPreventivi({profilo,perm}){
   const [corrieri,setCorrieri]=useState([]);
   const [fornitori,setFornitori]=useState([]);
   const [compositi,setCompositi]=useState([]);
+  const [operatoriP,setOperatoriP]=useState([]);
   const [err,setErr]=useState("");
   const [cerca,setCerca]=useState("");
   const [filtroStato,setFiltroStato]=useState("");
@@ -7703,7 +7709,7 @@ function ModuloPreventivi({profilo,perm}){
 
   const carica=useCallback(async()=>{
     setErr("");
-    const [p,c,a,i,t,pc,imb,co,fo,cmp]=await Promise.all([
+    const [p,c,a,i,t,pc,imb,co,fo,cmp,op]=await Promise.all([
       sb.from("preventivi").select("*, preventivi_righe(*)").order("creato_il",{ascending:false}),
       sb.from("clienti").select("id,ragione_sociale,categoria,sconto_pct, clienti_sconti(categoria,sconto_pct)").order("ragione_sociale"),
       caricaArticoliTutti("id,codice,nome_articolo,unita,categoria,costo,prezzo_pubblico,giacenza,impegnato,peso_kg,peso_um,peso_eccedenza_pct,traccia_avanzo,larghezza_cm"),
@@ -7714,11 +7720,12 @@ function ModuloPreventivi({profilo,perm}){
       sb.from("corrieri").select("*, corrieri_scaglioni(*)").eq("attivo",true).order("nome"),
       sb.from("fornitori").select("id,ragione_sociale").order("ragione_sociale"),
       sb.from("prodotti_compositi").select("*").eq("attivo",true).order("nome"),
+      sb.from("operatori").select("id,nome,reparto,costo_orario,vendita_oraria").order("nome"),
     ]);
     if(p.error){ setErr(p.error.message); return; }
     setPreventivi(p.data||[]); setClienti(c.data||[]); setArticoli(a);
     if(i.data) setImp(i.data);
-    setTariffe(t.data||[]); setProdotti(pc.data||[]); setImballi(imb.data||[]); setCorrieri(co.data||[]); setFornitori(fo.data||[]); setCompositi((cmp&&cmp.data)||[]);
+    setTariffe(t.data||[]); setProdotti(pc.data||[]); setImballi(imb.data||[]); setCorrieri(co.data||[]); setFornitori(fo.data||[]); setCompositi((cmp&&cmp.data)||[]); setOperatoriP((op&&op.data)||[]);
   },[]);
   useEffect(()=>{ carica(); },[carica]);
 
@@ -7828,7 +7835,7 @@ function ModuloPreventivi({profilo,perm}){
             </div>}
       </div>
       {editor && <PreventivoEditor preventivo={editor.id?editor:null} profilo={profilo} perm={perm}
-        clienti={clienti} articoli={articoli} imp={imp} tariffe={tariffe} prodotti={prodotti} imballi={imballi} corrieri={corrieri} fornitori={fornitori} compositi={compositi}
+        clienti={clienti} articoli={articoli} imp={imp} tariffe={tariffe} prodotti={prodotti} imballi={imballi} corrieri={corrieri} fornitori={fornitori} compositi={compositi} operatori={operatoriP}
         bozza={editBozza}
         numeroSuggerito={prossimoNumero(preventivi)}
         onClose={()=>{setEditor(null);setEditBozza(null);setBozza(leggiBozza());}}
@@ -7959,7 +7966,7 @@ function AllegatoOfferta({riga,onSet}){
   </div>;
 }
 
-function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,prodotti,imballi,corrieri,fornitori,compositi,bozza,numeroSuggerito,onClose,onSalvato}){
+function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,prodotti,imballi,corrieri,fornitori,compositi,operatori,bozza,numeroSuggerito,onClose,onSalvato}){
   const nuovo=!preventivo;
   const [f,setF]=useState(()=> (bozza&&bozza.f) ? bozza.f : ({
     numero:preventivo?.numero||numeroSuggerito,
@@ -8141,7 +8148,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const [cgOpen,setCgOpen]=useState(false);
   const [cgSel,setCgSel]=useState(null);       // {kind:'articolo'|'tariffa', nome, cont, item}
   const [cgSearch,setCgSearch]=useState("");
-  const [cg,setCg]=useState({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true});
+  const [cg,setCg]=useState({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true,op:""});
   const [cgMsg,setCgMsg]=useState("");
   const cgAbb=Number(imp && imp.abbondanza_cm!=null ? imp.abbondanza_cm : 3);
   const cgLista=React.useMemo(()=>{
@@ -8155,7 +8162,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const cgQ=cgSel?qtaComponente(cgSel.cont,cg,cgAbb):0;
   function cgPC(){ if(!cgSel) return {prezzo:0,costo:0,sconto:0};
     if(cgSel.kind==="articolo"){ const a=cgSel.item; const cli=(clienti||[]).find(c=>c.id===f.cliente_id); const sc=scontoPerCategoria(cli,cli&&cli.clienti_sconti,a.categoria,imp&&imp.sconto_rivenditori_pct); return {prezzo:Number(a.prezzo_pubblico)||0,costo:Number(a.costo)||0,sconto:sc}; }
-    const t=cgSel.item; const costo=Number(t.tariffa_oraria)||0,marg=Number(t.margine_obiettivo)||0; return {prezzo:Math.round(costo*(1+marg/100)*100)/100,costo:costo,sconto:0};
+    const t=cgSel.item;
+    if(cgSel.cont==="tempo" && cg.op){ const o=(operatori||[]).find(x=>x.id===cg.op); if(o) return {prezzo:Number(o.vendita_oraria)||0,costo:Number(o.costo_orario)||0,sconto:0}; }
+    const costo=Number(t.tariffa_oraria)||0,marg=Number(t.margine_obiettivo)||0; return {prezzo:Math.round(costo*(1+marg/100)*100)/100,costo:costo,sconto:0};
   }
   function aggiungiComponente(){ if(!cgSel) return; const q=cgQ; const pc=cgPC();
     const L=Number(cg.L)||0,H=Number(cg.H)||0,lung=Number(cg.lung)||0;
@@ -8165,10 +8174,10 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     else if(cgSel.cont==="tempo"&&Number(cg.min)) misTxt=" · "+Number(cg.min)+" min";
     if(cgSel.kind==="articolo"){ const a=cgSel.item;
       setRighe(p=>[...p,{tipo:"materiale",descrizione:a.nome_articolo+misTxt,articolo_id:a.id,lavorazione:"",quantita:q,unita:a.unita||"",costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:pc.sconto}]);
-    } else { const t=cgSel.item;
-      setRighe(p=>[...p,{tipo:"manodopera",descrizione:("Manodopera "+t.lavorazione)+misTxt,lavorazione:t.lavorazione,quantita:q,unita:(t.modo==="ora"?"ora":(t.modo||"")),costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:0}]);
+    } else { const t=cgSel.item; const o=(cgSel.cont==="tempo"&&cg.op)?(operatori||[]).find(x=>x.id===cg.op):null;
+      setRighe(p=>[...p,{tipo:"manodopera",descrizione:("Manodopera "+t.lavorazione)+(o?" · "+o.nome:"")+misTxt,lavorazione:t.lavorazione,quantita:q,unita:(t.modo==="ora"?"ora":(t.modo||"")),costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:0,operatore_id:o?o.id:null,operatore_nome:o?o.nome:""}]);
     }
-    setCgMsg("✓ "+cgSel.nome+" aggiunto ("+q+")"); setCgSel(null); setCg({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true}); setCgSearch("");
+    setCgMsg("✓ "+cgSel.nome+" aggiunto ("+q+")"); setCgSel(null); setCg({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true,op:""}); setCgSearch("");
   }
   function setLavorazione(i,lav){
     const t=tariffe.find(x=>x.lavorazione===lav);
@@ -8295,6 +8304,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       await sb.from("preventivi_righe").delete().eq("preventivo_id",id); }
     const rows=righe.map((r,idx)=>({preventivo_id:id,ordine:idx,tipo:r.tipo,descrizione:r.descrizione||"",
       articolo_id:r.articolo_id||null,lavorazione:r.lavorazione||"",quantita:Number(r.quantita)||0,unita:r.unita||"",
+      operatore_id:r.operatore_id||null, operatore_nome:r.operatore_nome||"",
       costo_unitario:Number(r.costo_unitario)||0,prezzo_unitario:Number(r.prezzo_unitario)||0,sconto_pct:Number(r.sconto_pct)||0,
       config:r.config||null,modalita_consegna:r.modalita_consegna||"corriere", pagato_intero:r.pagato_intero!==false,
       sede_id:r.sede_id||null,
@@ -8347,13 +8357,14 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       const fasiRaw=[];
       righe.forEach(r=>{
         if(r.tipo==="manodopera" && (r.lavorazione||r.descrizione)){
-          fasiRaw.push({reparto:r.lavorazione||"", descrizione:r.descrizione||r.lavorazione||"", ore_previste:Number(r.quantita)||0});
+          fasiRaw.push({reparto:r.lavorazione||"", descrizione:r.descrizione||r.lavorazione||"", ore_previste:Number(r.quantita)||0,
+            operatori:r.operatore_id?[{id:r.operatore_id,nome:r.operatore_nome||"",ore:Number(r.quantita)||0}]:[]});
         } else if((r.tipo==="materiale"||r.tipo==="altro") && r.config && r.config.prodotto_id){
-          fasiDaConfigurato(r,prodotti).forEach(fx=>fasiRaw.push({reparto:fx.reparto, descrizione:fx.descrizione, ore_previste:0}));
+          fasiDaConfigurato(r,prodotti).forEach(fx=>fasiRaw.push({reparto:fx.reparto, descrizione:fx.descrizione, ore_previste:0, operatori:[]}));
         }
       });
       const fasi=fasiRaw.map((fx,idx)=>({commessa_id:nc.id, ordine:idx, chiave:uid(), reparto:fx.reparto,
-        descrizione:fx.descrizione, stato:"da_fare", ore_previste:fx.ore_previste, operatori:[]}));
+        descrizione:fx.descrizione, stato:"da_fare", ore_previste:fx.ore_previste, operatori:fx.operatori||[]}));
       if(fasi.length){ const {error:ef}=await sb.from("commesse_fasi").insert(fasi); if(ef) throw ef; }
       // righe articolo dagli articoli/prodotti del preventivo (data consegna da compilare)
       const artRighe=righe.filter(r=>(r.tipo==="materiale"||r.tipo==="altro") && String(r.descrizione||"").trim())
@@ -8569,6 +8580,11 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                       {cont==="mtl" && <div className="field" style={{maxWidth:150}}><label>Lunghezza (cm)</label><input type="number" step="1" value={cg.lung} onChange={e=>setCg(m=>({...m,lung:e.target.value}))} autoFocus/></div>}
                       {cont==="pz" && <div className="field" style={{maxWidth:120}}><label>N° pezzi</label><input type="number" step="1" value={cg.pz} onChange={e=>setCg(m=>({...m,pz:e.target.value}))} autoFocus/></div>}
                       {cont==="tempo" && <div className="field" style={{maxWidth:140}}><label>Tempo (minuti)</label><input type="number" step="1" value={cg.min} onChange={e=>setCg(m=>({...m,min:e.target.value}))} autoFocus/></div>}
+                      {cont==="tempo" && <div className="field" style={{maxWidth:240}}><label>Operatore (costo + vendita)</label>
+                        <select value={cg.op} onChange={e=>setCg(m=>({...m,op:e.target.value}))}>
+                          <option value="">— tariffa standard —</option>
+                          {(operatori||[]).map(o=><option key={o.id} value={o.id}>{o.nome} · vendita {eur(Number(o.vendita_oraria)||0)}/h</option>)}
+                        </select></div>}
                       {cont==="fisso" && <div className="muted" style={{fontSize:12.5,marginBottom:12}}>Voce fissa: quantità 1.</div>}
                       {cont==="manuale" && <div className="field" style={{maxWidth:160}}><label>Quantità ({cgSel.sub||"?"})</label><input type="number" step="any" value={cg.qta} onChange={e=>setCg(m=>({...m,qta:e.target.value}))} autoFocus/></div>}
                       {(cont==="mq"||cont==="mc"||cont==="mtl") && <label style={{display:"flex",alignItems:"center",gap:6,alignSelf:"flex-end",marginBottom:12,fontSize:12.5}}><input type="checkbox" checked={cg.abbOn} onChange={e=>setCg(m=>({...m,abbOn:e.target.checked}))} style={{width:"auto"}}/> abbondanza +{cgAbb}cm</label>}

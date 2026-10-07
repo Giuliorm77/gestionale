@@ -3562,12 +3562,12 @@ function ArticoloForm({articolo,perm,profilo,fornitori,onClose,onSalvato,onDupli
             <h3>Prezzi e costo</h3>
             <div className="row">
               <div className="field" style={{maxWidth:240}}>
-                <label>Prezzo d'acquisto €</label>
+                <label>Prezzo d'acquisto € <InfoI t="Quanto lo paghi TU al fornitore (costo riservato). Non compare mai al cliente. Serve a calcolare il margine."/></label>
                 <input type="number" step="0.01" value={f.costo||""} onChange={e=>set("costo",e.target.value)}/>
                 <div className="muted" style={{fontSize:12}}>Quanto lo paghiamo NOI al fornitore (il "listino riservato"). Mai mostrato al cliente.</div>
               </div>
               {PREZZI.map(p=>
-                <div className="field" key={p.k} style={{maxWidth:240}}><label>{p.label} (€)</label>
+                <div className="field" key={p.k} style={{maxWidth:240}}><label>{p.label} (€) <InfoI t="Il prezzo di vendita pubblico, uno solo. Lo sconto del cliente si applica su questo. Il margine è (listino − acquisto)/listino."/></label>
                   <input type="number" step="0.01" value={f[p.k]||""} onChange={e=>set(p.k,e.target.value)}/>
                   <div className="muted" style={{fontSize:12}}>Il prezzo di vendita, uno solo. Lo sconto del cliente si applica su questo.</div></div>)}
               {(() => { const c=Number(f.costo)||0, p=Number(f.prezzo_pubblico)||0;
@@ -5319,7 +5319,7 @@ function ModuloImpostazioni({profilo,perm}){
         <div className="card" style={{padding:20,marginBottom:18}}>
           <h3 style={{marginTop:0}}>Parametri generali</h3>
           <div className="row">
-            <div className="field"><label>Spese generali (%)</label>
+            <div className="field"><label>Spese generali (%) <InfoI t="Costi indiretti (affitto, amministrazione, personale non di produzione…) espressi come % da aggiungere al costo nei preventivi, per calcolare il margine NETTO. Puoi fartela proporre dai Costi di struttura qui sotto."/></label>
               <input type="number" step="0.1" value={gen.spese_generali_pct} onChange={e=>setG("spese_generali_pct",e.target.value)}/></div>
             <div className="field"><label>Margine minimo di avviso (%) <InfoI t="Soglia di margine lordo sotto la quale il preventivo ti avvisa (in rosso). È il pavimento: le categorie possono solo alzarla, mai scendere sotto."/></label>
               <input type="number" step="0.1" value={gen.margine_minimo_pct} onChange={e=>setG("margine_minimo_pct",e.target.value)}/></div>
@@ -5505,7 +5505,7 @@ function ModuloImpostazioni({profilo,perm}){
           <div className="muted" style={{fontSize:12,marginBottom:12}}>Per ogni lavorazione: come si conteggia (ora, mq, mtl, mc, pezzo…) e il <b>costo</b> per quell'unità. Poi metti <b>il ricarico %</b> (prezzo = costo + ricarico) <b>oppure</b> direttamente il prezzo di vendita; sotto il ricarico vedi il <b>margine lordo</b>. Usati per la manodopera nei preventivi.</div>
           <div style={{overflow:"auto"}}>
             <table>
-              <thead><tr><th>Lavorazione</th><th>Modo di calcolo</th><th>Costo (€/unità)</th><th>Ricarico (%)</th><th>Prezzo di vendita €</th><th></th></tr></thead>
+              <thead><tr><th>Lavorazione</th><th>Modo di calcolo</th><th>Costo (€/unità) <InfoI t="Quanto TI costa una unità di questa lavorazione (es. €/mq di stampa, €/ora). Per le voci a tempo (operatore) lascialo a 0: il costo arriva dall'operatore."/></th><th>Ricarico (%) <InfoI t="Quanto aggiungi al costo per fare il prezzo. Es. ricarico 100% = prezzo doppio del costo = margine lordo 50%. Sotto vedi il margine corrispondente."/></th><th>Prezzo di vendita €</th><th></th></tr></thead>
               <tbody>
                 {tariffe.map((r,i)=>{ const hasD=Array.isArray(r.consumi)&&r.consumi.length>0; const aperto=distintaOpen===r.lavorazione;
                   return <React.Fragment key={r.lavorazione}>
@@ -8622,7 +8622,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                       {cont==="mtl" && <div className="field" style={{maxWidth:150}}><label>Lunghezza (cm)</label><input type="number" step="1" value={cg.lung} onChange={e=>setCg(m=>({...m,lung:e.target.value}))} autoFocus/></div>}
                       {cont==="pz" && <div className="field" style={{maxWidth:120}}><label>N° pezzi</label><input type="number" step="1" value={cg.pz} onChange={e=>setCg(m=>({...m,pz:e.target.value}))} autoFocus/></div>}
                       {cont==="tempo" && <div className="field" style={{maxWidth:150}}><label>Tempo stimato (minuti)</label><input type="number" step="1" value={cg.min} onChange={e=>setCg(m=>({...m,min:e.target.value}))} autoFocus/></div>}
-                      {cont==="tempo" && <div className="field" style={{maxWidth:260}}><label>Operatore (obbligatorio) — costo + vendita</label>
+                      {cont==="tempo" && <div className="field" style={{maxWidth:260}}><label>Operatore (obbligatorio) <InfoI t="Le lavorazioni a tempo (montaggio, taglio a mano, grafica…) le fa una persona: scegli CHI, così la riga prende costo e prezzo dalla sua scheda. Operatori diversi = costi e margini diversi."/> — costo + vendita</label>
                         <select value={cg.op} onChange={e=>setCg(m=>({...m,op:e.target.value}))} style={!cg.op?{border:"2px solid #c0392b",borderRadius:7,padding:"5px"}:null}>
                           <option value="">⚠ scegli l'operatore…</option>
                           {(operatori||[]).map(o=><option key={o.id} value={o.id}>{o.nome} · vendita {eur(Number(o.vendita_oraria)||0)}/h</option>)}

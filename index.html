@@ -8579,7 +8579,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                       {cont==="mc" && <div className="field" style={{maxWidth:120}}><label>Spessore (mm)</label><input type="number" step="0.1" value={cg.sp} onChange={e=>setCg(m=>({...m,sp:e.target.value}))}/></div>}
                       {cont==="mtl" && <div className="field" style={{maxWidth:150}}><label>Lunghezza (cm)</label><input type="number" step="1" value={cg.lung} onChange={e=>setCg(m=>({...m,lung:e.target.value}))} autoFocus/></div>}
                       {cont==="pz" && <div className="field" style={{maxWidth:120}}><label>N° pezzi</label><input type="number" step="1" value={cg.pz} onChange={e=>setCg(m=>({...m,pz:e.target.value}))} autoFocus/></div>}
-                      {cont==="tempo" && <div className="field" style={{maxWidth:140}}><label>Tempo (minuti)</label><input type="number" step="1" value={cg.min} onChange={e=>setCg(m=>({...m,min:e.target.value}))} autoFocus/></div>}
+                      {cont==="tempo" && <div className="field" style={{maxWidth:150}}><label>Tempo stimato (minuti)</label><input type="number" step="1" value={cg.min} onChange={e=>setCg(m=>({...m,min:e.target.value}))} autoFocus/></div>}
                       {cont==="tempo" && <div className="field" style={{maxWidth:260}}><label>Operatore (obbligatorio) — costo + vendita</label>
                         <select value={cg.op} onChange={e=>setCg(m=>({...m,op:e.target.value}))} style={!cg.op?{border:"2px solid #c0392b",borderRadius:7,padding:"5px"}:null}>
                           <option value="">⚠ scegli l'operatore…</option>

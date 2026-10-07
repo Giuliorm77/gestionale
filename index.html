@@ -845,6 +845,55 @@ function App(){
   useEffect(()=>{ __setMatVer=setMatVer; },[]);
   useEffect(()=>{ if(sessione) caricaMateriePrimeGlobali(); },[sessione]);
 
+  // GUARDIA GLOBALE: alla chiusura (X) o all'Invio di una scheda con modifiche non salvate,
+  // chiede Salva / Esci senza salvare / Annulla. Solo sui veri editor (<form className="modal">).
+  useEffect(()=>{
+    let clickSubmit=false, bypass=false, dialogOpen=false;
+    const setDirty=e=>{ const ov=e.target && e.target.closest && e.target.closest('.overlay'); if(ov) ov.dataset.dirty='1'; };
+    const markClick=e=>{ const b=e.target.closest && e.target.closest('.overlay button'); if(b && (b.type==='submit' || (b.classList&&b.classList.contains('primary')))){ clickSubmit=true; setTimeout(()=>{clickSubmit=false;},0); } };
+    const onCloseClick=e=>{
+      if(dialogOpen) return;
+      const x=e.target.closest && e.target.closest('.overlay .modal .x'); if(!x) return;
+      const modal=x.closest('.modal'); if(!modal || modal.tagName!=='FORM') return;
+      const ov=x.closest('.overlay'); if(!ov || ov.dataset.dirty!=='1') return;
+      e.preventDefault(); e.stopImmediatePropagation(); apriDialog(ov, modal, modal);
+    };
+    const onSubmit=e=>{
+      const form=e.target; const ov=form && form.closest && form.closest('.overlay'); if(!ov) return;
+      if(bypass || clickSubmit) return;          // click deliberato su Salva => salva diretto
+      if(ov.dataset.dirty!=='1') return;         // niente modifiche => lascia fare
+      e.preventDefault(); e.stopImmediatePropagation(); apriDialog(ov, form, form);
+    };
+    document.addEventListener('input', setDirty, true);
+    document.addEventListener('change', setDirty, true);
+    document.addEventListener('click', markClick, true);
+    document.addEventListener('click', onCloseClick, true);
+    document.addEventListener('submit', onSubmit, true);
+    function apriDialog(ov, modal, form){
+      if(dialogOpen) return; dialogOpen=true;
+      const bg=document.createElement('div');
+      bg.style.cssText='position:fixed;inset:0;background:rgba(16,24,40,.55);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:inherit';
+      bg.innerHTML='<div style="background:#fff;border-radius:12px;max-width:440px;width:90%;padding:22px;box-shadow:0 24px 60px rgba(16,24,40,.35)">'
+        +'<div style="font-size:17px;font-weight:700;margin-bottom:6px">Salvare le modifiche?</div>'
+        +'<div style="font-size:13px;color:#5b6773;margin-bottom:18px">Hai modifiche non salvate su questa scheda.</div>'
+        +'<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">'
+        +'<button data-a="annulla" style="padding:9px 15px;border:1px solid #d0d5dd;background:#fff;border-radius:8px;cursor:pointer;font-size:14px">Annulla</button>'
+        +'<button data-a="esci" style="padding:9px 15px;border:1px solid #e3342f;color:#c0392b;background:#fff;border-radius:8px;cursor:pointer;font-size:14px">Esci senza salvare</button>'
+        +'<button data-a="salva" style="padding:9px 15px;border:none;background:#2f5bea;color:#fff;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px">Salva</button>'
+        +'</div></div>';
+      document.body.appendChild(bg);
+      const chiudi=()=>{ dialogOpen=false; try{document.body.removeChild(bg);}catch(_){ } };
+      bg.addEventListener('click', ev=>{
+        const b=ev.target.closest && ev.target.closest('button'); if(!b) return;
+        const a=b.getAttribute('data-a');
+        if(a==='annulla'){ chiudi(); return; }
+        if(a==='salva'){ chiudi(); try{ bypass=true; if(form&&form.requestSubmit) form.requestSubmit(); else { const s=modal.querySelector('button[type=submit]'); if(s) s.click(); } } finally { bypass=false; } return; }
+        if(a==='esci'){ chiudi(); if(ov) ov.dataset.dirty=''; const xb=modal.querySelector('.x'); if(xb) xb.click(); return; }
+      });
+    }
+    return ()=>{ document.removeEventListener('input',setDirty,true); document.removeEventListener('change',setDirty,true); document.removeEventListener('click',markClick,true); document.removeEventListener('click',onCloseClick,true); document.removeEventListener('submit',onSubmit,true); };
+  },[]);
+
   useEffect(()=>{
     if(!sb) return;
     sb.auth.getSession().then(({data})=> setSessione(data.session||null));

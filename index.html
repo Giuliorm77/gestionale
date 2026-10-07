@@ -3529,6 +3529,7 @@ function ArticoloForm({articolo,perm,profilo,fornitori,onClose,onSalvato,onDupli
                 return <div className="field" style={{maxWidth:230,alignSelf:"flex-start"}}>
                   <label>Margine</label>
                   <div style={{fontSize:22,fontWeight:800,color:m<=0?"var(--danger)":m<20?"#b26a00":"var(--ok)"}}>{m.toFixed(1)}% <span style={{fontSize:12,fontWeight:600,color:"var(--muted)"}}>lordo</span></div>
+                  <div className="muted" style={{fontSize:12}}>ricarico sul costo: {(c>0?((p-c)/c*100):0).toFixed(0)}%</div>
                   {sg>0 && <div style={{fontSize:13,marginTop:2}}>Netto (spese gen. {sg}%): <b style={{color:netM<=0?"var(--danger)":netM<10?"#b26a00":"var(--ok)"}}>{netM.toFixed(1)}%</b></div>}
                   <div className="muted" style={{fontSize:12,marginTop:2}}>{m<=0?"⚠️ Sotto costo!":"Sconto max prima di andare sotto costo (d'acquisto): "+m.toFixed(0)+"%"}</div>
                 </div>; })()}
@@ -4843,6 +4844,11 @@ function ValorizzaModal({pezzo,onClose,onSalvato}){
 /* ================================================================ IMPOSTAZIONI (5.9 - parziale) */
 // prezzo di vendita di una tariffa = costo × (1 + margine%)
 function prezzoVend(r){ const c=Number(r.tariffa_oraria)||0, m=Number(r.margine_obiettivo)||0; return c>0? Math.round(c*(1+m/100)*100)/100 : ""; }
+// Ricarico (markup sul costo) <-> Margine lordo (utile sul prezzo). Ingresso a RICARICO,
+// visualizzazione del margine lordo. ricarico r% -> prezzo=costo×(1+r/100); margine lordo
+// = utile/prezzo. m=100·r/(100+r); r=100·m/(100−m) (null se m>=100, impossibile).
+function ricaricoDaMargine(m){ const x=Number(m)||0; if(x<=0) return 0; if(x>=100) return null; return Math.round(100*x/(100-x)*100)/100; }
+function margineDaRicarico(r){ const x=Number(r)||0; return x>0? Math.round(100*x/(100+x)*100)/100 : 0; }
 // costo reale di una lavorazione dalla distinta consumi (modello misto): voci a forfait
 // (€/unità), voci a €/mq (× superficie media), voci a % del prezzo. null se non c'è distinta.
 function costoDaConsumi(consumi, supMediaMq, prezzo){
@@ -5420,10 +5426,10 @@ function ModuloImpostazioni({profilo,perm}){
 
         <div className="card" style={{padding:20}}>
           <h3 style={{marginTop:0}}>Tariffe per lavorazione</h3>
-          <div className="muted" style={{fontSize:12,marginBottom:12}}>Per ogni lavorazione: come si conteggia (ora, mq, mtl, mc, pezzo…) e il <b>costo</b> per quell'unità. Poi metti <b>il prezzo di vendita</b> (e l'app calcola il margine) <b>oppure</b> il margine (e l'app calcola il prezzo). Usati per la manodopera nei preventivi.</div>
+          <div className="muted" style={{fontSize:12,marginBottom:12}}>Per ogni lavorazione: come si conteggia (ora, mq, mtl, mc, pezzo…) e il <b>costo</b> per quell'unità. Poi metti <b>il ricarico %</b> (prezzo = costo + ricarico) <b>oppure</b> direttamente il prezzo di vendita; sotto il ricarico vedi il <b>margine lordo</b>. Usati per la manodopera nei preventivi.</div>
           <div style={{overflow:"auto"}}>
             <table>
-              <thead><tr><th>Lavorazione</th><th>Modo di calcolo</th><th>Costo (€/unità)</th><th>Margine (%)</th><th>Prezzo di vendita €</th><th></th></tr></thead>
+              <thead><tr><th>Lavorazione</th><th>Modo di calcolo</th><th>Costo (€/unità)</th><th>Ricarico (%)</th><th>Prezzo di vendita €</th><th></th></tr></thead>
               <tbody>
                 {tariffe.map((r,i)=>{ const hasD=Array.isArray(r.consumi)&&r.consumi.length>0; const aperto=distintaOpen===r.lavorazione;
                   return <React.Fragment key={r.lavorazione}>
@@ -5435,7 +5441,8 @@ function ModuloImpostazioni({profilo,perm}){
                     <td>{hasD
                       ? <span title="Calcolato dalla distinta consumi" style={{fontWeight:700}}>{eur(Number(r.tariffa_oraria)||0)}</span>
                       : <input type="number" step="0.01" value={r.tariffa_oraria} onChange={e=>setTC(i,"tariffa_oraria",e.target.value)} style={inputSt}/>}</td>
-                    <td><input type="number" step="0.1" value={r.margine_obiettivo} onChange={e=>setTC(i,"margine_obiettivo",e.target.value)} style={inputSt}/></td>
+                    <td><input type="number" step="0.1" value={r.margine_obiettivo} onChange={e=>setTC(i,"margine_obiettivo",e.target.value)} style={inputSt}/>
+                      {(Number(r.margine_obiettivo)||0)>0 && <div className="muted" style={{fontSize:10.5}}>margine {margineDaRicarico(r.margine_obiettivo)}%</div>}</td>
                     <td><input type="number" step="0.01" value={r.prezzo_vendita ?? ""} onChange={e=>setTC(i,"prezzo_vendita",e.target.value)} style={{...inputSt,fontWeight:700,color:"var(--ok)"}}/></td>
                     <td style={{whiteSpace:"nowrap"}}>
                       <button type="button" className="btn small" title="Distinta consumi: calcola il costo reale" onClick={()=>setDistintaOpen(aperto?null:r.lavorazione)} style={hasD?{background:"#eef6ff"}:null}>📋{hasD?" "+r.consumi.length:""}</button>
@@ -9736,6 +9743,7 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
     giorni_lavorazione:prodotto?.giorni_lavorazione ?? "",
     unita_calcolo:prodotto?.unita_calcolo||"mq",
     margine_pct:prodotto?.margine_pct ?? "",
+    ricarico_pct:(prodotto && prodotto.margine_pct!=null && prodotto.margine_pct!=="") ? (ricaricoDaMargine(prodotto.margine_pct) ?? "") : "",
     minimo:prodotto?.minimo ?? "",
     attivo:prodotto?.attivo!==false,
     note:prodotto?.note||"",
@@ -9849,8 +9857,9 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
                 </select></div>}
             </div>
             <div className="row">
-              <div className="field" style={{maxWidth:140}}><label>Margine %</label>
-                <input type="number" step="0.1" value={f.margine_pct} onChange={e=>set("margine_pct",e.target.value)}/></div>
+              <div className="field" style={{maxWidth:160}}><label>Ricarico %</label>
+                <input type="number" step="0.1" value={f.ricarico_pct} onChange={e=>{ const r=e.target.value; set("ricarico_pct",r); set("margine_pct", r===""?"":margineDaRicarico(r)); }} title="Ricarico sul costo: prezzo = costo × (1 + ricarico%). Il margine lordo è calcolato sotto."/>
+                {f.ricarico_pct!=="" && f.ricarico_pct!=null && <div className="muted" style={{fontSize:11}}>= margine lordo {margineDaRicarico(f.ricarico_pct)}%</div>}</div>
               <div className="field" style={{maxWidth:170}}><label>{gadget?"Minimo ordinabile (pz)":"Minimo €"}</label>
                 <input type="number" step={gadget?"1":"0.01"} value={f.minimo} onChange={e=>set("minimo",e.target.value)}/></div>
             </div>
@@ -10019,7 +10028,7 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
                 </select></div>}
             <div className="kv" style={{gridTemplateColumns:"1fr auto"}}>
               <span className="k">Costo per {uLabel} {gadget?"(colore base, senza stampa)":"(materiale + sfrido + lavorazioni)"}</span><span style={{textAlign:"right"}}>{eur(costoUnita)}</span>
-              <span className="k">Prezzo per {uLabel} (margine {f.margine_pct||0}%){gadget?", stampa esclusa":""}</span>
+              <span className="k">Prezzo per {uLabel} (ricarico {f.ricarico_pct||0}% · margine lordo {f.margine_pct||0}%){gadget?", stampa esclusa":""}</span>
               <span style={{textAlign:"right",fontWeight:700,color:"var(--ok)"}}>{eur(prezzoUnita)}</span>
             </div>
             {fasceOrd.length>0 &&

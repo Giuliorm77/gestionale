@@ -502,7 +502,7 @@ const PERMESSI = {
 const MODULO_REQ = {
   clienti:"sempre", catalogo:"economici", magazzino:"commesse", pezzi:"magazzino", operatori:"economici",
   fornitori:"economici", agenti:"economici", impostazioni:"economici", preventivi:"economici", prodotticfg:"economici",
-  imballi:"economici", commesse:"commesse", postazione:"commesse", ordinifor:"economici", trasporti:"economici",
+  imballi:"economici", commesse:"commesse", postazione:"commesse", ordinifor:"economici", trasporti:"economici", compositi:"economici",
   report:"economici", utenti:"utenti", crm:"crm", agenda:"crm", mezzi:"commesse", ddt:"magazzino",
   vetrina:"economici", ordinishop:"commesse", clientikomunigo:"economici", qualita:"economici",
   inarrivo:"magazzino",
@@ -537,6 +537,7 @@ const NAV_ITEMS = [
   {m:"impostazioni", ico:"⚙️", label:"Impostazioni"},
   {m:"preventivi", ico:"🧾", label:"Preventivi"},
   {m:"prodotticfg", ico:"🧩", label:"Prodotti config."},
+  {m:"compositi", ico:"🧱", label:"Prodotti compositi"},
   {m:"vetrina", ico:"🖼️", label:"Vetrina e-commerce"},
   {m:"imballi", ico:"🎁", label:"Imballi"},
   {m:"commesse", ico:"🏭", label:"Commesse"},
@@ -935,6 +936,7 @@ function Gestionale({profilo}){
         {modulo==="impostazioni" && <ModuloImpostazioni profilo={profilo} perm={perm}/>}
         {modulo==="preventivi" && <ModuloPreventivi profilo={profilo} perm={perm}/>}
         {modulo==="prodotticfg" && <ModuloProdottiConfig profilo={profilo} perm={perm}/>}
+        {modulo==="compositi" && <ModuloCompositi profilo={profilo} perm={perm}/>}
         {modulo==="vetrina" && <ModuloVetrina profilo={profilo} perm={perm}/>}
         {modulo==="ordinishop" && <ModuloOrdiniShop profilo={profilo} perm={perm}/>}
         {modulo==="clientikomunigo" && <ModuloAccountKomunigo profilo={profilo} perm={perm}/>}
@@ -7658,6 +7660,7 @@ function ModuloPreventivi({profilo,perm}){
   const [imballi,setImballi]=useState([]);
   const [corrieri,setCorrieri]=useState([]);
   const [fornitori,setFornitori]=useState([]);
+  const [compositi,setCompositi]=useState([]);
   const [err,setErr]=useState("");
   const [cerca,setCerca]=useState("");
   const [filtroStato,setFiltroStato]=useState("");
@@ -7675,7 +7678,7 @@ function ModuloPreventivi({profilo,perm}){
 
   const carica=useCallback(async()=>{
     setErr("");
-    const [p,c,a,i,t,pc,imb,co,fo]=await Promise.all([
+    const [p,c,a,i,t,pc,imb,co,fo,cmp]=await Promise.all([
       sb.from("preventivi").select("*, preventivi_righe(*)").order("creato_il",{ascending:false}),
       sb.from("clienti").select("id,ragione_sociale,categoria,sconto_pct, clienti_sconti(categoria,sconto_pct)").order("ragione_sociale"),
       caricaArticoliTutti("id,codice,nome_articolo,unita,categoria,costo,prezzo_pubblico,giacenza,impegnato,peso_kg,peso_um,peso_eccedenza_pct,traccia_avanzo"),
@@ -7685,11 +7688,12 @@ function ModuloPreventivi({profilo,perm}){
       sb.from("imballi").select("*, imballi_voci(*)").eq("attivo",true).order("nome"),
       sb.from("corrieri").select("*, corrieri_scaglioni(*)").eq("attivo",true).order("nome"),
       sb.from("fornitori").select("id,ragione_sociale").order("ragione_sociale"),
+      sb.from("prodotti_compositi").select("*").eq("attivo",true).order("nome"),
     ]);
     if(p.error){ setErr(p.error.message); return; }
     setPreventivi(p.data||[]); setClienti(c.data||[]); setArticoli(a);
     if(i.data) setImp(i.data);
-    setTariffe(t.data||[]); setProdotti(pc.data||[]); setImballi(imb.data||[]); setCorrieri(co.data||[]); setFornitori(fo.data||[]);
+    setTariffe(t.data||[]); setProdotti(pc.data||[]); setImballi(imb.data||[]); setCorrieri(co.data||[]); setFornitori(fo.data||[]); setCompositi((cmp&&cmp.data)||[]);
   },[]);
   useEffect(()=>{ carica(); },[carica]);
 
@@ -7799,7 +7803,7 @@ function ModuloPreventivi({profilo,perm}){
             </div>}
       </div>
       {editor && <PreventivoEditor preventivo={editor.id?editor:null} profilo={profilo} perm={perm}
-        clienti={clienti} articoli={articoli} imp={imp} tariffe={tariffe} prodotti={prodotti} imballi={imballi} corrieri={corrieri} fornitori={fornitori}
+        clienti={clienti} articoli={articoli} imp={imp} tariffe={tariffe} prodotti={prodotti} imballi={imballi} corrieri={corrieri} fornitori={fornitori} compositi={compositi}
         bozza={editBozza}
         numeroSuggerito={prossimoNumero(preventivi)}
         onClose={()=>{setEditor(null);setEditBozza(null);setBozza(leggiBozza());}}
@@ -7930,7 +7934,7 @@ function AllegatoOfferta({riga,onSet}){
   </div>;
 }
 
-function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,prodotti,imballi,corrieri,fornitori,bozza,numeroSuggerito,onClose,onSalvato}){
+function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,prodotti,imballi,corrieri,fornitori,compositi,bozza,numeroSuggerito,onClose,onSalvato}){
   const nuovo=!preventivo;
   const [f,setF]=useState(()=> (bozza&&bozza.f) ? bozza.f : ({
     numero:preventivo?.numero||numeroSuggerito,
@@ -8057,6 +8061,51 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const addManodopera=()=>setRighe(p=>[...p,{tipo:"manodopera",descrizione:"",lavorazione:"",quantita:1,unita:"ora",costo_unitario:0,prezzo_unitario:0,sconto_pct:0}]);
   const addImpianto=()=>setRighe(p=>[...p,{tipo:"impianto",descrizione:"",lavorazione:"",quantita:1,unita:"",costo_unitario:0,prezzo_unitario:0,sconto_pct:0}]);
   const addLibera=()=>setRighe(p=>[...p,{tipo:"altro",descrizione:"",lavorazione:"",quantita:1,unita:"",costo_unitario:0,prezzo_unitario:0,sconto_pct:0}]);
+  // --- Prodotto composito: esplode nelle righe (struttura + componenti), misura propagata ---
+  const [compPick,setCompPick]=useState(null);      // composito scelto da inserire
+  const [compTaglia,setCompTaglia]=useState(0);     // indice taglia (standard)
+  const [compMis,setCompMis]=useState({L:"",H:""}); // misura libera
+  function esplodiComposito(comp, taglia, misLibera){
+    const std = comp.misura_mode==="standard";
+    const L = std ? (Number(taglia?.l)||0) : (Number(misLibera?.L)||0);
+    const H = std ? (Number(taglia?.h)||0) : (Number(misLibera?.H)||0);
+    const cli=(clienti||[]).find(c=>c.id===f.cliente_id);
+    const abb=Number(imp && imp.abbondanza_cm!=null ? imp.abbondanza_cm : 3);
+    const artCostoMap={}; (articoli||[]).forEach(a=>artCostoMap[a.id]=Number(a.costo)||0);
+    const mkArticolo=(artId, qta)=>{ const a=(articoli||[]).find(x=>x.id===artId); if(!a) return null;
+      const sc=scontoPerCategoria(cli, cli&&cli.clienti_sconti, a.categoria, imp&&imp.sconto_rivenditori_pct);
+      return {tipo:"materiale",descrizione:a.nome_articolo,articolo_id:a.id,lavorazione:"",quantita:qta,unita:a.unita||"",costo_unitario:Number(a.costo)||0,prezzo_unitario:Number(a.prezzo_pubblico)||0,sconto_pct:sc}; };
+    const nuove=[];
+    if(std && taglia && taglia.struttura_articolo_id){ const r=mkArticolo(taglia.struttura_articolo_id,1); if(r) nuove.push(r); }
+    (comp.componenti||[]).forEach(cp=>{
+      if(cp.tipo==="articolo"){
+        if(cp.misura==="eredita"){ const mq=Math.round((L/100)*(H/100)*100)/100; const r=mkArticolo(cp.ref_id, mq||1); if(r){ if(cp.descrizione) r.descrizione=cp.descrizione; nuove.push(r); } }
+        else { const r=mkArticolo(cp.ref_id, Number(cp.quantita)||1); if(r){ if(cp.descrizione) r.descrizione=cp.descrizione; nuove.push(r); } }
+      } else if(cp.tipo==="configurato"){
+        const prod=(prodotti||[]).find(p=>p.id===cp.ref_id); if(!prod) return;
+        const va=(prod.prodotti_config_varianti||[])[0]||{};
+        const mis={L,H};
+        const res=calcolaConfigurato(prod,va,mis,1,{},artCostoMap,abb)||{};
+        const config={prodotto_id:prod.id, variante_id:va.id, mis, N:1, vInput:{}, articolo_id:va.articolo_id||null, abbondanza_cm:abb};
+        nuove.push({tipo:"materiale", descrizione:(cp.descrizione||prod.nome)+" · "+Math.round(L*10)+"×"+Math.round(H*10)+" mm",
+          articolo_id:va.articolo_id||null, lavorazione:"", quantita:1, unita:prod.unita_calcolo||"",
+          costo_unitario:Math.round((Number(res.costoTot)||0)*100)/100, prezzo_unitario:Math.round((Number(res.prezzoTot)||0)*100)/100, sconto_pct:0, config});
+      } else if(cp.tipo==="manodopera"){
+        const t=(tariffe||[]).find(x=>x.lavorazione===cp.ref_id);
+        const costo=Number(t&&t.tariffa_oraria)||0, marg=Number(t&&t.margine_obiettivo)||0; const prezzo=costo*(1+marg/100);
+        nuove.push({tipo:"manodopera", descrizione:cp.descrizione||("Manodopera "+cp.ref_id), lavorazione:cp.ref_id||"",
+          quantita:Number(cp.quantita)||1, unita:(t&&t.modo==="ora")?"ora":"", costo_unitario:costo, prezzo_unitario:Math.round(prezzo*100)/100, sconto_pct:0});
+      }
+    });
+    if(!nuove.length){ return; }
+    setRighe(p=>[...p,...nuove]);
+  }
+  function confermaComposito(){
+    const comp=compPick; if(!comp) return;
+    if(comp.misura_mode==="standard"){ const tg=(comp.taglie||[])[compTaglia]; if(!tg){ return; } esplodiComposito(comp,tg,null); }
+    else { if(!(Number(compMis.L)>0 && Number(compMis.H)>0)){ return; } esplodiComposito(comp,null,compMis); }
+    setCompPick(null); setCompTaglia(0); setCompMis({L:"",H:""});
+  }
   function setLavorazione(i,lav){
     const t=tariffe.find(x=>x.lavorazione===lav);
     // MODELLO B: nel listino tariffe si mette il COSTO; il prezzo = costo + margine(ricarico)
@@ -8420,6 +8469,10 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
               <button type="button" className="btn small primary" onClick={()=>{setConfigEditIdx(null);setConfigOpen(true);}}>🧩 + Prodotto configurabile</button>
+              {(compositi||[]).length>0 && <select className="btn small" value="" onChange={e=>{ const c=(compositi||[]).find(x=>x.id===e.target.value); if(c){ setCompPick(c); setCompTaglia(0); setCompMis({L:"",H:""}); } e.target.value=""; }} style={{borderColor:"#8b5cf6",color:"#6d28d9",fontWeight:600}}>
+                <option value="">🧱 + Composito…</option>
+                {(compositi||[]).map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>}
               <button type="button" className="btn small" onClick={addManodopera}>+ Manodopera</button>
               <button type="button" className="btn small" onClick={addImpianto}>+ Impianto/avviamento</button>
               <button type="button" className="btn small" onClick={addLibera}>+ Riga libera</button>
@@ -8428,6 +8481,27 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
             {configOpen && <ConfiguratoreRiga prodotti={prodotti} imballi={imballi} articoli={articoli} modiLabel={MODI_VOCE}
               iniziale={configEditIdx!=null ? (righe[configEditIdx]&&righe[configEditIdx].config) : null} abbDefault={Number(imp.abbondanza_cm ?? 3)}
               onClose={()=>{setConfigOpen(false);setConfigEditIdx(null);}} onAdd={aggiungiRigaConfig}/>}
+            {compPick && <div className="overlay" onClick={()=>setCompPick(null)}><div className="modal" style={{maxWidth:520}} onClick={e=>e.stopPropagation()}>
+              <header><h2>🧱 {compPick.nome}</h2><button type="button" className="x" onClick={()=>setCompPick(null)}>×</button></header>
+              <div className="body">
+                <div className="muted" style={{fontSize:12.5,marginBottom:12}}>Scegli {compPick.misura_mode==="standard"?"la taglia":"la misura"}: il composito si esplode nelle righe (struttura + componenti) con la misura propagata a telo e stampa.</div>
+                {compPick.misura_mode==="standard"
+                  ? <div className="field"><label>Taglia</label>
+                      <select value={compTaglia} onChange={e=>setCompTaglia(Number(e.target.value))}>
+                        {(compPick.taglie||[]).length===0 && <option value={0}>(nessuna taglia definita)</option>}
+                        {(compPick.taglie||[]).map((t,i)=><option key={i} value={i}>{t.nome||((t.l||"?")+"×"+(t.h||"?"))} ({t.l}×{t.h} cm)</option>)}
+                      </select></div>
+                  : <div className="row">
+                      <div className="field" style={{maxWidth:140}}><label>Larghezza (cm)</label><input type="number" step="1" value={compMis.L} onChange={e=>setCompMis(m=>({...m,L:e.target.value}))} autoFocus/></div>
+                      <div className="field" style={{maxWidth:140}}><label>Altezza (cm)</label><input type="number" step="1" value={compMis.H} onChange={e=>setCompMis(m=>({...m,H:e.target.value}))}/></div>
+                    </div>}
+                <div className="muted" style={{fontSize:11,marginTop:8}}>Componenti: {(compPick.componenti||[]).map(c=>c.descrizione||c.tipo).join(" · ")||"—"}</div>
+              </div>
+              <footer>
+                <button type="button" className="btn" onClick={()=>setCompPick(null)}>Annulla</button>
+                <button type="button" className="btn primary" onClick={confermaComposito}>Aggiungi al preventivo</button>
+              </footer>
+            </div></div>}
             <div style={{marginTop:10,position:"relative"}}>
               <input value={cercaArt} onChange={e=>setCercaArt(e.target.value)} placeholder="+ Materiale: cerca articolo dal catalogo…"
                      style={{width:"100%",maxWidth:440,padding:"8px 10px",border:"1px solid var(--line)",borderRadius:8}}/>
@@ -9708,6 +9782,146 @@ function SchedaEditor({item, scheda, perm, onClose, onSaved}){
       </div>
     </div>
   );
+}
+
+function ModuloCompositi({profilo,perm}){
+  const [lista,setLista]=useState(null);
+  const [articoli,setArticoli]=useState([]);
+  const [prodotti,setProdotti]=useState([]);
+  const [editor,setEditor]=useState(null);
+  const [err,setErr]=useState("");
+  const carica=useCallback(async()=>{
+    setErr("");
+    const [c,a,p]=await Promise.all([
+      sb.from("prodotti_compositi").select("*").order("nome"),
+      caricaArticoliTutti("id,nome_articolo,unita,categoria,costo,prezzo_pubblico"),
+      sb.from("prodotti_config").select("id,nome").order("nome"),
+    ]);
+    if(c.error){ setErr(c.error.message); return; }
+    setLista(c.data||[]); setArticoli(a||[]); setProdotti((p.data)||[]);
+  },[]);
+  useEffect(()=>{ carica(); },[carica]);
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+      <h2 style={{margin:0}}>🧱 Prodotti compositi</h2>
+      <button className="btn primary" onClick={()=>setEditor({})}>+ Nuovo composito</button>
+    </div>
+    <div className="muted" style={{fontSize:13,marginBottom:12}}>Un prodotto fatto di più parti (es. <b>Rollup</b> = struttura + telo + stampa + montaggio). In preventivo lo scegli e si "esplode" nelle righe, con la misura propagata ai componenti che la ereditano. Misura <b>standard</b> (taglie fisse) o <b>libera</b> (L×H in preventivo).</div>
+    {err && <div className="banner err">{err}</div>}
+    {lista===null ? <div className="empty">Caricamento…</div> :
+      lista.length===0 ? <div className="empty">Nessun prodotto composito. Creane uno con "+ Nuovo composito".</div> :
+      <div style={{overflow:"auto"}}><table>
+        <thead><tr><th>Nome</th><th>Categoria</th><th>Misura</th><th>Componenti</th><th>Taglie</th><th>Attivo</th></tr></thead>
+        <tbody>{lista.map(c=><tr key={c.id} onClick={()=>setEditor(c)} style={{cursor:"pointer"}}>
+          <td className="rs">{c.nome}</td>
+          <td className="muted">{c.categoria||"—"}</td>
+          <td>{c.misura_mode==="libera"?"Libera (L×H)":"Standard (taglie)"}</td>
+          <td>{(Array.isArray(c.componenti)?c.componenti.length:0)}</td>
+          <td>{c.misura_mode==="standard"?(Array.isArray(c.taglie)?c.taglie.length:0):"—"}</td>
+          <td>{c.attivo===false?"—":"✅"}</td>
+        </tr>)}</tbody>
+      </table></div>}
+    {editor && <CompositoEditor composito={editor.id?editor:null} articoli={articoli} prodotti={prodotti}
+      onClose={()=>setEditor(null)} onSalvato={()=>{ setEditor(null); carica(); }}/>}
+  </div>;
+}
+
+function CompositoEditor({composito,articoli,prodotti,onClose,onSalvato}){
+  const nuovo=!composito;
+  const [f,setF]=useState(()=>({
+    nome:composito?.nome||"", categoria:composito?.categoria||"", attivo:composito?.attivo!==false,
+    misura_mode:composito?.misura_mode||"standard",
+    componenti:Array.isArray(composito?.componenti)?composito.componenti.map(x=>({...x})):[],
+    taglie:Array.isArray(composito?.taglie)?composito.taglie.map(x=>({...x})):[],
+  }));
+  const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const inSt={padding:"6px",border:"1px solid var(--line)",borderRadius:7};
+  // componenti
+  const setC=(i,k,v)=>setF(p=>({...p,componenti:p.componenti.map((x,j)=>j===i?{...x,[k]:v}:x)}));
+  const addC=()=>setF(p=>({...p,componenti:[...p.componenti,{tipo:"articolo",ref_id:"",descrizione:"",misura:"eredita",quantita:1}]}));
+  const delC=(i)=>setF(p=>({...p,componenti:p.componenti.filter((_,j)=>j!==i)}));
+  // taglie
+  const setTg=(i,k,v)=>setF(p=>({...p,taglie:p.taglie.map((x,j)=>j===i?{...x,[k]:v}:x)}));
+  const addTg=()=>setF(p=>({...p,taglie:[...p.taglie,{nome:"",l:"",h:200,struttura_articolo_id:""}]}));
+  const delTg=(i)=>setF(p=>({...p,taglie:p.taglie.filter((_,j)=>j!==i)}));
+  async function salva(e){ e&&e.preventDefault(); if(!f.nome.trim()){ setErr("Dai un nome al composito."); return; }
+    setBusy(true); setErr("");
+    try{
+      const rec={nome:f.nome.trim(), categoria:f.categoria||"", attivo:!!f.attivo, misura_mode:f.misura_mode,
+        componenti:(f.componenti||[]).filter(x=>x.ref_id).map(x=>({tipo:x.tipo,ref_id:x.ref_id,descrizione:x.descrizione||"",misura:x.misura||"eredita",quantita:Number(x.quantita)||1})),
+        taglie:f.misura_mode==="standard"?(f.taglie||[]).filter(x=>x.nome||x.l).map(x=>({nome:x.nome||"",l:Number(x.l)||0,h:Number(x.h)||0,struttura_articolo_id:x.struttura_articolo_id||null})):[]};
+      if(nuovo){ const {error}=await sb.from("prodotti_compositi").insert(rec); if(error) throw error; }
+      else { const {error}=await sb.from("prodotti_compositi").update(rec).eq("id",composito.id); if(error) throw error; }
+      onSalvato();
+    }catch(ex){ setErr(ex.message); setBusy(false); }
+  }
+  async function elimina(){ if(!composito?.id) return; if(!confirm("Eliminare il composito «"+(f.nome||"")+"»?")) return;
+    setBusy(true); try{ const {error}=await sb.from("prodotti_compositi").delete().eq("id",composito.id); if(error) throw error; onSalvato(); }catch(ex){ setErr(ex.message); setBusy(false); } }
+  return <div className="overlay"><form className="modal" style={{maxWidth:1000}} onClick={e=>e.stopPropagation()} onSubmit={salva}>
+    <header><h2>{nuovo?"Nuovo composito":"Composito "+(f.nome||"")}</h2><button type="button" className="x" onClick={onClose}>×</button></header>
+    <div className="body">
+      {err && <div className="banner err">{err}</div>}
+      <div className="section"><div className="row">
+        <div className="field" style={{flex:2}}><label>Nome *</label><input value={f.nome} onChange={e=>set("nome",e.target.value)} placeholder="es. Rollup"/></div>
+        <div className="field"><label>Categoria</label><input value={f.categoria} onChange={e=>set("categoria",e.target.value)} placeholder="es. Espositori"/></div>
+        <div className="field" style={{maxWidth:220}}><label>Modalità misura</label>
+          <select value={f.misura_mode} onChange={e=>set("misura_mode",e.target.value)}>
+            <option value="standard">Taglie standard</option>
+            <option value="libera">Misura libera (L×H)</option>
+          </select></div>
+        <label style={{display:"flex",alignItems:"center",gap:6,alignSelf:"flex-end",marginBottom:12,fontSize:13}}><input type="checkbox" checked={f.attivo} onChange={e=>set("attivo",e.target.checked)} style={{width:"auto"}}/> Attivo</label>
+      </div></div>
+
+      <div className="section">
+        <h3>Componenti</h3>
+        <div className="muted" style={{fontSize:12,marginBottom:8}}>Le parti comuni a tutte le misure. <b>Eredita</b> = prende la misura del composito (telo, stampa). <b>Fissa</b> = usa la quantità indicata (montaggio ore, accessori a pezzo). La struttura per taglia si imposta sotto, nelle Taglie.</div>
+        {f.componenti.map((c,i)=>
+          <div key={i} className="row" style={{alignItems:"flex-end",marginBottom:6}}>
+            <div className="field" style={{maxWidth:150}}><label>Tipo</label>
+              <select value={c.tipo} onChange={e=>{ setC(i,"tipo",e.target.value); setC(i,"ref_id",""); }} style={inSt}>
+                <option value="articolo">Articolo (catalogo)</option>
+                <option value="configurato">Prodotto configurato</option>
+                <option value="manodopera">Manodopera/lavorazione</option>
+              </select></div>
+            <div className="field" style={{flex:2}}><label>{c.tipo==="manodopera"?"Lavorazione":"Riferimento"}</label>
+              {c.tipo==="articolo" && <select value={c.ref_id||""} onChange={e=>setC(i,"ref_id",e.target.value)} style={inSt}><option value="">— scegli —</option>{articoli.map(a=><option key={a.id} value={a.id}>{a.nome_articolo}</option>)}</select>}
+              {c.tipo==="configurato" && <select value={c.ref_id||""} onChange={e=>setC(i,"ref_id",e.target.value)} style={inSt}><option value="">— scegli —</option>{prodotti.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}</select>}
+              {c.tipo==="manodopera" && <><input list="lav-comp" value={c.ref_id||""} onChange={e=>setC(i,"ref_id",e.target.value)} placeholder="es. Montaggio" style={{...inSt,width:"100%"}}/><datalist id="lav-comp">{LAVORAZIONI.map(l=><option key={l} value={l}/>)}</datalist></>}
+            </div>
+            <div className="field" style={{flex:1}}><label>Descrizione (facolt.)</label><input value={c.descrizione||""} onChange={e=>setC(i,"descrizione",e.target.value)} style={{...inSt,width:"100%"}}/></div>
+            <div className="field" style={{maxWidth:130}}><label>Misura</label>
+              <select value={c.misura||"eredita"} onChange={e=>setC(i,"misura",e.target.value)} style={inSt}>
+                <option value="eredita">Eredita (mq)</option>
+                <option value="fissa">Fissa</option>
+              </select></div>
+            {c.misura==="fissa" && <div className="field" style={{maxWidth:90}}><label>{c.tipo==="manodopera"?"Ore":"Q.tà"}</label><input type="number" step="0.01" value={c.quantita} onChange={e=>setC(i,"quantita",e.target.value)} style={inSt}/></div>}
+            <button type="button" className="btn small danger" style={{marginBottom:4}} onClick={()=>delC(i)}>✕</button>
+          </div>)}
+        <button type="button" className="btn small" onClick={addC}>+ Componente</button>
+      </div>
+
+      {f.misura_mode==="standard" && <div className="section">
+        <h3>Taglie standard</h3>
+        <div className="muted" style={{fontSize:12,marginBottom:8}}>Ogni taglia ha la sua misura (cm) e la sua <b>struttura</b> (articolo specifico). In preventivo scegli la taglia e i componenti "eredita" usano questa misura.</div>
+        {f.taglie.map((t,i)=>
+          <div key={i} className="row" style={{alignItems:"flex-end",marginBottom:6}}>
+            <div className="field" style={{maxWidth:140}}><label>Nome taglia</label><input value={t.nome||""} onChange={e=>setTg(i,"nome",e.target.value)} placeholder="es. 85×200" style={inSt}/></div>
+            <div className="field" style={{maxWidth:100}}><label>Largh. (cm)</label><input type="number" step="1" value={t.l} onChange={e=>setTg(i,"l",e.target.value)} style={inSt}/></div>
+            <div className="field" style={{maxWidth:100}}><label>Alt. (cm)</label><input type="number" step="1" value={t.h} onChange={e=>setTg(i,"h",e.target.value)} style={inSt}/></div>
+            <div className="field" style={{flex:2}}><label>Struttura (articolo)</label>
+              <select value={t.struttura_articolo_id||""} onChange={e=>setTg(i,"struttura_articolo_id",e.target.value)} style={inSt}><option value="">— nessuna —</option>{articoli.map(a=><option key={a.id} value={a.id}>{a.nome_articolo}</option>)}</select></div>
+            <button type="button" className="btn small danger" style={{marginBottom:4}} onClick={()=>delTg(i)}>✕</button>
+          </div>)}
+        <button type="button" className="btn small" onClick={addTg}>+ Taglia</button>
+      </div>}
+    </div>
+    <footer>
+      {!nuovo && <button type="button" className="btn danger" style={{marginRight:"auto"}} onClick={elimina} disabled={busy}>Elimina</button>}
+      <button type="button" className="btn" onClick={onClose}>Annulla</button>
+      <button className="btn primary" disabled={busy}>{busy?<span className="spin"/>:"Salva composito"}</button>
+    </footer>
+  </form></div>;
 }
 
 function ModuloProdottiConfig({profilo,perm}){

@@ -5068,6 +5068,10 @@ function ModuloImpostazioni({profilo,perm}){
     window.__gestDirty=true; setBozzaImp({...b,recente:true}); };
 
   const setG=(k,v)=>{ window.__gestDirty=true; setGen(p=>({...p,[k]:v})); };
+  // obiettivi di margine per categoria (lista {categoria, obiettivo})
+  const setMargCat=(idx,k,v)=>{ window.__gestDirty=true; setGen(p=>({...p,margini_categoria:(Array.isArray(p.margini_categoria)?p.margini_categoria:[]).map((x,j)=>j===idx?{...x,[k]:v}:x)})); };
+  const addMargCat=()=>{ window.__gestDirty=true; setGen(p=>({...p,margini_categoria:[...(Array.isArray(p.margini_categoria)?p.margini_categoria:[]),{categoria:"",obiettivo:""}]})); };
+  const delMargCat=(idx)=>{ window.__gestDirty=true; setGen(p=>({...p,margini_categoria:(Array.isArray(p.margini_categoria)?p.margini_categoria:[]).filter((_,j)=>j!==idx)})); };
   useEffect(()=>()=>{ window.__gestDirty=false; },[]);  // pulisci il flag uscendo dalle Impostazioni
   function caricaCarta(e){
     const file=e.target.files&&e.target.files[0]; if(!file) return;
@@ -5150,6 +5154,7 @@ function ModuloImpostazioni({profilo,perm}){
         spese_generali_pct:Number(gen.spese_generali_pct)||0,
         abbondanza_cm:Number(gen.abbondanza_cm)||0,
         margine_minimo_pct:Number(gen.margine_minimo_pct)||0,
+        margini_categoria:(Array.isArray(gen.margini_categoria)?gen.margini_categoria:[]).filter(x=>String(x.categoria||"").trim()).map(x=>({categoria:String(x.categoria).trim(),obiettivo:Number(x.obiettivo)||0})),
         sconto_rivenditori_pct:Number(gen.sconto_rivenditori_pct)||0,
         iva_pct:Number(gen.iva_pct)||0,
         azienda_nome:gen.azienda_nome||"",
@@ -5238,6 +5243,24 @@ function ModuloImpostazioni({profilo,perm}){
           </div>
           <div className="muted" style={{fontSize:12}}>Le spese generali si aggiungono al costo nei preventivi; sotto il margine minimo comparirà un avviso.</div>
           <div className="muted" style={{fontSize:12,marginTop:4}}>Lo <b>sconto standard rivenditori</b> si applica automaticamente ai clienti con Categoria "Rivenditore" che non hanno uno sconto proprio. Il prezzo di listino è quello del Catalogo (<b>Prezzo pubblico</b>).</div>
+        </div>
+
+        <div className="card" style={{padding:20,marginBottom:18}}>
+          <h3 style={{marginTop:0}}>Obiettivo di margine per categoria</h3>
+          <div className="muted" style={{fontSize:12,marginBottom:12}}>Margine <b>lordo</b> minimo che vuoi su ogni categoria (la <b>famiglia merceologica</b> degli articoli, oppure il <b>nome della lavorazione</b>). Nel preventivo le righe sotto l'obiettivo vengono segnalate. Le categorie non elencate usano il <b>margine minimo generale</b> ({gen.margine_minimo_pct||0}%).</div>
+          <div style={{overflow:"auto"}}><table>
+            <thead><tr><th>Categoria / lavorazione</th><th>Obiettivo margine %</th><th></th></tr></thead>
+            <tbody>
+              {(Array.isArray(gen.margini_categoria)?gen.margini_categoria:[]).map((x,i)=>
+                <tr key={i}>
+                  <td><input value={x.categoria||""} onChange={e=>setMargCat(i,"categoria",e.target.value)} placeholder="es. Stampa, Rivendita, Allestimenti" style={{...inputSt,minWidth:220}}/></td>
+                  <td><input type="number" step="1" value={x.obiettivo} onChange={e=>setMargCat(i,"obiettivo",e.target.value)} style={inputSt}/></td>
+                  <td><button type="button" className="btn small danger" onClick={()=>delMargCat(i)}>✕</button></td>
+                </tr>)}
+              {!(Array.isArray(gen.margini_categoria)&&gen.margini_categoria.length) && <tr><td colSpan={3} className="muted" style={{padding:10}}>Nessun obiettivo per categoria: si usa il margine minimo generale per tutte le righe.</td></tr>}
+            </tbody>
+          </table></div>
+          <button type="button" className="btn small" onClick={addMargCat} style={{marginTop:10}}>+ Categoria</button>
         </div>
 
         {isAdmin && <div className="card" style={{padding:20,marginBottom:18}}>
@@ -8076,6 +8099,24 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const righeCalc=righe.map(r=>({...r, imballo_costo:Math.round(costoImballoRiga(r)*100)/100}));
   const tot=calcolaPreventivo(righeCalc,f);
   const sottoMargine = tot.imponibile>0 && tot.marginePct < (Number(f.margine_minimo_pct)||0);
+  // righe sotto l'OBIETTIVO di margine della loro categoria (fallback: margine minimo generale)
+  const righeSottoObiettivo=React.useMemo(()=>{
+    const catMap={}; (Array.isArray(imp?.margini_categoria)?imp.margini_categoria:[]).forEach(x=>{ const k=String(x.categoria||"").trim().toLowerCase(); if(k) catMap[k]=Number(x.obiettivo)||0; });
+    const globale=Number(f.margine_minimo_pct)||0;
+    const out=[];
+    (righe||[]).forEach(r=>{
+      const pu=Number(r.prezzo_unitario)||0, cu=Number(r.costo_unitario)||0, sc=Number(r.sconto_pct)||0;
+      const pnet=pu*(1-sc/100); if(pnet<=0) return;   // righe a €0 (già pagato) escluse
+      const marg=(pnet-cu)/pnet*100;
+      let cat="";
+      if(r.config&&r.config.prodotto_id){ const p=(prodotti||[]).find(x=>x.id===r.config.prodotto_id); cat=(p&&p.categoria)||""; }
+      else if(r.articolo_id){ cat=(artMap[r.articolo_id]&&artMap[r.articolo_id].categoria)||""; }
+      else if(r.tipo==="manodopera"||r.tipo==="impianto"){ cat=r.lavorazione||""; }
+      const tgt = (catMap[String(cat).trim().toLowerCase()] ?? globale);
+      if(tgt>0 && marg < tgt-0.05) out.push({descr:r.descrizione||r.lavorazione||"riga", marg, tgt, cat});
+    });
+    return out;
+  },[righe,imp,f.margine_minimo_pct,prodotti,artMap]);
   async function caricaCli(){
     if(!f.cliente_id) return null;
     const {data}=await sb.from("clienti").select("ragione_sociale,partita_iva,codice_fiscale,clienti_sedi(*),clienti_condizioni(metodo_pagamento,termini_pagamento)").eq("id",f.cliente_id).maybeSingle();
@@ -8438,6 +8479,12 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
               <span className="k" style={{fontWeight:800}}>TOTALE</span><span style={{textAlign:"right",fontWeight:800,fontSize:16}}>{eur(tot.totale)}</span>
             </div>
             {sottoMargine && <div className="banner err" style={{marginTop:10,marginBottom:0}}>⚠ Margine sotto la soglia minima ({f.margine_minimo_pct}%). Verifica i prezzi.</div>}
+            {righeSottoObiettivo.length>0 && <div className="banner err" style={{marginTop:10,marginBottom:0}}>
+              ⚠ {righeSottoObiettivo.length} riga/e sotto l'obiettivo di margine:
+              <ul style={{margin:"4px 0 0",paddingLeft:18}}>
+                {righeSottoObiettivo.map((x,k)=><li key={k}>{x.descr}{x.cat?" ("+x.cat+")":""}: margine {x.marg.toFixed(0)}% &lt; obiettivo {x.tgt}%</li>)}
+              </ul>
+            </div>}
           </div>
 
           <div className="section" style={{marginTop:18}}>

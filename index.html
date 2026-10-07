@@ -502,7 +502,7 @@ const PERMESSI = {
 const MODULO_REQ = {
   clienti:"sempre", catalogo:"economici", magazzino:"commesse", pezzi:"magazzino", operatori:"economici",
   fornitori:"economici", agenti:"economici", impostazioni:"economici", preventivi:"economici", prodotticfg:"economici",
-  imballi:"economici", commesse:"commesse", postazione:"commesse", ordinifor:"economici", trasporti:"economici", compositi:"economici",
+  imballi:"economici", commesse:"commesse", postazione:"commesse", ordinifor:"economici", trasporti:"economici",
   report:"economici", utenti:"utenti", crm:"crm", agenda:"crm", mezzi:"commesse", ddt:"magazzino",
   vetrina:"economici", ordinishop:"commesse", clientikomunigo:"economici", qualita:"economici",
   inarrivo:"magazzino",
@@ -537,7 +537,6 @@ const NAV_ITEMS = [
   {m:"impostazioni", ico:"⚙️", label:"Impostazioni"},
   {m:"preventivi", ico:"🧾", label:"Preventivi"},
   {m:"prodotticfg", ico:"🧩", label:"Prodotti config."},
-  {m:"compositi", ico:"🧱", label:"Prodotti compositi"},
   {m:"vetrina", ico:"🖼️", label:"Vetrina e-commerce"},
   {m:"imballi", ico:"🎁", label:"Imballi"},
   {m:"commesse", ico:"🏭", label:"Commesse"},
@@ -936,7 +935,6 @@ function Gestionale({profilo}){
         {modulo==="impostazioni" && <ModuloImpostazioni profilo={profilo} perm={perm}/>}
         {modulo==="preventivi" && <ModuloPreventivi profilo={profilo} perm={perm}/>}
         {modulo==="prodotticfg" && <ModuloProdottiConfig profilo={profilo} perm={perm}/>}
-        {modulo==="compositi" && <ModuloCompositi profilo={profilo} perm={perm}/>}
         {modulo==="vetrina" && <ModuloVetrina profilo={profilo} perm={perm}/>}
         {modulo==="ordinishop" && <ModuloOrdiniShop profilo={profilo} perm={perm}/>}
         {modulo==="clientikomunigo" && <ModuloAccountKomunigo profilo={profilo} perm={perm}/>}
@@ -8536,39 +8534,12 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
               <button type="button" className="btn small primary" onClick={()=>{setCgMsg("");setCgSel(null);setCgSearch("");setCgOpen(true);}} style={{background:"#0e7c5a"}}>➕ Componente guidato</button>
               <button type="button" className="btn small primary" onClick={()=>{setConfigEditIdx(null);setConfigOpen(true);}}>🧩 + Prodotto configurabile</button>
-              {(compositi||[]).length>0 && <select className="btn small" value="" onChange={e=>{ const c=(compositi||[]).find(x=>x.id===e.target.value); if(c){ setCompPick(c); setCompTaglia(0); setCompMis({L:"",H:(c.altezza_default||"")}); } e.target.value=""; }} style={{borderColor:"#8b5cf6",color:"#6d28d9",fontWeight:600}}>
-                <option value="">🧱 + Composito…</option>
-                {(compositi||[]).map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>}
-              <button type="button" className="btn small" onClick={addManodopera}>+ Manodopera</button>
-              <button type="button" className="btn small" onClick={addImpianto}>+ Impianto/avviamento</button>
               <button type="button" className="btn small" onClick={addLibera}>+ Riga libera</button>
               {righe.length>1 && <button type="button" className="btn small" style={{marginLeft:"auto"}} onClick={rimuoviDuplicatiRighePrev} title="Toglie le righe identiche (doppioni) lasciandone una">🧹 Rimuovi duplicati</button>}
             </div>
             {configOpen && <ConfiguratoreRiga prodotti={prodotti} imballi={imballi} articoli={articoli} modiLabel={MODI_VOCE}
               iniziale={configEditIdx!=null ? (righe[configEditIdx]&&righe[configEditIdx].config) : null} abbDefault={Number(imp.abbondanza_cm ?? 3)}
               onClose={()=>{setConfigOpen(false);setConfigEditIdx(null);}} onAdd={aggiungiRigaConfig}/>}
-            {compPick && <div className="overlay" onClick={()=>setCompPick(null)}><div className="modal" style={{maxWidth:520}} onClick={e=>e.stopPropagation()}>
-              <header><h2>🧱 {compPick.nome}</h2><button type="button" className="x" onClick={()=>setCompPick(null)}>×</button></header>
-              <div className="body">
-                <div className="muted" style={{fontSize:12.5,marginBottom:12}}>Scegli {compPick.misura_mode==="standard"?"la taglia":"la misura"}: il composito si esplode nelle righe (struttura + componenti) con la misura propagata a telo e stampa.</div>
-                {compPick.misura_mode==="standard"
-                  ? <div className="field"><label>Taglia</label>
-                      <select value={compTaglia} onChange={e=>setCompTaglia(Number(e.target.value))}>
-                        {(compPick.taglie||[]).length===0 && <option value={0}>(nessuna taglia definita)</option>}
-                        {(compPick.taglie||[]).map((t,i)=><option key={i} value={i}>{t.nome||((t.l||"?")+"×"+(t.h||"?"))} ({t.l}×{t.h} cm)</option>)}
-                      </select></div>
-                  : <div className="row">
-                      <div className="field" style={{maxWidth:140}}><label>Larghezza (cm)</label><input type="number" step="1" value={compMis.L} onChange={e=>setCompMis(m=>({...m,L:e.target.value}))} autoFocus/></div>
-                      <div className="field" style={{maxWidth:140}}><label>Altezza (cm)</label><input type="number" step="1" value={compMis.H} onChange={e=>setCompMis(m=>({...m,H:e.target.value}))}/></div>
-                    </div>}
-                <div className="muted" style={{fontSize:11,marginTop:8}}>Componenti: {(compPick.componenti||[]).map(c=>c.descrizione||c.tipo).join(" · ")||"—"}</div>
-              </div>
-              <footer>
-                <button type="button" className="btn" onClick={()=>setCompPick(null)}>Annulla</button>
-                <button type="button" className="btn primary" onClick={confermaComposito}>Aggiungi al preventivo</button>
-              </footer>
-            </div></div>}
             {cgOpen && <div className="overlay" onClick={()=>setCgOpen(false)}><div className="modal" style={{maxWidth:720}} onClick={e=>e.stopPropagation()}>
               <header><h2>➕ Componente guidato</h2><button type="button" className="x" onClick={()=>setCgOpen(false)}>×</button></header>
               <div className="body">
@@ -8616,18 +8587,6 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                 {cgSel && <button type="button" className="btn primary" disabled={!(cgQ>0)} onClick={aggiungiComponente}>Aggiungi al preventivo</button>}
               </footer>
             </div></div>}
-            <div style={{marginTop:10,position:"relative"}}>
-              <input value={cercaArt} onChange={e=>setCercaArt(e.target.value)} placeholder="+ Materiale: cerca articolo dal catalogo…"
-                     style={{width:"100%",maxWidth:440,padding:"8px 10px",border:"1px solid var(--line)",borderRadius:8}}/>
-              {risultatiArt.length>0 &&
-                <div className="card" style={{maxWidth:440,maxHeight:200,overflow:"auto",position:"absolute",zIndex:5,background:"#fff"}}>
-                  {risultatiArt.map(a=>
-                    <div key={a.id} onClick={()=>addMateriale(a)} style={{padding:"8px 12px",borderBottom:"1px solid var(--line)",cursor:"pointer"}}>
-                      <b>{a.nome_articolo}</b> <span className="muted">{a.codice}</span>
-                      <span className="muted" style={{float:"right"}}>{eur(a.prezzo_pubblico||0)}</span>
-                    </div>)}
-                </div>}
-            </div>
           </div>
 
           <div className="section">

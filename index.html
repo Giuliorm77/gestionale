@@ -3359,7 +3359,8 @@ function ArticoloForm({articolo,perm,profilo,fornitori,onClose,onSalvato,onDupli
       da_ripristinare:articolo?.da_ripristinare===true,
       nota_ripristino:articolo?.nota_ripristino||"",
       traccia_avanzo:articolo?.traccia_avanzo===true,
-      peso_kg:articolo?.peso_kg ?? "", peso_um:articolo?.peso_um||"pz", peso_eccedenza_pct:articolo?.peso_eccedenza_pct ?? "", ...init };
+      peso_kg:articolo?.peso_kg ?? "", peso_um:articolo?.peso_um||"pz", peso_eccedenza_pct:articolo?.peso_eccedenza_pct ?? "",
+      larghezza_cm:articolo?.larghezza_cm ?? "", ...init };
   });
   const [busy,setBusy]=useState(false);
   const [err,setErr]=useState("");
@@ -3440,6 +3441,7 @@ function ArticoloForm({articolo,perm,profilo,fornitori,onClose,onSalvato,onDupli
       const rec={...f};
       CAMPI_ARTICOLO.filter(c=>c.num).forEach(c=>{ rec[c.k]=normalizzaPrezzo(rec[c.k])||0; });
       rec.peso_kg=Number(rec.peso_kg)||0; rec.peso_eccedenza_pct=Number(rec.peso_eccedenza_pct)||0;
+      rec.larghezza_cm=(rec.larghezza_cm===""||rec.larghezza_cm==null)?null:(Number(rec.larghezza_cm)||null);
       rec.aggiornato_il=new Date().toISOString();
       // La GIACENZA non si scrive dalla scheda: la mantiene il trigger dei movimenti di magazzino.
       // La toccano solo l'import iniziale e i carichi/scarichi. Cosi' salvare un articolo non azzera lo stock.
@@ -3608,6 +3610,8 @@ function ArticoloForm({articolo,perm,profilo,fornitori,onClose,onSalvato,onDupli
               <div className="row">
                 {campo("dimensione_articolo","Dimensione")}
                 {campo("materiale_articolo","Materiale")}
+                <div className="field" style={{maxWidth:220}}><label title="Solo per le STRUTTURE usate nei prodotti compositi a 'struttura automatica per larghezza' (es. Struttura rollup 85 → 85). Lascia vuoto se non è una struttura.">Larghezza per composito (cm)</label>
+                  <input type="number" step="1" value={f.larghezza_cm} onChange={e=>setF(p=>({...p,larghezza_cm:e.target.value}))} placeholder="es. 85"/></div>
               </div>
               <div className="row">
                 {campo("colore_articolo","Colore")}
@@ -4859,6 +4863,29 @@ function costoDaConsumi(consumi, supMediaMq, prezzo){
   consumi.forEach(v=>{ const val=Number(v.valore)||0;
     if(v.modo==="mq") c+=val*sup; else if(v.modo==="pct") c+=pz*val/100; else c+=val; });
   return Math.round(c*10000)/10000;
+}
+// Componente guidato: classifica l'unità/modo in un tipo di input misura
+function conteggioComponente(u){ const s=String(u||"").toLowerCase().trim();
+  if(s==="mq") return "mq";
+  if(s==="mc") return "mc";
+  if(s==="perimetro") return "perimetro";
+  if(s.startsWith("mtl")||s.startsWith("ml")||s.includes("metro lineare")) return "mtl";
+  if(s==="ora"||s==="ore"||s==="tempo") return "tempo";
+  if(s==="fisso"||s==="forfait") return "fisso";
+  if(s.startsWith("cad")||s.startsWith("pz")||s==="pezzo"||s.startsWith("foglio")||["battuta","passaggio","scatola","scotch","pellicola"].includes(s)) return "pz";
+  return "manuale";
+}
+// quantità (nell'unità nativa del componente) dalla misura inserita; tempo in MINUTI -> ore
+function qtaComponente(cont, cg, abb){
+  const L=Number(cg.L)||0, H=Number(cg.H)||0, add=cg.abbOn?(Number(abb)||0):0;
+  if(cont==="mq"){ const Lm=L>0?L+add:0, Hm=H>0?H+add:0; return Math.round((Lm/100)*(Hm/100)*1000)/1000; }
+  if(cont==="mc"){ const Lm=L>0?L+add:0,Hm=H>0?H+add:0,sp=Number(cg.sp)||0; return Math.round((Lm/100)*(Hm/100)*(sp/1000)*1000)/1000; }
+  if(cont==="mtl"){ const lung=Number(cg.lung)||0; const lm=lung>0?lung+add:0; return Math.round((lm/100)*1000)/1000; }
+  if(cont==="perimetro"){ return Math.round((2*((L+H)/100))*1000)/1000; }
+  if(cont==="pz"){ return Number(cg.pz)||0; }
+  if(cont==="tempo"){ return Math.round(((Number(cg.min)||0)/60)*1000)/1000; }
+  if(cont==="fisso"){ return 1; }
+  return Number(cg.qta)||0;
 }
 // quota di una voce che finisce nei costi di struttura (per i "misti" = annuo − ore produzione × costo orario)
 // categorie di costo struttura che ammettono la divisione "misto" (persona / condiviso)
@@ -7681,7 +7708,7 @@ function ModuloPreventivi({profilo,perm}){
     const [p,c,a,i,t,pc,imb,co,fo,cmp]=await Promise.all([
       sb.from("preventivi").select("*, preventivi_righe(*)").order("creato_il",{ascending:false}),
       sb.from("clienti").select("id,ragione_sociale,categoria,sconto_pct, clienti_sconti(categoria,sconto_pct)").order("ragione_sociale"),
-      caricaArticoliTutti("id,codice,nome_articolo,unita,categoria,costo,prezzo_pubblico,giacenza,impegnato,peso_kg,peso_um,peso_eccedenza_pct,traccia_avanzo"),
+      caricaArticoliTutti("id,codice,nome_articolo,unita,categoria,costo,prezzo_pubblico,giacenza,impegnato,peso_kg,peso_um,peso_eccedenza_pct,traccia_avanzo,larghezza_cm"),
       sb.from("impostazioni").select("*").eq("id",1).maybeSingle(),
       sb.from("impostazioni_lavorazioni").select("*"),
       sb.from("prodotti_config").select("*, prodotti_config_varianti(*), prodotti_config_voci(*), prodotti_config_fasce(*)").eq("attivo",true).order("nome"),
@@ -8081,6 +8108,12 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       if(cp.tipo==="articolo"){
         if(cp.misura==="eredita"){ const mq=Math.round((L/100)*(H/100)*100)/100; const r=mkArticolo(cp.ref_id, mq||1); if(r){ if(cp.descrizione) r.descrizione=cp.descrizione; nuove.push(r); } }
         else { const r=mkArticolo(cp.ref_id, Number(cp.quantita)||1); if(r){ if(cp.descrizione) r.descrizione=cp.descrizione; nuove.push(r); } }
+      } else if(cp.tipo==="struttura_auto"){
+        const fam=String(cp.ref_id||"").trim().toLowerCase();
+        const cands=(articoli||[]).filter(a=>String(a.categoria||"").trim().toLowerCase()===fam && Number(a.larghezza_cm)>0);
+        let pick=cands.find(a=>Number(a.larghezza_cm)===L);
+        if(!pick){ const ge=cands.filter(a=>Number(a.larghezza_cm)>=L).sort((x,y)=>Number(x.larghezza_cm)-Number(y.larghezza_cm)); pick=ge[0]||cands.slice().sort((x,y)=>Number(y.larghezza_cm)-Number(x.larghezza_cm))[0]; }
+        if(pick){ const r=mkArticolo(pick.id,1); if(r){ if(cp.descrizione) r.descrizione=cp.descrizione; nuove.push(r); } }
       } else if(cp.tipo==="configurato"){
         const prod=(prodotti||[]).find(p=>p.id===cp.ref_id); if(!prod) return;
         const va=(prod.prodotti_config_varianti||[])[0]||{};
@@ -8105,6 +8138,39 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     if(comp.misura_mode==="standard"){ const tg=(comp.taglie||[])[compTaglia]; if(!tg){ return; } esplodiComposito(comp,tg,null); }
     else { if(!(Number(compMis.L)>0 && Number(compMis.H)>0)){ return; } esplodiComposito(comp,null,compMis); }
     setCompPick(null); setCompTaglia(0); setCompMis({L:"",H:""});
+  }
+  // --- Componente guidato: pesca da Catalogo (materiali) + Tariffe (lavorazioni), chiede la misura per conteggio ---
+  const [cgOpen,setCgOpen]=useState(false);
+  const [cgSel,setCgSel]=useState(null);       // {kind:'articolo'|'tariffa', nome, cont, item}
+  const [cgSearch,setCgSearch]=useState("");
+  const [cg,setCg]=useState({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true});
+  const [cgMsg,setCgMsg]=useState("");
+  const cgAbb=Number(imp && imp.abbondanza_cm!=null ? imp.abbondanza_cm : 3);
+  const cgLista=React.useMemo(()=>{
+    const s=cgSearch.trim().toLowerCase();
+    const lavs=(tariffe||[]).filter(t=>t.lavorazione).map(t=>({kind:"tariffa",nome:t.lavorazione,sub:(t.modo||"ora"),cont:conteggioComponente(t.modo),item:t}));
+    const mats=(articoli||[]).map(a=>({kind:"articolo",nome:a.nome_articolo,sub:a.unita||"",cont:conteggioComponente(a.unita),item:a}));
+    let all=[...lavs,...mats];
+    if(s) all=all.filter(x=>x.nome.toLowerCase().includes(s));
+    return all.slice(0,50);
+  },[cgSearch,articoli,tariffe]);
+  const cgQ=cgSel?qtaComponente(cgSel.cont,cg,cgAbb):0;
+  function cgPC(){ if(!cgSel) return {prezzo:0,costo:0,sconto:0};
+    if(cgSel.kind==="articolo"){ const a=cgSel.item; const cli=(clienti||[]).find(c=>c.id===f.cliente_id); const sc=scontoPerCategoria(cli,cli&&cli.clienti_sconti,a.categoria,imp&&imp.sconto_rivenditori_pct); return {prezzo:Number(a.prezzo_pubblico)||0,costo:Number(a.costo)||0,sconto:sc}; }
+    const t=cgSel.item; const costo=Number(t.tariffa_oraria)||0,marg=Number(t.margine_obiettivo)||0; return {prezzo:Math.round(costo*(1+marg/100)*100)/100,costo:costo,sconto:0};
+  }
+  function aggiungiComponente(){ if(!cgSel) return; const q=cgQ; const pc=cgPC();
+    const L=Number(cg.L)||0,H=Number(cg.H)||0,lung=Number(cg.lung)||0;
+    let misTxt="";
+    if((cgSel.cont==="mq"||cgSel.cont==="mc"||cgSel.cont==="perimetro")&&(L||H)) misTxt=" · "+L+"×"+H+" cm";
+    else if(cgSel.cont==="mtl"&&lung) misTxt=" · "+lung+" cm";
+    else if(cgSel.cont==="tempo"&&Number(cg.min)) misTxt=" · "+Number(cg.min)+" min";
+    if(cgSel.kind==="articolo"){ const a=cgSel.item;
+      setRighe(p=>[...p,{tipo:"materiale",descrizione:a.nome_articolo+misTxt,articolo_id:a.id,lavorazione:"",quantita:q,unita:a.unita||"",costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:pc.sconto}]);
+    } else { const t=cgSel.item;
+      setRighe(p=>[...p,{tipo:"manodopera",descrizione:("Manodopera "+t.lavorazione)+misTxt,lavorazione:t.lavorazione,quantita:q,unita:(t.modo==="ora"?"ora":(t.modo||"")),costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:0}]);
+    }
+    setCgMsg("✓ "+cgSel.nome+" aggiunto ("+q+")"); setCgSel(null); setCg({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true}); setCgSearch("");
   }
   function setLavorazione(i,lav){
     const t=tariffe.find(x=>x.lavorazione===lav);
@@ -8468,8 +8534,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
               </table>
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+              <button type="button" className="btn small primary" onClick={()=>{setCgMsg("");setCgSel(null);setCgSearch("");setCgOpen(true);}} style={{background:"#0e7c5a"}}>➕ Componente guidato</button>
               <button type="button" className="btn small primary" onClick={()=>{setConfigEditIdx(null);setConfigOpen(true);}}>🧩 + Prodotto configurabile</button>
-              {(compositi||[]).length>0 && <select className="btn small" value="" onChange={e=>{ const c=(compositi||[]).find(x=>x.id===e.target.value); if(c){ setCompPick(c); setCompTaglia(0); setCompMis({L:"",H:""}); } e.target.value=""; }} style={{borderColor:"#8b5cf6",color:"#6d28d9",fontWeight:600}}>
+              {(compositi||[]).length>0 && <select className="btn small" value="" onChange={e=>{ const c=(compositi||[]).find(x=>x.id===e.target.value); if(c){ setCompPick(c); setCompTaglia(0); setCompMis({L:"",H:(c.altezza_default||"")}); } e.target.value=""; }} style={{borderColor:"#8b5cf6",color:"#6d28d9",fontWeight:600}}>
                 <option value="">🧱 + Composito…</option>
                 {(compositi||[]).map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>}
@@ -8500,6 +8567,53 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
               <footer>
                 <button type="button" className="btn" onClick={()=>setCompPick(null)}>Annulla</button>
                 <button type="button" className="btn primary" onClick={confermaComposito}>Aggiungi al preventivo</button>
+              </footer>
+            </div></div>}
+            {cgOpen && <div className="overlay" onClick={()=>setCgOpen(false)}><div className="modal" style={{maxWidth:720}} onClick={e=>e.stopPropagation()}>
+              <header><h2>➕ Componente guidato</h2><button type="button" className="x" onClick={()=>setCgOpen(false)}>×</button></header>
+              <div className="body">
+                {cgMsg && <div className="banner" style={{background:"#e6f4ee",color:"#127a3e",marginBottom:10}}>{cgMsg}</div>}
+                {!cgSel ? <>
+                  <div className="muted" style={{fontSize:12.5,marginBottom:8}}>Cerca e scegli un componente (materiali dal Catalogo, lavorazioni dalle Tariffe). Poi ti chiedo la misura in base al conteggio. Puoi aggiungerne più d'uno di seguito.</div>
+                  <input value={cgSearch} onChange={e=>setCgSearch(e.target.value)} placeholder="Cerca: materiale, taglio, stampa, montaggio…" autoFocus style={{width:"100%",maxWidth:460,padding:"8px 10px",border:"1px solid var(--line)",borderRadius:8,marginBottom:10}}/>
+                  <div style={{overflow:"auto",maxHeight:360,border:"1px solid var(--line)",borderRadius:8}}>
+                    {cgLista.length===0 && <div className="muted" style={{padding:12}}>Nessun componente trovato.</div>}
+                    {cgLista.map((x,i)=><div key={i} onClick={()=>{ setCgSel(x); setCgMsg(""); }} style={{padding:"8px 12px",borderBottom:"1px solid var(--line)",cursor:"pointer",display:"flex",justifyContent:"space-between",gap:10}}>
+                      <span>{x.kind==="tariffa"?"🛠️ ":"📦 "}{x.nome}</span>
+                      <span className="muted" style={{fontSize:12}}>{x.sub} · {x.cont}</span>
+                    </div>)}
+                  </div>
+                </> : (()=>{ const pc=cgPC(); const tot=Math.round(cgQ*pc.prezzo*(1-pc.sconto/100)*100)/100; const cont=cgSel.cont;
+                  return <>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                      <div><b>{cgSel.kind==="tariffa"?"🛠️ ":"📦 "}{cgSel.nome}</b> <span className="muted" style={{fontSize:12}}>· conteggio {cont}</span></div>
+                      <button type="button" className="btn small" onClick={()=>setCgSel(null)}>← cambia componente</button>
+                    </div>
+                    <div className="row" style={{alignItems:"flex-end"}}>
+                      {(cont==="mq"||cont==="mc"||cont==="perimetro") && <>
+                        <div className="field" style={{maxWidth:130}}><label>Larghezza (cm)</label><input type="number" step="1" value={cg.L} onChange={e=>setCg(m=>({...m,L:e.target.value}))} autoFocus/></div>
+                        <div className="field" style={{maxWidth:130}}><label>Altezza (cm)</label><input type="number" step="1" value={cg.H} onChange={e=>setCg(m=>({...m,H:e.target.value}))}/></div>
+                      </>}
+                      {cont==="mc" && <div className="field" style={{maxWidth:120}}><label>Spessore (mm)</label><input type="number" step="0.1" value={cg.sp} onChange={e=>setCg(m=>({...m,sp:e.target.value}))}/></div>}
+                      {cont==="mtl" && <div className="field" style={{maxWidth:150}}><label>Lunghezza (cm)</label><input type="number" step="1" value={cg.lung} onChange={e=>setCg(m=>({...m,lung:e.target.value}))} autoFocus/></div>}
+                      {cont==="pz" && <div className="field" style={{maxWidth:120}}><label>N° pezzi</label><input type="number" step="1" value={cg.pz} onChange={e=>setCg(m=>({...m,pz:e.target.value}))} autoFocus/></div>}
+                      {cont==="tempo" && <div className="field" style={{maxWidth:140}}><label>Tempo (minuti)</label><input type="number" step="1" value={cg.min} onChange={e=>setCg(m=>({...m,min:e.target.value}))} autoFocus/></div>}
+                      {cont==="fisso" && <div className="muted" style={{fontSize:12.5,marginBottom:12}}>Voce fissa: quantità 1.</div>}
+                      {cont==="manuale" && <div className="field" style={{maxWidth:160}}><label>Quantità ({cgSel.sub||"?"})</label><input type="number" step="any" value={cg.qta} onChange={e=>setCg(m=>({...m,qta:e.target.value}))} autoFocus/></div>}
+                      {(cont==="mq"||cont==="mc"||cont==="mtl") && <label style={{display:"flex",alignItems:"center",gap:6,alignSelf:"flex-end",marginBottom:12,fontSize:12.5}}><input type="checkbox" checked={cg.abbOn} onChange={e=>setCg(m=>({...m,abbOn:e.target.checked}))} style={{width:"auto"}}/> abbondanza +{cgAbb}cm</label>}
+                    </div>
+                    <div className="card" style={{padding:12,background:"#fafbfc",marginTop:6}}>
+                      <div className="kv" style={{gridTemplateColumns:"1fr auto"}}>
+                        <span className="k">Quantità</span><span style={{textAlign:"right",fontWeight:700}}>{cgQ} {cont==="tempo"?"h":(cgSel.sub||"")}</span>
+                        <span className="k">Prezzo unitario</span><span style={{textAlign:"right"}}>{eur(pc.prezzo)}{pc.sconto>0?" (−"+pc.sconto+"%)":""}</span>
+                        <span className="k" style={{fontWeight:800}}>Totale riga</span><span style={{textAlign:"right",fontWeight:800}}>{eur(tot)}</span>
+                      </div>
+                    </div>
+                  </>; })()}
+              </div>
+              <footer>
+                <button type="button" className="btn" onClick={()=>setCgOpen(false)}>Chiudi</button>
+                {cgSel && <button type="button" className="btn primary" disabled={!(cgQ>0)} onClick={aggiungiComponente}>Aggiungi al preventivo</button>}
               </footer>
             </div></div>}
             <div style={{marginTop:10,position:"relative"}}>
@@ -9794,7 +9908,7 @@ function ModuloCompositi({profilo,perm}){
     setErr("");
     const [c,a,p]=await Promise.all([
       sb.from("prodotti_compositi").select("*").order("nome"),
-      caricaArticoliTutti("id,nome_articolo,unita,categoria,costo,prezzo_pubblico"),
+      caricaArticoliTutti("id,nome_articolo,unita,categoria,costo,prezzo_pubblico,larghezza_cm"),
       sb.from("prodotti_config").select("id,nome").order("nome"),
     ]);
     if(c.error){ setErr(c.error.message); return; }
@@ -9830,10 +9944,11 @@ function CompositoEditor({composito,articoli,prodotti,onClose,onSalvato}){
   const nuovo=!composito;
   const [f,setF]=useState(()=>({
     nome:composito?.nome||"", categoria:composito?.categoria||"", attivo:composito?.attivo!==false,
-    misura_mode:composito?.misura_mode||"standard",
+    misura_mode:composito?.misura_mode||"standard", altezza_default:composito?.altezza_default ?? "",
     componenti:Array.isArray(composito?.componenti)?composito.componenti.map(x=>({...x})):[],
     taglie:Array.isArray(composito?.taglie)?composito.taglie.map(x=>({...x})):[],
   }));
+  const categorieArt=[...new Set((articoli||[]).map(a=>a.categoria).filter(Boolean))].sort();
   const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const inSt={padding:"6px",border:"1px solid var(--line)",borderRadius:7};
@@ -9849,6 +9964,7 @@ function CompositoEditor({composito,articoli,prodotti,onClose,onSalvato}){
     setBusy(true); setErr("");
     try{
       const rec={nome:f.nome.trim(), categoria:f.categoria||"", attivo:!!f.attivo, misura_mode:f.misura_mode,
+        altezza_default:(f.altezza_default===""||f.altezza_default==null)?null:(Number(f.altezza_default)||null),
         componenti:(f.componenti||[]).filter(x=>x.ref_id).map(x=>({tipo:x.tipo,ref_id:x.ref_id,descrizione:x.descrizione||"",misura:x.misura||"eredita",quantita:Number(x.quantita)||1})),
         taglie:f.misura_mode==="standard"?(f.taglie||[]).filter(x=>x.nome||x.l).map(x=>({nome:x.nome||"",l:Number(x.l)||0,h:Number(x.h)||0,struttura_articolo_id:x.struttura_articolo_id||null})):[]};
       if(nuovo){ const {error}=await sb.from("prodotti_compositi").insert(rec); if(error) throw error; }
@@ -9870,6 +9986,8 @@ function CompositoEditor({composito,articoli,prodotti,onClose,onSalvato}){
             <option value="standard">Taglie standard</option>
             <option value="libera">Misura libera (L×H)</option>
           </select></div>
+        {f.misura_mode==="libera" && <div className="field" style={{maxWidth:170}}><label title="Altezza proposta in preventivo (es. rollup sempre 200). Puoi cambiarla volta per volta.">Altezza predefinita (cm)</label>
+          <input type="number" step="1" value={f.altezza_default} onChange={e=>set("altezza_default",e.target.value)} placeholder="es. 200"/></div>}
         <label style={{display:"flex",alignItems:"center",gap:6,alignSelf:"flex-end",marginBottom:12,fontSize:13}}><input type="checkbox" checked={f.attivo} onChange={e=>set("attivo",e.target.checked)} style={{width:"auto"}}/> Attivo</label>
       </div></div>
 
@@ -9878,24 +9996,26 @@ function CompositoEditor({composito,articoli,prodotti,onClose,onSalvato}){
         <div className="muted" style={{fontSize:12,marginBottom:8}}>Le parti comuni a tutte le misure. <b>Eredita</b> = prende la misura del composito (telo, stampa). <b>Fissa</b> = usa la quantità indicata (montaggio ore, accessori a pezzo). La struttura per taglia si imposta sotto, nelle Taglie.</div>
         {f.componenti.map((c,i)=>
           <div key={i} className="row" style={{alignItems:"flex-end",marginBottom:6}}>
-            <div className="field" style={{maxWidth:150}}><label>Tipo</label>
+            <div className="field" style={{maxWidth:170}}><label>Tipo</label>
               <select value={c.tipo} onChange={e=>{ setC(i,"tipo",e.target.value); setC(i,"ref_id",""); }} style={inSt}>
                 <option value="articolo">Articolo (catalogo)</option>
+                <option value="struttura_auto">Struttura auto (per larghezza)</option>
                 <option value="configurato">Prodotto configurato</option>
                 <option value="manodopera">Manodopera/lavorazione</option>
               </select></div>
-            <div className="field" style={{flex:2}}><label>{c.tipo==="manodopera"?"Lavorazione":"Riferimento"}</label>
+            <div className="field" style={{flex:2}}><label>{c.tipo==="manodopera"?"Lavorazione":c.tipo==="struttura_auto"?"Famiglia strutture":"Riferimento"}</label>
               {c.tipo==="articolo" && <select value={c.ref_id||""} onChange={e=>setC(i,"ref_id",e.target.value)} style={inSt}><option value="">— scegli —</option>{articoli.map(a=><option key={a.id} value={a.id}>{a.nome_articolo}</option>)}</select>}
+              {c.tipo==="struttura_auto" && <><input list="cat-art" value={c.ref_id||""} onChange={e=>setC(i,"ref_id",e.target.value)} placeholder="es. Struttura rollup" title="La categoria (famiglia merceologica) degli articoli-struttura. In preventivo prende quello con la larghezza giusta." style={{...inSt,width:"100%"}}/><datalist id="cat-art">{categorieArt.map(x=><option key={x} value={x}/>)}</datalist></>}
               {c.tipo==="configurato" && <select value={c.ref_id||""} onChange={e=>setC(i,"ref_id",e.target.value)} style={inSt}><option value="">— scegli —</option>{prodotti.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}</select>}
               {c.tipo==="manodopera" && <><input list="lav-comp" value={c.ref_id||""} onChange={e=>setC(i,"ref_id",e.target.value)} placeholder="es. Montaggio" style={{...inSt,width:"100%"}}/><datalist id="lav-comp">{LAVORAZIONI.map(l=><option key={l} value={l}/>)}</datalist></>}
             </div>
             <div className="field" style={{flex:1}}><label>Descrizione (facolt.)</label><input value={c.descrizione||""} onChange={e=>setC(i,"descrizione",e.target.value)} style={{...inSt,width:"100%"}}/></div>
-            <div className="field" style={{maxWidth:130}}><label>Misura</label>
+            {c.tipo!=="struttura_auto" && <div className="field" style={{maxWidth:130}}><label>Misura</label>
               <select value={c.misura||"eredita"} onChange={e=>setC(i,"misura",e.target.value)} style={inSt}>
                 <option value="eredita">Eredita (mq)</option>
                 <option value="fissa">Fissa</option>
-              </select></div>
-            {c.misura==="fissa" && <div className="field" style={{maxWidth:90}}><label>{c.tipo==="manodopera"?"Ore":"Q.tà"}</label><input type="number" step="0.01" value={c.quantita} onChange={e=>setC(i,"quantita",e.target.value)} style={inSt}/></div>}
+              </select></div>}
+            {c.tipo!=="struttura_auto" && c.misura==="fissa" && <div className="field" style={{maxWidth:90}}><label>{c.tipo==="manodopera"?"Ore":"Q.tà"}</label><input type="number" step="0.01" value={c.quantita} onChange={e=>setC(i,"quantita",e.target.value)} style={inSt}/></div>}
             <button type="button" className="btn small danger" style={{marginBottom:4}} onClick={()=>delC(i)}>✕</button>
           </div>)}
         <button type="button" className="btn small" onClick={addC}>+ Componente</button>

@@ -8513,7 +8513,6 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
               <button type="button" className="btn small primary" onClick={()=>{setCgMsg("");setCgSel(null);setCgSearch("");setCgOpen(true);}} style={{background:"#0e7c5a"}}>➕ Componente guidato</button>
-              <button type="button" className="btn small primary" onClick={()=>{setConfigEditIdx(null);setConfigOpen(true);}}>🧩 + Prodotto configurabile</button>
               <button type="button" className="btn small" onClick={addLibera}>+ Riga libera</button>
               {righe.length>1 && <button type="button" className="btn small" style={{marginLeft:"auto"}} onClick={rimuoviDuplicatiRighePrev} title="Toglie le righe identiche (doppioni) lasciandone una">🧹 Rimuovi duplicati</button>}
             </div>

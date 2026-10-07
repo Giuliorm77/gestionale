@@ -8163,7 +8163,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   function cgPC(){ if(!cgSel) return {prezzo:0,costo:0,sconto:0};
     if(cgSel.kind==="articolo"){ const a=cgSel.item; const cli=(clienti||[]).find(c=>c.id===f.cliente_id); const sc=scontoPerCategoria(cli,cli&&cli.clienti_sconti,a.categoria,imp&&imp.sconto_rivenditori_pct); return {prezzo:Number(a.prezzo_pubblico)||0,costo:Number(a.costo)||0,sconto:sc}; }
     const t=cgSel.item;
-    if(cgSel.cont==="tempo" && cg.op){ const o=(operatori||[]).find(x=>x.id===cg.op); if(o) return {prezzo:Number(o.vendita_oraria)||0,costo:Number(o.costo_orario)||0,sconto:0}; }
+    if(cgSel.cont==="tempo"){ const o=cg.op?(operatori||[]).find(x=>x.id===cg.op):null; return o?{prezzo:Number(o.vendita_oraria)||0,costo:Number(o.costo_orario)||0,sconto:0}:{prezzo:0,costo:0,sconto:0}; }
     const costo=Number(t.tariffa_oraria)||0,marg=Number(t.margine_obiettivo)||0; return {prezzo:Math.round(costo*(1+marg/100)*100)/100,costo:costo,sconto:0};
   }
   function aggiungiComponente(){ if(!cgSel) return; const q=cgQ; const pc=cgPC();
@@ -8580,9 +8580,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                       {cont==="mtl" && <div className="field" style={{maxWidth:150}}><label>Lunghezza (cm)</label><input type="number" step="1" value={cg.lung} onChange={e=>setCg(m=>({...m,lung:e.target.value}))} autoFocus/></div>}
                       {cont==="pz" && <div className="field" style={{maxWidth:120}}><label>N° pezzi</label><input type="number" step="1" value={cg.pz} onChange={e=>setCg(m=>({...m,pz:e.target.value}))} autoFocus/></div>}
                       {cont==="tempo" && <div className="field" style={{maxWidth:140}}><label>Tempo (minuti)</label><input type="number" step="1" value={cg.min} onChange={e=>setCg(m=>({...m,min:e.target.value}))} autoFocus/></div>}
-                      {cont==="tempo" && <div className="field" style={{maxWidth:240}}><label>Operatore (costo + vendita)</label>
-                        <select value={cg.op} onChange={e=>setCg(m=>({...m,op:e.target.value}))}>
-                          <option value="">— tariffa standard —</option>
+                      {cont==="tempo" && <div className="field" style={{maxWidth:260}}><label>Operatore (obbligatorio) — costo + vendita</label>
+                        <select value={cg.op} onChange={e=>setCg(m=>({...m,op:e.target.value}))} style={!cg.op?{border:"2px solid #c0392b",borderRadius:7,padding:"5px"}:null}>
+                          <option value="">⚠ scegli l'operatore…</option>
                           {(operatori||[]).map(o=><option key={o.id} value={o.id}>{o.nome} · vendita {eur(Number(o.vendita_oraria)||0)}/h</option>)}
                         </select></div>}
                       {cont==="fisso" && <div className="muted" style={{fontSize:12.5,marginBottom:12}}>Voce fissa: quantità 1.</div>}
@@ -8600,7 +8600,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
               </div>
               <footer>
                 <button type="button" className="btn" onClick={()=>setCgOpen(false)}>Chiudi</button>
-                {cgSel && <button type="button" className="btn primary" disabled={!(cgQ>0)} onClick={aggiungiComponente}>Aggiungi al preventivo</button>}
+                {cgSel && <button type="button" className="btn primary" disabled={!(cgQ>0) || (cgSel.cont==="tempo" && !cg.op)} onClick={aggiungiComponente}>Aggiungi al preventivo</button>}
               </footer>
             </div></div>}
           </div>

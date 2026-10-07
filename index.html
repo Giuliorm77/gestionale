@@ -3357,8 +3357,7 @@ function ArticoloForm({articolo,perm,profilo,fornitori,onClose,onSalvato,onDupli
       da_ripristinare:articolo?.da_ripristinare===true,
       nota_ripristino:articolo?.nota_ripristino||"",
       traccia_avanzo:articolo?.traccia_avanzo===true,
-      peso_kg:articolo?.peso_kg ?? "", peso_um:articolo?.peso_um||"pz", peso_eccedenza_pct:articolo?.peso_eccedenza_pct ?? "",
-      larghezza_cm:articolo?.larghezza_cm ?? "", ...init };
+      peso_kg:articolo?.peso_kg ?? "", peso_um:articolo?.peso_um||"pz", peso_eccedenza_pct:articolo?.peso_eccedenza_pct ?? "", ...init };
   });
   const [busy,setBusy]=useState(false);
   const [err,setErr]=useState("");
@@ -3439,7 +3438,6 @@ function ArticoloForm({articolo,perm,profilo,fornitori,onClose,onSalvato,onDupli
       const rec={...f};
       CAMPI_ARTICOLO.filter(c=>c.num).forEach(c=>{ rec[c.k]=normalizzaPrezzo(rec[c.k])||0; });
       rec.peso_kg=Number(rec.peso_kg)||0; rec.peso_eccedenza_pct=Number(rec.peso_eccedenza_pct)||0;
-      rec.larghezza_cm=(rec.larghezza_cm===""||rec.larghezza_cm==null)?null:(Number(rec.larghezza_cm)||null);
       rec.aggiornato_il=new Date().toISOString();
       // La GIACENZA non si scrive dalla scheda: la mantiene il trigger dei movimenti di magazzino.
       // La toccano solo l'import iniziale e i carichi/scarichi. Cosi' salvare un articolo non azzera lo stock.
@@ -3608,8 +3606,6 @@ function ArticoloForm({articolo,perm,profilo,fornitori,onClose,onSalvato,onDupli
               <div className="row">
                 {campo("dimensione_articolo","Dimensione")}
                 {campo("materiale_articolo","Materiale")}
-                <div className="field" style={{maxWidth:220}}><label title="Solo per le STRUTTURE usate nei prodotti compositi a 'struttura automatica per larghezza' (es. Struttura rollup 85 → 85). Lascia vuoto se non è una struttura.">Larghezza per composito (cm)</label>
-                  <input type="number" step="1" value={f.larghezza_cm} onChange={e=>setF(p=>({...p,larghezza_cm:e.target.value}))} placeholder="es. 85"/></div>
               </div>
               <div className="row">
                 {campo("colore_articolo","Colore")}
@@ -7712,7 +7708,7 @@ function ModuloPreventivi({profilo,perm}){
     const [p,c,a,i,t,pc,imb,co,fo,cmp,op]=await Promise.all([
       sb.from("preventivi").select("*, preventivi_righe(*)").order("creato_il",{ascending:false}),
       sb.from("clienti").select("id,ragione_sociale,categoria,sconto_pct, clienti_sconti(categoria,sconto_pct)").order("ragione_sociale"),
-      caricaArticoliTutti("id,codice,nome_articolo,unita,categoria,costo,prezzo_pubblico,giacenza,impegnato,peso_kg,peso_um,peso_eccedenza_pct,traccia_avanzo,larghezza_cm"),
+      caricaArticoliTutti("id,codice,nome_articolo,unita,categoria,costo,prezzo_pubblico,giacenza,impegnato,peso_kg,peso_um,peso_eccedenza_pct,traccia_avanzo"),
       sb.from("impostazioni").select("*").eq("id",1).maybeSingle(),
       sb.from("impostazioni_lavorazioni").select("*"),
       sb.from("prodotti_config").select("*, prodotti_config_varianti(*), prodotti_config_voci(*), prodotti_config_fasce(*)").eq("attivo",true).order("nome"),
@@ -9883,7 +9879,7 @@ function ModuloCompositi({profilo,perm}){
     setErr("");
     const [c,a,p]=await Promise.all([
       sb.from("prodotti_compositi").select("*").order("nome"),
-      caricaArticoliTutti("id,nome_articolo,unita,categoria,costo,prezzo_pubblico,larghezza_cm"),
+      caricaArticoliTutti("id,nome_articolo,unita,categoria,costo,prezzo_pubblico"),
       sb.from("prodotti_config").select("id,nome").order("nome"),
     ]);
     if(c.error){ setErr(c.error.message); return; }

@@ -5440,25 +5440,6 @@ function ModuloImpostazioni({profilo,perm}){
                       placeholder={"1. Validità dell'offerta: 30 giorni salvo diversa indicazione.\n2. Pagamento: ...\n3. Tempi di consegna: ...\n4. Grafiche e bozze: ...\n5. Resi e reclami: ...\n6. Foro competente: ..."}/></div>
         </div>
 
-        <div className="card" style={{padding:20,marginBottom:18}}>
-          <h3 style={{marginTop:0}}>Materie prime</h3>
-          <div className="muted" style={{fontSize:12,marginBottom:12}}>Le categorie di materiale che acquistiamo (forex, pvc, inchiostri, imballaggio…). Compaiono come caselle <b>"Materiali forniti"</b> nell'anagrafica fornitori di tipo <b>Materiale</b>.</div>
-          {matList.map((m,i)=>
-            <div className="row" key={m.id} style={{alignItems:"flex-end",marginBottom:8}}>
-              <div className="field" style={{flex:1,maxWidth:380}}>
-                <input value={m.nome} onChange={e=>setMatNome(i,e.target.value)}/></div>
-              <button type="button" className="btn small" onClick={()=>salvaMat(m.id,m.nome)}>Salva</button>
-              <button type="button" className="btn small danger" onClick={()=>eliminaMat(m.id)}>Elimina</button>
-            </div>)}
-          <div style={{display:"flex",gap:6,marginTop:12}}>
-            <input value={matNuova} onChange={e=>setMatNuova(e.target.value)} placeholder="Nuova materia prima…"
-                   style={{flex:1,maxWidth:280,padding:"7px 9px",border:"1px solid var(--line)",borderRadius:8}}
-                   onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();aggiungiMat();}}}/>
-            <button type="button" className="btn small" onClick={aggiungiMat}>+ Aggiungi materia prima</button>
-          </div>
-          <div className="muted" style={{fontSize:12,marginTop:8}}>Le modifiche qui sono immediate.</div>
-        </div>
-
         <div className="card" style={{padding:20}}>
           <h3 style={{marginTop:0}}>Tariffe per lavorazione</h3>
           <div className="muted" style={{fontSize:12,marginBottom:12}}>Per ogni lavorazione: come si conteggia (ora, mq, mtl, mc, pezzo…) e il <b>costo</b> per quell'unità. Poi metti <b>il ricarico %</b> (prezzo = costo + ricarico) <b>oppure</b> direttamente il prezzo di vendita; sotto il ricarico vedi il <b>margine lordo</b>. Usati per la manodopera nei preventivi.</div>
@@ -5736,6 +5717,7 @@ function ModuloFornitori({profilo,perm}){
   const [filtroLav,setFiltroLav]=useState("");
   const [editor,setEditor]=useState(null);
   const [importOpen,setImportOpen]=useState(false);
+  const [categorie,setCategorie]=useState([]);   // famiglie merceologiche dal Catalogo (per "materiali forniti")
 
   const carica=useCallback(async()=>{
     setErr("");
@@ -5744,6 +5726,7 @@ function ModuloFornitori({profilo,perm}){
     setFornitori(data||[]);
   },[]);
   useEffect(()=>{ carica(); },[carica]);
+  useEffect(()=>{ sb.from("articoli").select("categoria").then(({data})=>{ setCategorie([...new Set((data||[]).map(x=>String(x.categoria||"").trim()).filter(Boolean))].sort()); }); },[]);
 
   // incidenza % sugli acquisti (ordini fornitore, anno in corso), per fornitore
   const annoCorr=new Date().getFullYear();
@@ -5834,8 +5817,8 @@ function ModuloFornitori({profilo,perm}){
             <input placeholder="Cerca per nome, cosa fornisce, città, email…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
           <select className="btn" value={filtroLav} onChange={e=>setFiltroLav(e.target.value)} style={{maxWidth:240}}>
             <option value="">Tutte le forniture</option>
-            {MATERIE_PRIME.length>0 && <optgroup label="Materiali">
-              {MATERIE_PRIME.map(m=><option key={"m-"+m} value={m}>{m}</option>)}
+            {categorie.length>0 && <optgroup label="Materiali (categorie catalogo)">
+              {categorie.map(m=><option key={"m-"+m} value={m}>{m}</option>)}
             </optgroup>}
             <optgroup label="Lavorazioni (terzismo)">
               {LAVORAZIONI.map(l=><option key={"l-"+l} value={l}>{l}</option>)}
@@ -5865,7 +5848,7 @@ function ModuloFornitori({profilo,perm}){
               </table>
             </div>}
       </div>
-      {editor && <FornitoreForm fornitore={editor.id?editor:null} perm={perm} profilo={profilo}
+      {editor && <FornitoreForm fornitore={editor.id?editor:null} perm={perm} profilo={profilo} categorie={categorie}
         onClose={()=>setEditor(null)} onSalvato={()=>{setEditor(null);carica();}}/>}
       {importOpen && <ImportFornitori esistenti={fornitori||[]} onClose={()=>setImportOpen(false)} onDone={()=>{setImportOpen(false);carica();}}/>}
     </>
@@ -6009,7 +5992,7 @@ function ImportFornitori({esistenti,onClose,onDone}){
 }
 
 /* ------------------------------------------------ scheda fornitore */
-function FornitoreForm({fornitore,perm,profilo,onClose,onSalvato}){
+function FornitoreForm({fornitore,perm,profilo,categorie,onClose,onSalvato}){
   const nuovo=!fornitore;
   const [f,setF]=useState(()=>({
     ragione_sociale:fornitore?.ragione_sociale||"",
@@ -6156,16 +6139,18 @@ function FornitoreForm({fornitore,perm,profilo,onClose,onSalvato}){
               </div></div>
           </div>
 
-          {mostraMateriali && <div className="section">
+          {mostraMateriali && (()=>{ const opzMat=[...new Set([...(categorie||[]),...(f.materiali_forniti||[])])].sort();
+            return <div className="section">
             <h3>Materiali forniti</h3>
-            {MATERIE_PRIME.length===0
-              ? <div className="muted" style={{fontSize:12}}>Nessuna materia prima in elenco. Aggiungile in <b>Impostazioni → Materie prime</b>.</div>
+            <div className="muted" style={{fontSize:12,marginBottom:8}}>Le <b>categorie</b> (famiglie merceologiche) del Catalogo. Aggiungine di nuove mettendo la Categoria sugli articoli.</div>
+            {opzMat.length===0
+              ? <div className="muted" style={{fontSize:12}}>Nessuna categoria nel Catalogo: imposta la <b>Categoria</b> sugli articoli.</div>
               : <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:10}}>
-                  {MATERIE_PRIME.map(m=>{const on=(f.materiali_forniti||[]).includes(m);
+                  {opzMat.map(m=>{const on=(f.materiali_forniti||[]).includes(m);
                     return <button type="button" key={m} onClick={()=>toggleMat(m)} className="btn small"
                       style={on?{background:"var(--brand)",color:"#fff",borderColor:"var(--brand)"}:{}}>{on?"✓ ":""}{m}</button>;})}
                 </div>}
-          </div>}
+          </div>; })()}
 
           {mostraLavorazioni && <div className="section">
             <h3>Lavorazioni (terzismo)</h3>

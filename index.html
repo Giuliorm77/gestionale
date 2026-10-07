@@ -8122,6 +8122,18 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const addManodopera=()=>setRighe(p=>[...p,{tipo:"manodopera",descrizione:"",lavorazione:"",quantita:1,unita:"ora",costo_unitario:0,prezzo_unitario:0,sconto_pct:0}]);
   const addImpianto=()=>setRighe(p=>[...p,{tipo:"impianto",descrizione:"",lavorazione:"",quantita:1,unita:"",costo_unitario:0,prezzo_unitario:0,sconto_pct:0}]);
   const addLibera=()=>setRighe(p=>[...p,{tipo:"altro",descrizione:"",lavorazione:"",quantita:1,unita:"",costo_unitario:0,prezzo_unitario:0,sconto_pct:0}]);
+  // Preventivo multi-prodotto: "chiudi" il prodotto in corso creando la sua riga breve per il cliente, poi continui col prossimo
+  const [marcatoreBreve,setMarcatoreBreve]=useState(0);
+  const subtotaleRiga=r=>(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0)*(1-(Number(r.sconto_pct)||0)/100);
+  function rigaBreveProdotto(){
+    const a=righe.length, da=Math.min(marcatoreBreve,a);
+    if(a<=da){ alert("Aggiungi prima i componenti di questo prodotto, poi premi 'Riga breve prodotto'."); return; }
+    const nome=window.prompt("Nome del prodotto per il cliente (riga breve):", f.descrizione_breve||"");
+    if(nome===null) return;
+    const sub=righe.slice(da,a).reduce((s,r)=>s+subtotaleRiga(r),0);
+    setRigheCliente(p=>[...p,{descrizione:nome||"Prodotto", quantita:1, unita:"", prezzo_un:Math.round(sub*100)/100, mostra:true}]);
+    setMarcatoreBreve(a);
+  }
   // --- Prodotto composito: esplode nelle righe (struttura + componenti), misura propagata ---
   const [compPick,setCompPick]=useState(null);      // composito scelto da inserire
   const [compTaglia,setCompTaglia]=useState(0);     // indice taglia (standard)
@@ -8573,9 +8585,11 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
               <button type="button" className="btn small primary" onClick={()=>{setCgMsg("");setCgSel(null);setCgSearch("");setCgOpen(true);}} style={{background:"#0e7c5a"}}>➕ Componente guidato</button>
+              <button type="button" className="btn small primary" onClick={rigaBreveProdotto} style={{background:"#6d28d9"}} title="Crea la riga sintetica per il cliente di questo prodotto (somma i componenti aggiunti dall'ultima riga breve) e continua col prossimo prodotto">📄 Riga breve prodotto</button>
               <button type="button" className="btn small" onClick={addLibera}>+ Riga libera</button>
               {righe.length>1 && <button type="button" className="btn small" style={{marginLeft:"auto"}} onClick={rimuoviDuplicatiRighePrev} title="Toglie le righe identiche (doppioni) lasciandone una">🧹 Rimuovi duplicati</button>}
             </div>
+            {righe.length>marcatoreBreve && <div className="muted" style={{fontSize:12,marginTop:6}}>🧩 Prodotto in corso: <b>{righe.length-marcatoreBreve}</b> component{righe.length-marcatoreBreve===1?"e":"i"} · subtotale <b>{eur(righe.slice(marcatoreBreve).reduce((s,r)=>s+subtotaleRiga(r),0))}</b> — premi <b>📄 Riga breve prodotto</b> per chiuderlo e passare al prossimo.</div>}
             {configOpen && <ConfiguratoreRiga prodotti={prodotti} imballi={imballi} articoli={articoli} modiLabel={MODI_VOCE}
               iniziale={configEditIdx!=null ? (righe[configEditIdx]&&righe[configEditIdx].config) : null} abbDefault={Number(imp.abbondanza_cm ?? 3)}
               onClose={()=>{setConfigOpen(false);setConfigEditIdx(null);}} onAdd={aggiungiRigaConfig}/>}

@@ -5205,6 +5205,13 @@ function ModuloImpostazioni({profilo,perm}){
           consumi:(Array.isArray(r.consumi)&&r.consumi.length)?r.consumi.map(c=>({descrizione:c.descrizione||"",modo:c.modo||"cad",valore:Number(c.valore)||0})):null,
           sup_media_mq:Number(r.sup_media_mq)||0}));
       if(rows.length){ const {error:e2}=await sb.from("impostazioni_lavorazioni").insert(rows); if(e2) throw e2; }
+      // Sincronizza l'elenco master "lavorazioni" (per i menu a tendina altrove) con le Tariffe: inserisce i nomi mancanti.
+      try{ const nomi=[...new Set(tariffe.map(r=>String(r.lavorazione||"").trim()).filter(Boolean))];
+        if(nomi.length){ const {data:ex}=await sb.from("lavorazioni").select("nome");
+          const have=new Set((ex||[]).map(x=>String(x.nome).trim().toLowerCase()));
+          const nuovi=nomi.filter(n=>!have.has(n.toLowerCase()));
+          if(nuovi.length){ await sb.from("lavorazioni").insert(nuovi.map((n,i)=>({nome:n,ordine:1000+i,attivo:true}))); await caricaLavorazioniGlobali(); }
+        } }catch(e){}
       window.__gestDirty=false; cancellaBozzaImp(); setBozzaImp(null);
       setOk("Impostazioni salvate."); setTimeout(()=>setOk(""),2500);
     }catch(ex){ setErr(ex.message); }
@@ -5431,25 +5438,6 @@ function ModuloImpostazioni({profilo,perm}){
           <div className="field">
             <textarea rows={12} value={gen.condizioni_default||""} onChange={e=>setG("condizioni_default",e.target.value)}
                       placeholder={"1. Validità dell'offerta: 30 giorni salvo diversa indicazione.\n2. Pagamento: ...\n3. Tempi di consegna: ...\n4. Grafiche e bozze: ...\n5. Resi e reclami: ...\n6. Foro competente: ..."}/></div>
-        </div>
-
-        <div className="card" style={{padding:20,marginBottom:18}}>
-          <h3 style={{marginTop:0}}>Lavorazioni</h3>
-          <div className="muted" style={{fontSize:12,marginBottom:12}}>L'elenco usato in tutto il gestionale (clienti, catalogo, operatori, preventivi, prodotti configurabili…).</div>
-          {lavList.map((l,i)=>
-            <div className="row" key={l.id} style={{alignItems:"flex-end",marginBottom:8}}>
-              <div className="field" style={{flex:1,maxWidth:380}}>
-                <input value={l.nome} onChange={e=>setLavNome(i,e.target.value)}/></div>
-              <button type="button" className="btn small" onClick={()=>salvaLavM(l.id,l.nome)}>Salva</button>
-              <button type="button" className="btn small danger" onClick={()=>eliminaLavM(l.id)}>Elimina</button>
-            </div>)}
-          <div style={{display:"flex",gap:6,marginTop:12}}>
-            <input value={lavNuovaM} onChange={e=>setLavNuovaM(e.target.value)} placeholder="Nuova lavorazione…"
-                   style={{flex:1,maxWidth:280,padding:"7px 9px",border:"1px solid var(--line)",borderRadius:8}}
-                   onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();aggiungiLavM();}}}/>
-            <button type="button" className="btn small" onClick={aggiungiLavM}>+ Aggiungi lavorazione</button>
-          </div>
-          <div className="muted" style={{fontSize:12,marginTop:8}}>Le modifiche qui sono immediate. Nota: rinominare o eliminare una lavorazione non aggiorna i dati già salvati che la usano.</div>
         </div>
 
         <div className="card" style={{padding:20,marginBottom:18}}>

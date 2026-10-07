@@ -5247,14 +5247,15 @@ function ModuloImpostazioni({profilo,perm}){
 
         <div className="card" style={{padding:20,marginBottom:18}}>
           <h3 style={{marginTop:0}}>Obiettivo di margine per categoria</h3>
-          <div className="muted" style={{fontSize:12,marginBottom:12}}>Margine <b>lordo</b> minimo che vuoi su ogni categoria (la <b>famiglia merceologica</b> degli articoli, oppure il <b>nome della lavorazione</b>). Nel preventivo le righe sotto l'obiettivo vengono segnalate. Le categorie non elencate usano il <b>margine minimo generale</b> ({gen.margine_minimo_pct||0}%).</div>
+          <div className="muted" style={{fontSize:12,marginBottom:12}}>Margine <b>lordo</b> minimo che vuoi su ogni categoria (la <b>famiglia merceologica</b> degli articoli, oppure il <b>nome della lavorazione</b>). Serve ad <b>alzare</b> l'asticella su categorie specifiche: il <b>margine minimo generale</b> ({gen.margine_minimo_pct||0}%) resta il pavimento, quindi una categoria vale solo se è <b>più alta</b> del minimo. Nel preventivo le righe sotto l'obiettivo (effettivo) vengono segnalate.</div>
           <div style={{overflow:"auto"}}><table>
             <thead><tr><th>Categoria / lavorazione</th><th>Obiettivo margine %</th><th></th></tr></thead>
             <tbody>
               {(Array.isArray(gen.margini_categoria)?gen.margini_categoria:[]).map((x,i)=>
                 <tr key={i}>
                   <td><input value={x.categoria||""} onChange={e=>setMargCat(i,"categoria",e.target.value)} placeholder="es. Stampa, Rivendita, Allestimenti" style={{...inputSt,minWidth:220}}/></td>
-                  <td><input type="number" step="1" value={x.obiettivo} onChange={e=>setMargCat(i,"obiettivo",e.target.value)} style={inputSt}/></td>
+                  <td><input type="number" step="1" value={x.obiettivo} onChange={e=>setMargCat(i,"obiettivo",e.target.value)} style={inputSt}/>
+                    {x.obiettivo!=="" && x.obiettivo!=null && (Number(x.obiettivo)||0) < (Number(gen.margine_minimo_pct)||0) && <div style={{fontSize:10.5,color:"#c0392b"}}>sotto il minimo generale ({gen.margine_minimo_pct||0}%): nel preventivo userà comunque {gen.margine_minimo_pct||0}%</div>}</td>
                   <td><button type="button" className="btn small danger" onClick={()=>delMargCat(i)}>✕</button></td>
                 </tr>)}
               {!(Array.isArray(gen.margini_categoria)&&gen.margini_categoria.length) && <tr><td colSpan={3} className="muted" style={{padding:10}}>Nessun obiettivo per categoria: si usa il margine minimo generale per tutte le righe.</td></tr>}
@@ -8112,7 +8113,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       if(r.config&&r.config.prodotto_id){ const p=(prodotti||[]).find(x=>x.id===r.config.prodotto_id); cat=(p&&p.categoria)||""; }
       else if(r.articolo_id){ cat=(artMap[r.articolo_id]&&artMap[r.articolo_id].categoria)||""; }
       else if(r.tipo==="manodopera"||r.tipo==="impianto"){ cat=r.lavorazione||""; }
-      const tgt = (catMap[String(cat).trim().toLowerCase()] ?? globale);
+      const ct = catMap[String(cat).trim().toLowerCase()];
+      const tgt = Math.max(Number(ct)||0, globale);   // il minimo generale è un pavimento: la categoria può solo alzarlo
       if(tgt>0 && marg < tgt-0.05) out.push({descr:r.descrizione||r.lavorazione||"riga", marg, tgt, cat});
     });
     return out;

@@ -95,14 +95,14 @@
   .rs{font-weight:700}
 
   /* modal */
-  .overlay{position:fixed;inset:0;background:rgba(16,24,40,.45);display:flex;justify-content:center;align-items:flex-start;
-    padding:16px;overflow:auto;z-index:50}
-  /* finestre a (quasi) tutto schermo: più larghe => i campi non si accorciano. Vince sugli stili inline. */
-  .modal{background:#fff;border-radius:14px;width:96vw !important;max-width:1800px !important;box-shadow:0 24px 60px rgba(16,24,40,.28);overflow:hidden}
-  .modal header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .overlay{position:fixed;inset:0;background:rgba(16,24,40,.45);display:flex;justify-content:center;align-items:stretch;
+    padding:0 !important;overflow:auto;z-index:50}
+  /* finestre a TUTTO SCHERMO: tanto quello che c'è sotto non è cliccabile. Vince sugli stili inline. */
+  .modal{background:#fff;border-radius:0 !important;width:100vw !important;max-width:100vw !important;height:100vh !important;max-height:100vh !important;box-shadow:none;overflow:hidden;display:flex !important;flex-direction:column !important}
+  .modal header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
   .modal header h2{margin:0;font-size:18px}
-  .modal .body{padding:22px;max-height:84vh;overflow:auto}
-  .modal footer{padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px}
+  .modal .body{padding:22px;flex:1 1 auto !important;max-height:none !important;overflow:auto}
+  .modal footer{padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;flex-shrink:0}
   .x{border:0;background:none;font-size:22px;line-height:1;color:var(--muted);cursor:pointer}
 
   .section{margin:0 0 20px}

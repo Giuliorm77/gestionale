@@ -5113,9 +5113,9 @@ function quotaProduzioneOp(o){
   return 0;
 }
 const TIPI_OPERATORE=[
-  {v:"produzione",l:"Produzione"},
-  {v:"misto",l:"Misto (produzione + ufficio)"},
-  {v:"struttura",l:"Solo struttura (indiretto)"},
+  {v:"produzione",l:"Produzione (operaio)"},
+  {v:"misto",l:"Entrambi (ufficio + produzione)"},
+  {v:"struttura",l:"Solo ufficio"},
 ];
 // Bozza impostazioni (anti-perdita, come nei preventivi)
 const BOZZA_IMP_KEY="gest_bozza_impostazioni";
@@ -6563,10 +6563,9 @@ function ModuloOperatori({profilo,perm}){
     if(!operatori) return [];
     const q=cerca.trim().toLowerCase();
     return operatori.filter(o=>{
-      const reps=(o.reparti&&o.reparti.length)? o.reparti : (o.reparto?[o.reparto]:[]);
-      if(filtroRep && !reps.includes(filtroRep)) return false;
+      if(filtroRep && (o.tipo||"produzione")!==filtroRep) return false;
       if(!q) return true;
-      return [o.nome,...reps].join(" ").toLowerCase().includes(q);
+      return String(o.nome||"").toLowerCase().includes(q);
     });
   },[operatori,cerca,filtroRep]);
 
@@ -6590,10 +6589,10 @@ function ModuloOperatori({profilo,perm}){
         {isAdmin && <div className="banner info">Il <b>costo orario</b> è un dato sensibile: sarà usato dai Preventivi per calcolare la manodopera.</div>}
         <div className="toolbar">
           <div className="search"><span className="mag">🔍</span>
-            <input placeholder="Cerca per nome o reparto…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
+            <input placeholder="Cerca per nome…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
           <select className="btn" value={filtroRep} onChange={e=>setFiltroRep(e.target.value)} style={{maxWidth:260}}>
-            <option value="">Tutti i reparti</option>
-            {repartiEsistenti.map(l=><option key={l} value={l}>{l}</option>)}
+            <option value="">Tutti i tipi</option>
+            {TIPI_OPERATORE.map(t=><option key={t.v} value={t.v}>{t.l}</option>)}
           </select>
           <span className="muted">{filtrati.length} operatori</span>
         </div>
@@ -6602,13 +6601,13 @@ function ModuloOperatori({profilo,perm}){
           : filtrati.length===0 ? <div className="card empty">Nessun operatore. Aggiungline uno con "+ Nuovo operatore".</div>
           : <div className="card" style={{overflow:"auto"}}>
               <table>
-                <thead><tr><th>Nome</th><th>Reparto</th>{isAdmin && <th>Costo orario</th>}<th>Attivo</th></tr></thead>
+                <thead><tr><th>Nome</th><th>Tipo</th>{isAdmin && <th>Costo orario</th>}<th>Attivo</th></tr></thead>
                 <tbody>
                   {filtrati.map(o=>
                     <tr key={o.id} onClick={()=>setEditor(o)}>
                       <td className="rs">{o.nome||"—"}</td>
-                      <td>{(() => { const reps=(o.reparti&&o.reparti.length)?o.reparti:(o.reparto?[o.reparto]:[]);
-                        return reps.length? reps.map(r=><span key={r} className="tag">{r}</span>) : <span className="muted">—</span>; })()}</td>
+                      <td>{(()=>{ const t=TIPI_OPERATORE.find(x=>x.v===(o.tipo||"produzione")); const col=o.tipo==="struttura"?{background:"#eef2ff",color:"#3454d1"}:o.tipo==="misto"?{background:"#fff4e5",color:"#b26a00"}:{background:"#e6f4ee",color:"#1f9c68"};
+                        return <span className="tag" style={col}>{t?t.l:"Produzione"}</span>; })()}</td>
                       {isAdmin && <td style={{fontWeight:600}}>{euro(o.costo_orario)}/h</td>}
                       <td>{o.attivo===false?<span className="tag" style={{background:"#fdf0e3",color:"#c47a1e"}}>No</span>
                         :<span className="tag" style={{background:"#e6f4ee",color:"#1f9c68"}}>Sì</span>}</td>
@@ -6731,28 +6730,6 @@ function OperatoreForm({operatore,perm,profilo,repartiEsistenti,onClose,onSalvat
             <div className="muted" style={{fontSize:12,marginTop:6}}>→ In struttura: <b>{eur(quotaStrutturaOp({tipo:f.tipo,costo_annuo:f.costo_annuo,ore_produzione:f.ore_produzione,costo_orario:f.costo_orario}))}</b>{f.tipo==="misto"?" · In produzione: "+eur((Number(f.ore_produzione)||0)*(Number(f.costo_orario)||0)):""}</div>
           </div>}
           </>}
-          <div className="field">
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
-              <label style={{margin:0}}>Reparti (uno o più)</label>
-              <span style={{whiteSpace:"nowrap"}}>
-                <button type="button" className="btn small" onClick={()=>setF(p=>({...p,reparti:[...opzioni]}))}>✓ Tutti</button>{" "}
-                <button type="button" className="btn small" onClick={()=>setF(p=>({...p,reparti:[]}))}>Nessuno</button>
-              </span>
-            </div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:6}}>
-              {opzioni.map(l=>{
-                const on=f.reparti.includes(l);
-                return <button type="button" key={l} className="btn small"
-                  style={on?{background:"var(--brand)",color:"#fff",borderColor:"var(--brand)"}:{}}
-                  onClick={()=>toggleReparto(l)}>{on?"✓ ":""}{l}</button>;
-              })}
-            </div>
-            <div style={{display:"flex",gap:6,marginTop:10}}>
-              <input value={nuovoRep} onChange={e=>setNuovoRep(e.target.value)} placeholder="Nuovo reparto…"
-                     style={{flex:1}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();aggiungiReparto();}}}/>
-              <button type="button" className="btn small" onClick={aggiungiReparto}>+ Aggiungi reparto</button>
-            </div>
-          </div>
           <label style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 12px"}}>
             <input type="checkbox" checked={f.attivo} onChange={e=>set("attivo",e.target.checked)} style={{width:"auto"}}/>
             Operatore attivo

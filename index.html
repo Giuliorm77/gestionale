@@ -13633,6 +13633,7 @@ function ModuloScadenzario({profilo,perm}){
   const [busy,setBusy]=useState(false);
   const [err,setErr]=useState("");
   const [msg,setMsg]=useState("");
+  const [diag,setDiag]=useState(null);
   const eur=n=>Number(n||0).toLocaleString("it-IT",{style:"currency",currency:"EUR",maximumFractionDigits:0});
   const oggi=new Date().toISOString().slice(0,10);
   const tra7=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
@@ -13655,6 +13656,7 @@ function ModuloScadenzario({profilo,perm}){
       if(error) throw error;
       if(data && data.ok===false) throw new Error(data.errore||"Sincronizzazione fallita");
       setMsg("Sincronizzato da Fatture in Cloud: "+(data?.clienti||0)+" scadenze clienti, "+(data?.fornitori||0)+" fornitori.");
+      setDiag(data?.diagnostica||null);
       await carica();
     }catch(ex){ setErr("Sync: "+(ex.message||ex)); }
     setBusy(false);
@@ -13702,6 +13704,10 @@ function ModuloScadenzario({profilo,perm}){
       <div className="content">
         {err && <div className="banner err">{err}</div>}
         {msg && <div className="banner" style={{background:"#e6f4ee",color:"#1f9c68"}}>{msg}</div>}
+        {diag && <details style={{marginBottom:10,background:"#f8fafc",border:"1px solid var(--line)",borderRadius:8,padding:"8px 12px"}}>
+          <summary style={{cursor:"pointer",fontSize:12.5,fontWeight:600}}>🔧 Dettagli tecnici (diagnosi) — clicca e copiami questo</summary>
+          <pre style={{fontSize:11,whiteSpace:"pre-wrap",wordBreak:"break-word",margin:"8px 0 0"}}>{JSON.stringify(diag,null,2)}</pre>
+        </details>}
         <div className="muted" style={{fontSize:12,marginBottom:10}}>
           Dati da <b>Fatture in Cloud</b> (sola lettura).{sync?<> Ultimo aggiornamento: <b>{sync.ultimo_sync?new Date(sync.ultimo_sync).toLocaleString("it-IT"):"mai"}</b>{sync.esito&&sync.esito!=="ok"?<span style={{color:"#c0392b"}}> · {sync.esito}</span>:null}</>:null}
         </div>

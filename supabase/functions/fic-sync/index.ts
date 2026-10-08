@@ -114,12 +114,31 @@ Deno.serve(async (req) => {
     const emesse = await listaDocumenti(token, company, "issued_documents", "invoice");
     const righeCli = emesse.flatMap((d) => righeDaDoc(d, "cliente"));
 
-    // FORNITORI: documenti ricevuti (spese + fatture passive)
+    // FORNITORI: documenti ricevuti (prova vari type; raccogli errori invece di ingoiarli)
     const ricevute: any[] = [];
-    for (const t of ["expense", "passive_invoice"]) {
-      try { (await listaDocumenti(token, company, "received_documents", t)).forEach((d) => ricevute.push(d)); } catch (_) { /* tipo non disponibile */ }
+    const recErr: string[] = [];
+    const recCount: Record<string, number> = {};
+    for (const t of ["expense", "passive_invoice", "passive_credit_note"]) {
+      try { const lst = await listaDocumenti(token, company, "received_documents", t); recCount[t] = lst.length; lst.forEach((d) => ricevute.push(d)); }
+      catch (e) { recErr.push(t + ": " + String(e).slice(0, 180)); }
     }
     const righeFor = ricevute.flatMap((d) => righeDaDoc(d, "fornitore"));
+
+    // DIAGNOSTICA: struttura reale FIC per mappare bene i campi (importo rata / data / stato)
+    const sampleDoc = emesse[0] || null;
+    const diagnostica = {
+      issued_docs: emesse.length,
+      received_docs: ricevute.length,
+      received_count_per_type: recCount,
+      received_errori: recErr,
+      issued_sample_keys: sampleDoc ? Object.keys(sampleDoc) : [],
+      issued_sample: sampleDoc ? {
+        id: sampleDoc.id, number: sampleDoc.number, numeration: sampleDoc.numeration, date: sampleDoc.date,
+        amount_net: sampleDoc.amount_net, amount_gross: sampleDoc.amount_gross,
+        entity: sampleDoc.entity ? { name: sampleDoc.entity.name, vat_number: sampleDoc.entity.vat_number } : null,
+        payments_list: sampleDoc.payments_list || null,
+      } : null,
+    };
 
     await upsertScadenze(sbUrl, srv, [...righeCli, ...righeFor]);
 
@@ -130,7 +149,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ ultimo_sync: new Date().toISOString(), esito: "ok", n_clienti: righeCli.length, n_fornitori: righeFor.length }),
     });
 
-    return new Response(JSON.stringify({ ok: true, clienti: righeCli.length, fornitori: righeFor.length }),
+    return new Response(JSON.stringify({ ok: true, clienti: righeCli.length, fornitori: righeFor.length, diagnostica }),
       { headers: { ...cors, "Content-Type": "application/json" } });
   } catch (e) {
     try {

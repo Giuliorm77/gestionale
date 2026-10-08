@@ -6744,13 +6744,28 @@ function htmlPreventivo(prev, righe, az, cli, tot, destinazione, opts){
   const hasSconto=(righe||[]).some(r=>Number(r.sconto_pct)>0);
   const scCell=s=>hasSconto?`<td class="r">${s?s+"%":"—"}</td>`:"";
   const scEmpty=hasSconto?"<td></td>":"";
-  const righeHtml=(righe||[]).map(r=>{
+  const rigaHtml=r=>{
     const q=Number(r.quantita)||0, pu=Number(r.prezzo_unitario)||0, sc=Number(r.sconto_pct)||0;
     const md=r.modalita_consegna||"corriere";
     const mdNote = md!=="corriere" ? `<div style="font-size:10.5px;color:#b26a00">Consegna: ${md==="ritiro_cliente"?"ritiro a cura del cliente":"con nostro mezzo"}</div>` : "";
     if(opts&&opts.soloDescrizioni) return `<tr><td>${escHtml(r.descrizione)}${mdNote}</td></tr>`;
     return `<tr><td>${escHtml(r.descrizione)}${mdNote}</td><td class="r">${q} ${escHtml(r.unita||"")}</td><td class="r">${eurf(pu)}</td>${scCell(sc)}<td class="r">${eurf(q*pu*(1-sc/100))}</td></tr>`;
-  }).join("");
+  };
+  let righeHtml;
+  const colFull=hasSconto?5:4;
+  if(opts&&opts.raggruppaProdotti && !(opts&&opts.soloDescrizioni)){
+    // PDF interno: una sezione per PRODOTTO (gruppo) con le sue lavorazioni sotto
+    const ordine=[]; (righe||[]).forEach(r=>{ const g=r.gruppo||""; if(!ordine.includes(g)) ordine.push(g); });
+    const mostraHead = ordine.length>1 || ordine.some(g=>g);
+    righeHtml=ordine.map(g=>{
+      const items=(righe||[]).filter(r=>(r.gruppo||"")===g);
+      const sub=items.reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0)*(1-(Number(r.sconto_pct)||0)/100),0);
+      const head = mostraHead ? `<tr><td colspan="${colFull}" style="background:#eef2ff;font-weight:bold;color:#1d2430;border-top:2px solid #2f5bea">🧩 ${escHtml(g||"Prodotto")} — ${eurf(sub)}</td></tr>` : "";
+      return head + items.map(rigaHtml).join("");
+    }).join("");
+  } else {
+    righeHtml=(righe||[]).map(rigaHtml).join("");
+  }
   const extra=[];
   if(!(opts&&opts.noExtra)){
     const imbRigheTot=(righe||[]).reduce((s,r)=>s+(Number(r.imballo_costo)||0),0);
@@ -8292,7 +8307,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     const {data}=await sb.from("clienti").select("ragione_sociale,partita_iva,codice_fiscale,clienti_sedi(*),clienti_condizioni(metodo_pagamento,termini_pagamento)").eq("id",f.cliente_id).maybeSingle();
     return data;
   }
-  async function stampa(){ const cli=await caricaCli(); stampaHTML(htmlPreventivo(f, righeCalc, imp, cli, tot)); }
+  async function stampa(){ const cli=await caricaCli(); stampaHTML(htmlPreventivo(f, righeCalc, imp, cli, tot, null, {raggruppaProdotti:true})); }
   async function stampaCliente(){
     const cli=await caricaCli();
     const rc=(righeCliente||[]).filter(x=>x.mostra!==false && (String(x.descrizione||"").trim()!==""||Number(x.prezzo_un)>0));

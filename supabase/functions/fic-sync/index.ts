@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
     const ricevute: any[] = [];
     const recErr: string[] = [];
     const recCount: Record<string, number> = {};
-    for (const t of ["expense", "passive_invoice", "passive_credit_note"]) {
+    for (const t of ["expense"]) {   // le fatture fornitori in FIC sono sotto 'expense' (serve il permesso "documenti ricevuti")
       try { const lst = await listaDocumenti(token, company, "received_documents", t); recCount[t] = lst.length; lst.forEach((d) => ricevute.push(d)); }
       catch (e) { recErr.push(t + ": " + String(e).slice(0, 180)); }
     }

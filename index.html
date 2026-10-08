@@ -4985,7 +4985,9 @@ function nestingBobina(L, H, N, altezze, gapLato){
       const lung=file*al;                 // cm di bobina consumati
       const mq=Math.round((W/100)*(lung/100)*1000)/1000;
       const resa=mq>0? Math.round(((Number(L)||0)*(Number(H)||0)*n)/10000/mq*1000)/10 : 0; // %
-      if(!best || mq<best.mq) best={W,perFila,file,lung,mq,resa};
+      const eff=Math.min(perFila,n);      // pezzi affiancati davvero utili per questa tiratura
+      // criterio: prima più pezzi AFFIANCATI (ruotando), poi la bobina che consuma meno mq (più stretta)
+      if(!best || eff>best.eff || (eff===best.eff && mq<best.mq)) best={W,perFila,file,lung,mq,resa,eff};
     });
   });
   return best;

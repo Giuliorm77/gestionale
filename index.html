@@ -4166,6 +4166,35 @@ function ModuloMagazzino({profilo,perm}){
   const dataIt=d=> d? new Date(d).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
   const num=v=>{ const n=Number(v); return Number.isFinite(n)? (Math.round(n*100)/100) : 0; };
   const eur=n=>Number(n||0).toLocaleString("it-IT",{style:"currency",currency:"EUR",maximumFractionDigits:0});
+  function esportaExcel(){
+    const econ=!!perm.economici;
+    const rows=artFiltrati.map(a=>{ const gi=num(a.giacenza), imp=num(a.impegnato), disp=gi-imp, sc=num(a.scorta_minima);
+      const base={Articolo:a.nome_articolo||"", Codice:a.codice||"", Tipo:a.tipo||"", Giacenza:gi, "Unità":a.unita||"", Impegnato:imp, Disponibile:disp, "Scorta min.":sc||""};
+      if(econ){ const co=Number(costi[a.id])||0; base["Costo unit."]=co; base["Valore"]=Math.round(gi*co*100)/100; }
+      base["Stato"]= disp<=0?"Esaurito":(sc>0&&disp<=sc?"Sotto scorta":"Disponibile");
+      return base; });
+    if(econ){ const totVal=artFiltrati.reduce((s,a)=>s+num(a.giacenza)*(Number(costi[a.id])||0),0);
+      rows.push({}); rows.push({Articolo:"TOTALE VALORE (righe esportate)", Valore:Math.round(totVal*100)/100});
+      if(valz) rows.push({Articolo:"VALORIZZAZIONE TOTALE MAGAZZINO (sfuso+avanzi)", Valore:Math.round(((Number(valz.val_sfuso)||0)+(Number(valz.val_avanzi)||0))*100)/100}); }
+    const ws=XLSX.utils.json_to_sheet(rows);
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Magazzino");
+    XLSX.writeFile(wb, "Magazzino_"+new Date().toISOString().slice(0,10)+".xlsx");
+  }
+  function esportaPDF(){
+    const econ=!!perm.economici;
+    const dt=new Date().toLocaleDateString("it-IT");
+    let tot=0;
+    const body=artFiltrati.map(a=>{ const gi=num(a.giacenza),imp=num(a.impegnato),disp=gi-imp,sc=num(a.scorta_minima);
+      const co=Number(costi[a.id])||0, val=gi*co; tot+=val;
+      const stato= disp<=0?"Esaurito":(sc>0&&disp<=sc?"Sotto scorta":"Disponibile");
+      return "<tr><td>"+escHtml(a.nome_articolo||"")+"<div style='font-size:9px;color:#888'>"+escHtml(a.codice||"")+"</div></td><td>"+escHtml(a.tipo||"")+"</td><td class=r>"+gi+" "+escHtml(a.unita||"")+"</td><td class=r>"+disp+"</td><td class=r>"+(sc||"—")+"</td>"+(econ?("<td class=r>"+eur(co)+"</td><td class=r>"+eur(val)+"</td>"):"")+"<td>"+stato+"</td></tr>"; }).join("");
+    const totRow= econ? "<tr style='font-weight:bold;border-top:2px solid #333'><td colspan=6 class=r>TOTALE VALORE (righe)</td><td class=r>"+eur(tot)+"</td><td></td></tr>":"";
+    const head="<tr><th>Articolo</th><th>Tipo</th><th class=r>Giac.</th><th class=r>Disp.</th><th class=r>Scorta</th>"+(econ?"<th class=r>Costo</th><th class=r>Valore</th>":"")+"<th>Stato</th></tr>";
+    const sottot= econ&&valz? (" · Valorizzazione totale magazzino: "+eur((Number(valz.val_sfuso)||0)+(Number(valz.val_avanzi)||0))):"";
+    const html="<!doctype html><html lang=it><head><meta charset=utf-8><title>Magazzino</title><style>body{font-family:Arial,Helvetica,sans-serif;font-size:11px;margin:16px;color:#1d2430}h1{font-size:16px;margin:0 0 2px}table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left}th{background:#f2f5fa}.r{text-align:right;white-space:nowrap}@page{size:A4 landscape;margin:10mm}</style></head><body><h1>Magazzino — giacenze</h1><div style='color:#555;margin-bottom:6px'>"+dt+" · "+artFiltrati.length+" articoli"+sottot+"</div><table><thead>"+head+"</thead><tbody>"+body+totRow+"</tbody></table></body></html>";
+    stampaHTML(html);
+  }
 
   return (
     <>
@@ -4193,6 +4222,10 @@ function ModuloMagazzino({profilo,perm}){
                 Mostra tutto il catalogo
               </label>
               <span className="muted">{artFiltrati.length} articoli{soloMag?" a magazzino":""}{troncato?" (primi 1000 — restringi con la ricerca)":""}</span>
+              {artFiltrati.length>0 && <span style={{marginLeft:"auto",display:"inline-flex",gap:6}}>
+                <button type="button" className="btn small" onClick={esportaExcel} title="Scarica le giacenze mostrate in Excel">⬇ Excel</button>
+                <button type="button" className="btn small" onClick={esportaPDF} title="Stampa/salva in PDF le giacenze mostrate">🖨️ PDF</button>
+              </span>}
             </div>
             {perm.economici && valz && (()=>{ const tot=(Number(valz.val_sfuso)||0)+(Number(valz.val_avanzi)||0);
               return <div className="card" style={{display:"flex",flexWrap:"wrap",gap:20,alignItems:"center",padding:"12px 18px",marginBottom:12,background:"#f6faf8",border:"1px solid #cfe8dd"}}>

@@ -1918,6 +1918,17 @@ function ModuloClienti({profilo,perm}){
     }catch(ex){ setErr("Import FIC: "+(ex.message||ex)); }
     setImpBusy(false);
   }
+  async function creaDaFatture(){
+    if(!window.confirm("Creare i clienti mancanti pescandoli dalle fatture dello Scadenzario (destinatari non ancora in anagrafica)? Dedup per P.IVA/CF o per nome.")) return;
+    setImpBusy(true); setImpMsg(""); setErr("");
+    try{
+      const {data,error}=await sb.rpc("anagrafiche_da_scadenze",{p_tipo:"cliente"});
+      if(error) throw error;
+      setImpMsg((data?.clienti_creati||0)+" clienti creati dalle fatture dello Scadenzario.");
+      await carica();
+    }catch(ex){ setErr("Crea da fatture: "+(ex.message||ex)); }
+    setImpBusy(false);
+  }
 
   // incidenza % sul fatturato: fatturato reale (commesse consegnate/chiuse) dell'anno in corso, per cliente
   const annoCorr=new Date().getFullYear();
@@ -2015,7 +2026,8 @@ function ModuloClienti({profilo,perm}){
         <h1>Anagrafica Clienti</h1>
         <button className="btn" onClick={esporta} disabled={!filtrati.length} title="Esporta la lista filtrata in Excel">⬇️ Esporta Excel</button>
         {puoFeedback && <button className="btn" onClick={esportaRegistroFeedback} title="Genera il registro ISO feedback clienti (Excel, con calcoli per anno)">📋 Registro feedback ISO</button>}
-        {perm.economici && <button className="btn" onClick={importaFIC} disabled={impBusy} title="Crea i clienti mancanti importandoli da Fatture in Cloud (dedup per P.IVA/CF)">{impBusy?"Importo…":"⬇ Importa da Fatture in Cloud"}</button>}
+        {perm.economici && <button className="btn" onClick={importaFIC} disabled={impBusy} title="Crea i clienti mancanti importandoli dalla rubrica di Fatture in Cloud (dedup per P.IVA/CF)">{impBusy?"Importo…":"⬇ Importa da Fatture in Cloud"}</button>}
+        {perm.economici && <button className="btn" onClick={creaDaFatture} disabled={impBusy} title="Crea i clienti mancanti dai destinatari delle fatture nello Scadenzario (più completo della sola rubrica FIC)">➕ Crea da fatture</button>}
         {perm.scrivi &&
           <button className="btn primary" onClick={()=>setForm({})}>+ Nuovo cliente</button>}
       </div>
@@ -5937,6 +5949,17 @@ function ModuloFornitori({profilo,perm}){
     }catch(ex){ setErr("Import FIC: "+(ex.message||ex)); }
     setImpBusy(false);
   }
+  async function creaDaFatture(){
+    if(!window.confirm("Creare i fornitori mancanti pescandoli dalle fatture ricevute dello Scadenzario? Dedup per P.IVA/CF o per nome.")) return;
+    setImpBusy(true); setImpMsg(""); setErr("");
+    try{
+      const {data,error}=await sb.rpc("anagrafiche_da_scadenze",{p_tipo:"fornitore"});
+      if(error) throw error;
+      setImpMsg((data?.fornitori_creati||0)+" fornitori creati dalle fatture dello Scadenzario.");
+      await carica();
+    }catch(ex){ setErr("Crea da fatture: "+(ex.message||ex)); }
+    setImpBusy(false);
+  }
   useEffect(()=>{ sb.from("articoli").select("categoria").then(({data})=>{ setCategorie([...new Set((data||[]).map(x=>String(x.categoria||"").trim()).filter(Boolean))].sort()); }); },[]);
 
   // incidenza % sugli acquisti (ordini fornitore, anno in corso), per fornitore
@@ -6019,7 +6042,8 @@ function ModuloFornitori({profilo,perm}){
         <button className="btn" onClick={esporta} disabled={!filtrati.length} title="Esporta la lista filtrata in Excel">⬇️ Esporta Excel</button>
         {perm.economici && <button className="btn" onClick={esportaRegistroFornitori} title="Genera il registro ISO valutazione fornitori (Excel, con medie e qualifica)">📋 Registro fornitori ISO</button>}
         {perm.scrivi && <button className="btn" onClick={()=>setImportOpen(true)} title="Importa fornitori da un file Excel (salta i duplicati)">⬆️ Importa Excel</button>}
-        {perm.economici && <button className="btn" onClick={importaFIC} disabled={impBusy} title="Crea i fornitori mancanti importandoli da Fatture in Cloud (dedup per P.IVA/CF)">{impBusy?"Importo…":"⬇ Importa da Fatture in Cloud"}</button>}
+        {perm.economici && <button className="btn" onClick={importaFIC} disabled={impBusy} title="Crea i fornitori mancanti importandoli dalla rubrica di Fatture in Cloud (dedup per P.IVA/CF)">{impBusy?"Importo…":"⬇ Importa da Fatture in Cloud"}</button>}
+        {perm.economici && <button className="btn" onClick={creaDaFatture} disabled={impBusy} title="Crea i fornitori mancanti dai documenti ricevuti nello Scadenzario">➕ Crea da fatture</button>}
         {perm.scrivi && <button className="btn primary" onClick={()=>setEditor({})}>+ Nuovo fornitore</button>}
       </div>
       <div className="content">

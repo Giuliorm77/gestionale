@@ -6619,12 +6619,21 @@ function htmlPreventivoCosti(prev, righe, az, cli, tot){
   const pct=n=>Number(n||0).toLocaleString("it-IT",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
   const dt=prev.data? new Date(prev.data):new Date();
   const fmt=d=>d.toLocaleDateString("it-IT");
-  const rows=(righe||[]).map(r=>{
+  const rigaCostiHtml=r=>{
     const q=Number(r.quantita)||0, pu=Number(r.prezzo_unitario)||0, cu=Number(r.costo_unitario)||0, sc=Number(r.sconto_pct)||0;
     const ric=q*pu*(1-sc/100), cos=q*cu, mar=ric-cos, mp=ric>0?mar/ric*100:0;
     const forn=r.fornitore_prezzo_nome?('<div style="font-size:10px;color:#2f5bea">prezzo da: '+escHtml(r.fornitore_prezzo_nome)+(r.fornitore_prezzo_nota?(" — "+escHtml(r.fornitore_prezzo_nota)):"")+'</div>'):"";
     return '<tr><td>'+escHtml(r.descrizione||r.lavorazione||"")+forn+'</td><td class="r">'+q+' '+escHtml(r.unita||"")+'</td><td class="r">'+eurf(pu)+(sc?(' <span style="color:#b26a00">-'+sc+'%</span>'):"")+'</td><td class="r">'+eurf(cu)+'</td><td class="r">'+eurf(ric)+'</td><td class="r">'+eurf(cos)+'</td><td class="r">'+eurf(mar)+'</td><td class="r" style="color:'+(mp<0?"#c0392b":"#127a3e")+'">'+pct(mp)+'</td></tr>';
-  }).join("");
+  };
+  const ordineC=[]; (righe||[]).forEach(r=>{ const g=r.gruppo||""; if(!ordineC.includes(g)) ordineC.push(g); });
+  const mostraGrp = ordineC.length>1 || ordineC.some(g=>g);
+  const rows = mostraGrp ? ordineC.map(g=>{
+    const items=(righe||[]).filter(r=>(r.gruppo||"")===g);
+    let gric=0,gcos=0; items.forEach(r=>{ const q=Number(r.quantita)||0,pu=Number(r.prezzo_unitario)||0,cu=Number(r.costo_unitario)||0,sc=Number(r.sconto_pct)||0; gric+=q*pu*(1-sc/100); gcos+=q*cu; });
+    const gmar=gric-gcos, gmp=gric>0?gmar/gric*100:0;
+    const head='<tr><td colspan="4" style="background:#eef2ff;font-weight:bold;border-top:2px solid #2f5bea">🧩 '+escHtml(g||"Prodotto")+'</td><td class="r" style="background:#eef2ff;font-weight:bold;border-top:2px solid #2f5bea">'+eurf(gric)+'</td><td class="r" style="background:#eef2ff;font-weight:bold;border-top:2px solid #2f5bea">'+eurf(gcos)+'</td><td class="r" style="background:#eef2ff;font-weight:bold;border-top:2px solid #2f5bea">'+eurf(gmar)+'</td><td class="r" style="background:#eef2ff;font-weight:bold;border-top:2px solid #2f5bea;color:'+(gmp<0?"#c0392b":"#127a3e")+'">'+pct(gmp)+'</td></tr>';
+    return head + items.map(rigaCostiHtml).join("");
+  }).join("") : (righe||[]).map(rigaCostiHtml).join("");
   const extraR=[];
   if((tot.imbRighe||0)>0) extraR.push('<tr><td>Imballo (a carico cliente)</td><td></td><td></td><td></td><td class="r">'+eurf(tot.imbRighe)+'</td><td class="r">—</td><td class="r">—</td><td class="r">—</td></tr>');
   if(Number(prev.imballaggio)>0) extraR.push('<tr><td>Imballaggio</td><td></td><td></td><td></td><td class="r">'+eurf(prev.imballaggio)+'</td><td class="r">—</td><td class="r">—</td><td class="r">—</td></tr>');
@@ -8320,7 +8329,18 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       const totC={imponibile:imp2, iva:imp2*ivaPct/100, totale:imp2*(1+ivaPct/100), imbRighe:0};
       stampaHTML(htmlPreventivo(f, rows, imp, cli, totC, null, {noExtra:true, soloDescrizioni:soloDesc}));
     } else {
-      stampaHTML(htmlPreventivo(f, righeVersioneCliente(righeCalc), imp, cli, tot));
+      // Nessuna versione cliente manuale: se il preventivo è a PRODOTTI, mostra una riga per prodotto (nome + prezzo)
+      const ordine=[]; righeCalc.forEach(r=>{ const g=r.gruppo||""; if(!ordine.includes(g)) ordine.push(g); });
+      const haGruppi = ordine.length>1 || ordine.some(g=>g);
+      if(haGruppi){
+        const rows=ordine.map(g=>({descrizione:g||(f.descrizione_breve||"Prodotto"), quantita:1, unita:"", prezzo_unitario:Math.round(subProdotto(g)*100)/100, sconto_pct:0, modalita_consegna:"corriere", imballo_costo:0}));
+        const imp2=rows.reduce((s,r)=>s+r.prezzo_unitario,0);
+        const ivaPct=Number(f.iva_pct)||0;
+        const totC={imponibile:imp2, iva:imp2*ivaPct/100, totale:imp2*(1+ivaPct/100), imbRighe:0};
+        stampaHTML(htmlPreventivo(f, rows, imp, cli, totC, null, {noExtra:true}));
+      } else {
+        stampaHTML(htmlPreventivo(f, righeVersioneCliente(righeCalc), imp, cli, tot));
+      }
     }
   }
   async function stampaCosti(){ const cli=await caricaCli(); stampaHTML(htmlPreventivoCosti(f, righeCalc, imp, cli, tot)); }

@@ -524,12 +524,6 @@ function puoModulo(perm, mod){
   return req==="sempre" ? true : !!perm[req];
 }
 const NAV_ITEMS = [
-  // 💼 Vendite
-  {g:"Vendite", m:"clienti", ico:"👥", label:"Anagrafica Clienti"},
-  {g:"Vendite", m:"crm", ico:"🎯", label:"CRM / Trattative"},
-  {g:"Vendite", m:"agenda", ico:"📅", label:"Agenda & Follow-up"},
-  {g:"Vendite", m:"preventivi", ico:"🧾", label:"Preventivi"},
-  {g:"Vendite", m:"agenti", ico:"🧑‍💼", label:"Agenti"},
   // 🏭 Produzione
   {g:"Produzione", m:"commesse", ico:"🏭", label:"Commesse"},
   {g:"Produzione", m:"postazione", ico:"⏱️", label:"Postazione operatore"},
@@ -547,6 +541,12 @@ const NAV_ITEMS = [
   {g:"Acquisti", m:"fornitori", ico:"🚚", label:"Anagrafica Fornitori"},
   {g:"Acquisti", m:"ordinifor", ico:"🛒", label:"Ordini fornitori"},
   {g:"Acquisti", m:"trasporti", ico:"🚚", label:"Trasporti"},
+  // 💼 Vendite
+  {g:"Vendite", m:"clienti", ico:"👥", label:"Anagrafica Clienti"},
+  {g:"Vendite", m:"crm", ico:"🎯", label:"CRM / Trattative"},
+  {g:"Vendite", m:"agenda", ico:"📅", label:"Agenda & Follow-up"},
+  {g:"Vendite", m:"preventivi", ico:"🧾", label:"Preventivi"},
+  {g:"Vendite", m:"agenti", ico:"🧑‍💼", label:"Agenti"},
   // 💶 Amministrazione
   {g:"Amministrazione", m:"scadenzario", ico:"💶", label:"Scadenzario"},
   {g:"Amministrazione", m:"report", ico:"📊", label:"Report"},
@@ -962,7 +962,7 @@ function Gestionale({profilo}){
         <nav className="nav">
           {NAV_ITEMS.map((it,i)=>{
             const header = (i===0 || NAV_ITEMS[i-1].g!==it.g)
-              ? <div key={"g-"+it.g} style={{fontSize:10,textTransform:"uppercase",letterSpacing:.7,color:"#8a97a6",fontWeight:800,padding:"13px 14px 4px"}}>{it.g}</div> : null;
+              ? <div key={"g-"+it.g} style={{fontSize:12,textTransform:"uppercase",letterSpacing:.9,color:"#00c2c5",fontWeight:800,padding:"16px 14px 7px",marginTop:i===0?0:6,borderTop:i===0?"none":"1px solid rgba(255,255,255,.09)"}}>{it.g}</div> : null;
             const btn = puoModulo(perm,it.m)
               ? <button key={it.m} className={modulo===it.m?"active":""} onClick={()=>{setModulo(it.m);setMenuAperto(false);}}>
                   <span className="ico">{it.ico}</span> {it.label}

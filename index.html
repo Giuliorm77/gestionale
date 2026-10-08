@@ -503,7 +503,7 @@ const MODULO_REQ = {
   clienti:"sempre", catalogo:"economici", magazzino:"commesse", pezzi:"magazzino", operatori:"economici",
   fornitori:"economici", agenti:"economici", impostazioni:"economici", preventivi:"economici", prodotticfg:"economici",
   imballi:"economici", commesse:"commesse", postazione:"commesse", ordinifor:"economici", trasporti:"economici",
-  report:"economici", utenti:"utenti", crm:"crm", agenda:"crm", mezzi:"commesse", ddt:"magazzino", scadenzario:"economici",
+  report:"economici", utenti:"utenti", crm:"crm", agenda:"crm", mezzi:"commesse", ddt:"magazzino", scadenzario:"economici", consuntivi:"economici",
   vetrina:"economici", ordinishop:"commesse", clientikomunigo:"economici", qualita:"economici",
   inarrivo:"magazzino",
 };
@@ -548,6 +548,7 @@ const NAV_ITEMS = [
   {m:"ordinishop", ico:"🌐", label:"Ordini Komunigo"},
   {m:"clientikomunigo", ico:"🤝", label:"Account Komunigo"},
   {m:"scadenzario", ico:"💶", label:"Scadenzario"},
+  {m:"consuntivi", ico:"📋", label:"Consuntivi"},
   {m:"report", ico:"📊", label:"Report"},
   {m:"qualita", ico:"✅", label:"Qualità (ISO)"},
   {m:"utenti", ico:"🔑", label:"Utenti & Ruoli"},
@@ -995,6 +996,7 @@ function Gestionale({profilo}){
         {modulo==="ordinifor" && <ModuloOrdiniFornitori profilo={profilo} perm={perm}/>}
         {modulo==="trasporti" && <ModuloTrasporti profilo={profilo} perm={perm}/>}
         {modulo==="scadenzario" && <ModuloScadenzario profilo={profilo} perm={perm}/>}
+        {modulo==="consuntivi" && <ModuloConsuntivi profilo={profilo} perm={perm}/>}
         {modulo==="report" && <ModuloReport profilo={profilo} perm={perm}/>}
         {modulo==="qualita" && <ModuloQualita profilo={profilo} perm={perm}/>}
         {modulo==="utenti"  && <ModuloUtenti profilo={profilo}/>}
@@ -11658,8 +11660,43 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         try{ await sb.from("commesse_modifiche").insert({commessa_id:id, utente_id:profilo.id, utente_nome:profilo.nome||"",
           motivo:motivoMod.trim(), dettaglio:(diffList&&diffList.length?diffList.join("\n"):"(nessuna differenza nei campi principali)")}); }catch(e){}
       }
+      // SNAPSHOT consuntivo congelato alla CHIUSURA della commessa
+      if(chiudendo){ try{ await salvaConsuntivo(id); }catch(e){} }
       onSalvato();
     }catch(ex){ setErr(ex.message); setBusy(false); }
+  }
+
+  // SNAPSHOT consuntivo (congelato): usa i valori già calcolati del Consuntivo reale
+  function recConsuntivo(id){
+    const cli=clienti.find(c=>c.id===f.cliente_id);
+    return { commessa_id:id, numero:f.numero||commessa?.numero||"",
+      cliente_nome:(cli?cli.ragione_sociale:(f.cliente_nome||commessa?.cliente_nome||"")),
+      stato:f.stato||"", data_chiusura:new Date().toISOString().slice(0,10),
+      ricavi:Math.round(ricaviTot*100)/100,
+      costo_materiali:Math.round(costoMateriali*100)/100,
+      costo_manodopera:Math.round(costoManodopera*100)/100,
+      trasporto:Math.round((Number(f.trasporto)||0)*100)/100,
+      costo_esterno:Math.round(costoEsterno*100)/100,
+      costo_straordinario:Math.round(costoStraordinario*100)/100,
+      costo_aiuti:Math.round(costoAiuti*100)/100,
+      costo_perdite:Math.round(costoPerdite*100)/100,
+      costo_interventi:Math.round(costoInterventi*100)/100,
+      costo_extra:Math.round(costoExtra*100)/100,
+      costi_totali:Math.round(costiTot*100)/100,
+      margine:Math.round(margineReale*100)/100,
+      margine_pct: ricaviTot>0? Math.round(margineReale/ricaviTot*10000)/100 : 0,
+      creato_da:profilo.id, aggiornato_il:new Date().toISOString() };
+  }
+  async function salvaConsuntivo(id){
+    const {error}=await sb.from("commesse_consuntivi").upsert(recConsuntivo(id),{onConflict:"commessa_id"});
+    if(error) throw error;
+  }
+  async function salvaConsuntivoManuale(){
+    if(nuova||!commessa?.id){ setErr("Salva prima la commessa."); return; }
+    setBusy(true); setConsMsg("");
+    try{ await salvaConsuntivo(commessa.id); setConsMsg("📋 Consuntivo salvato nell'archivio (modulo Consuntivi)."); }
+    catch(ex){ setErr(ex.message); }
+    setBusy(false);
   }
 
   async function elimina(){
@@ -12380,6 +12417,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
           {!nuova && perm.economici &&
             <button type="button" className="btn" onClick={generaConsuntivo} disabled={busy}
               title="Crea un preventivo (bozza) con i materiali scaricati e le ore reali per reparto, da rivedere e inviare">📄 Genera consuntivo</button>}
+          {!nuova && perm.economici &&
+            <button type="button" className="btn" onClick={salvaConsuntivoManuale} disabled={busy}
+              title="Fotografa il consuntivo reale (ricavi/costi/margine) nell'archivio Consuntivi">💾 Salva consuntivo</button>}
           {!nuova && profilo.ruolo==="amministratore" && !readonly &&
             <button type="button" className="btn danger" onClick={elimina} disabled={busy}>Elimina</button>}
           <button type="button" className="btn" style={{marginLeft:"auto"}} onClick={onClose}>{readonly?"Chiudi":"Annulla"}</button>
@@ -13655,6 +13695,116 @@ function ModuloAgenda({profilo,perm}){
       </div>
       {editor && <AttivitaForm profilo={profilo} clienti={clienti} attivita={editor.id?editor:null}
         onClose={()=>setEditor(null)} onSalvato={()=>{setEditor(null);carica();}}/>}
+    </>
+  );
+}
+
+/* ================================================================ CONSUNTIVI (archivio margini) */
+function ModuloConsuntivi({profilo,perm}){
+  const [cons,setCons]=useState(null);
+  const [err,setErr]=useState("");
+  const [cerca,setCerca]=useState("");
+  const [anno,setAnno]=useState("");
+  const [apri,setApri]=useState(null);   // id riga espansa
+  const eur=n=>Number(n||0).toLocaleString("it-IT",{style:"currency",currency:"EUR",maximumFractionDigits:0});
+  const dataIt=d=> d? new Date(d).toLocaleDateString("it-IT") : "—";
+
+  const carica=useCallback(async()=>{
+    setErr("");
+    const {data,error}=await sb.from("commesse_consuntivi").select("*").order("data_chiusura",{ascending:false}).limit(3000);
+    if(error){ setErr(error.message); return; }
+    setCons(data||[]);
+  },[]);
+  useEffect(()=>{ carica(); },[carica]);
+
+  const anniOpz=useMemo(()=>[...new Set((cons||[]).map(c=>String(c.data_chiusura||"").slice(0,4)).filter(Boolean))].sort().reverse(),[cons]);
+  const filtrati=useMemo(()=>{
+    const q=cerca.trim().toLowerCase();
+    return (cons||[]).filter(c=>{
+      if(anno && String(c.data_chiusura||"").slice(0,4)!==anno) return false;
+      if(q && ![c.numero,c.cliente_nome].join(" ").toLowerCase().includes(q)) return false;
+      return true;
+    });
+  },[cons,cerca,anno]);
+  const tot=useMemo(()=>filtrati.reduce((o,c)=>({ric:o.ric+(Number(c.ricavi)||0),cos:o.cos+(Number(c.costi_totali)||0),mar:o.mar+(Number(c.margine)||0)}),{ric:0,cos:0,mar:0}),[filtrati]);
+
+  function esporta(){
+    const rows=filtrati.map(c=>({Commessa:c.numero||"",Cliente:c.cliente_nome||"",Chiusa:c.data_chiusura||"",Stato:c.stato||"",
+      Ricavi:Number(c.ricavi)||0,"Costo materiali":Number(c.costo_materiali)||0,"Costo manodopera":Number(c.costo_manodopera)||0,
+      Trasporto:Number(c.trasporto)||0,"Lav. esterne":Number(c.costo_esterno)||0,Straordinario:Number(c.costo_straordinario)||0,
+      "Aiuti":Number(c.costo_aiuti)||0,Perdite:Number(c.costo_perdite)||0,Rilavorazioni:Number(c.costo_interventi)||0,
+      "Extra costi":Number(c.costo_extra)||0,"Costi totali":Number(c.costi_totali)||0,Margine:Number(c.margine)||0,"Margine %":Number(c.margine_pct)||0}));
+    const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,"Consuntivi"); XLSX.writeFile(wb,"Consuntivi_"+new Date().toISOString().slice(0,10)+".xlsx");
+  }
+
+  const voce=(l,v,danger)=> (Number(v)||0)!==0 ? <><span className="k" style={danger?{color:"var(--danger)"}:{}}>{l}</span><span style={{textAlign:"right",...(danger?{color:"var(--danger)"}:{})}}>{eur(v)}</span></> : null;
+
+  return (
+    <>
+      <div className="topbar"><h1>Consuntivi</h1></div>
+      <div className="content">
+        {err && <div className="banner err">{err}</div>}
+        <div className="muted" style={{fontSize:12,marginBottom:10}}>Archivio dei consuntivi <b>congelati alla chiusura</b> della commessa (ricavi/costi/margine reali in quel momento). Si crea in automatico quando chiudi una commessa, o col pulsante <b>💾 Salva consuntivo</b> nella scheda. Per il margine <b>live</b> aggiornato usa 📊 Report.</div>
+
+        {cons && cons.length>0 && <div className="card" style={{display:"flex",gap:22,flexWrap:"wrap",alignItems:"center",padding:"12px 18px",marginBottom:12,background:"#f6faf8",border:"1px solid #cfe8dd"}}>
+          <div><div className="muted" style={{fontSize:11,textTransform:"uppercase"}}>Margine totale ({filtrati.length} commesse)</div>
+            <div style={{fontSize:22,fontWeight:800,color:tot.mar>=0?"#136c4a":"#c0392b"}}>{eur(tot.mar)}</div></div>
+          <div style={{borderLeft:"1px solid #cfe8dd",paddingLeft:22}}><div className="muted" style={{fontSize:12}}>Ricavi</div><div style={{fontWeight:700}}>{eur(tot.ric)}</div></div>
+          <div style={{borderLeft:"1px solid #cfe8dd",paddingLeft:22}}><div className="muted" style={{fontSize:12}}>Costi</div><div style={{fontWeight:700}}>{eur(tot.cos)}</div></div>
+          <div style={{borderLeft:"1px solid #cfe8dd",paddingLeft:22}}><div className="muted" style={{fontSize:12}}>Margine medio</div><div style={{fontWeight:700}}>{tot.ric>0?Math.round(tot.mar/tot.ric*100):0}%</div></div>
+        </div>}
+
+        <div className="toolbar">
+          <div className="search"><span className="mag">🔍</span>
+            <input placeholder="Cerca per commessa o cliente…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
+          <select className="btn" value={anno} onChange={e=>setAnno(e.target.value)} style={{maxWidth:130}}>
+            <option value="">Tutti gli anni</option>
+            {anniOpz.map(y=><option key={y} value={y}>{y}</option>)}
+          </select>
+          {filtrati.length>0 && <button className="btn" onClick={esporta}>⬇ Excel</button>}
+          <span className="muted">{filtrati.length} consuntivi</span>
+        </div>
+
+        {cons===null ? <div className="empty">Caricamento…</div>
+          : filtrati.length===0 ? <div className="card empty">Nessun consuntivo salvato. Si creano chiudendo una commessa (o con 💾 Salva consuntivo nella scheda commessa).</div>
+          : <div className="card" style={{overflow:"auto"}}>
+              <table>
+                <thead><tr><th>Commessa</th><th>Cliente</th><th>Chiusa</th><th style={{textAlign:"right"}}>Ricavi</th><th style={{textAlign:"right"}}>Costi</th><th style={{textAlign:"right"}}>Margine</th><th style={{textAlign:"right"}}>%</th></tr></thead>
+                <tbody>
+                  {filtrati.map(c=>(
+                    <React.Fragment key={c.id}>
+                    <tr onClick={()=>setApri(apri===c.id?null:c.id)} style={{cursor:"pointer"}}>
+                      <td className="rs">{c.numero||"—"}</td>
+                      <td>{c.cliente_nome||"—"}</td>
+                      <td className="muted">{dataIt(c.data_chiusura)}</td>
+                      <td style={{textAlign:"right"}}>{eur(c.ricavi)}</td>
+                      <td style={{textAlign:"right"}}>{eur(c.costi_totali)}</td>
+                      <td style={{textAlign:"right",fontWeight:700,color:(Number(c.margine)||0)>=0?"var(--ok)":"var(--danger)"}}>{eur(c.margine)}</td>
+                      <td style={{textAlign:"right",fontWeight:600,color:(Number(c.margine_pct)||0)>=0?"var(--ok)":"var(--danger)"}}>{Number(c.margine_pct)||0}%</td>
+                    </tr>
+                    {apri===c.id && <tr><td colSpan={7} style={{background:"#fafbfc"}}>
+                      <div className="kv" style={{gridTemplateColumns:"1fr auto",maxWidth:460,margin:"4px 0"}}>
+                        {voce("Ricavi",c.ricavi)}
+                        {voce("Costo materiali",c.costo_materiali)}
+                        {voce("Costo manodopera",c.costo_manodopera)}
+                        {voce("Trasporto",c.trasporto)}
+                        {voce("Lavorazioni esterne",c.costo_esterno)}
+                        {voce("Straordinario",c.costo_straordinario)}
+                        {voce("Aiuti imprevisti",c.costo_aiuti,true)}
+                        {voce("Perdite materiale",c.costo_perdite,true)}
+                        {voce("Rilavorazioni",c.costo_interventi)}
+                        {voce("Extra costi",c.costo_extra,true)}
+                        <span className="k" style={{fontWeight:800}}>MARGINE</span><span style={{textAlign:"right",fontWeight:800,color:(Number(c.margine)||0)>=0?"var(--ok)":"var(--danger)"}}>{eur(c.margine)} ({Number(c.margine_pct)||0}%)</span>
+                      </div>
+                      <div className="muted" style={{fontSize:11}}>Fotografia salvata il {dataIt(c.aggiornato_il)} · stato «{c.stato||"—"}». Per i numeri live apri la commessa in 🏭 Commesse.</div>
+                    </td></tr>}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>}
+      </div>
     </>
   );
 }

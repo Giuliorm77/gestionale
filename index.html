@@ -4098,6 +4098,8 @@ function ModuloMagazzino({profilo,perm}){
   const [impegni,setImpegni]=useState({});       // dettaglio "impegnato" per articolo_id: [{numero,cliente_nome,stato,quantita}]
   const [dettImp,setDettImp]=useState(null);     // articolo di cui mostrare il dettaglio impegni (modale)
   const [filtroArt,setFiltroArt]=useState(null); // {id,nome}: filtra lo storico movimenti su un articolo
+  const [valz,setValz]=useState(null);           // valorizzazione totale {val_sfuso,n_sfuso,val_avanzi,n_avanzi}
+  const [costi,setCosti]=useState({});           // id -> costo (per il valore di riga, solo economici)
   // la ricerca aspetta 300ms prima di interrogare il DB
   useEffect(()=>{ const t=setTimeout(()=>setCercaDeb(cerca),300); return ()=>clearTimeout(t); },[cerca]);
 
@@ -4117,6 +4119,14 @@ function ModuloMagazzino({profilo,perm}){
     const a=await qy;
     if(a.error){ setErr(a.error.message); return; }
     setArticoli(a.data||[]); setTroncato((a.data||[]).length>=LIM);
+    // VALORIZZAZIONE (solo economici): costi per riga + totale su TUTTO il magazzino via RPC
+    if(perm.economici){
+      const ids=(a.data||[]).map(x=>x.id);
+      if(ids.length){ const c=await sb.from("articoli").select("id,costo").in("id",ids);
+        const cm={}; (c.data||[]).forEach(x=>{ cm[x.id]=Number(x.costo)||0; }); setCosti(cm); }
+      else setCosti({});
+      try{ const {data:vz}=await sb.rpc("valorizzazione_magazzino"); if(vz&&vz[0]) setValz(vz[0]); }catch(e){}
+    }
     // dettaglio "impegnato" per commessa (a chi è assegnato il materiale) — solo se ci sono impegni in vista
     if((a.data||[]).some(x=>Number(x.impegnato)>0)){
       const { data:imp } = await sb.rpc("impegni_dettaglio");
@@ -4155,6 +4165,7 @@ function ModuloMagazzino({profilo,perm}){
 
   const dataIt=d=> d? new Date(d).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
   const num=v=>{ const n=Number(v); return Number.isFinite(n)? (Math.round(n*100)/100) : 0; };
+  const eur=n=>Number(n||0).toLocaleString("it-IT",{style:"currency",currency:"EUR",maximumFractionDigits:0});
 
   return (
     <>
@@ -4183,6 +4194,16 @@ function ModuloMagazzino({profilo,perm}){
               </label>
               <span className="muted">{artFiltrati.length} articoli{soloMag?" a magazzino":""}{troncato?" (primi 1000 — restringi con la ricerca)":""}</span>
             </div>
+            {perm.economici && valz && (()=>{ const tot=(Number(valz.val_sfuso)||0)+(Number(valz.val_avanzi)||0);
+              return <div className="card" style={{display:"flex",flexWrap:"wrap",gap:20,alignItems:"center",padding:"12px 18px",marginBottom:12,background:"#f6faf8",border:"1px solid #cfe8dd"}}>
+                <div><div className="muted" style={{fontSize:11,textTransform:"uppercase",letterSpacing:.4}}>💶 Valorizzazione magazzino (a costo)</div>
+                  <div style={{fontSize:23,fontWeight:800,color:"#136c4a"}}>{eur(tot)}</div></div>
+                <div style={{borderLeft:"1px solid #cfe8dd",paddingLeft:20}}><div className="muted" style={{fontSize:12}}>Giacenze sfuse</div>
+                  <div style={{fontWeight:700}}>{eur(valz.val_sfuso)} <span className="muted" style={{fontWeight:400,fontSize:12}}>· {valz.n_sfuso} articoli</span></div></div>
+                <div style={{borderLeft:"1px solid #cfe8dd",paddingLeft:20}}><div className="muted" style={{fontSize:12}}>Avanzi a scaffale</div>
+                  <div style={{fontWeight:700}}>{eur(valz.val_avanzi)} <span className="muted" style={{fontWeight:400,fontSize:12}}>· {valz.n_avanzi} pezzi</span></div></div>
+                <div className="muted" style={{fontSize:11,marginLeft:"auto",maxWidth:220}}>Valore dell'intero magazzino, non solo delle righe mostrate.</div>
+              </div>; })()}
             {articoli===null ? <div className="empty">Caricamento…</div>
               : artFiltrati.length===0 ? <div className="card empty">
                   {cercaDeb.trim()
@@ -4199,6 +4220,7 @@ function ModuloMagazzino({profilo,perm}){
                       <th style={{textAlign:"right"}}>Impegnato</th>
                       <th style={{textAlign:"right"}}>Disponibile</th>
                       <th style={{textAlign:"right"}}>Scorta min.</th>
+                      {perm.economici && <th style={{textAlign:"right"}}>Valore</th>}
                       <th>Stato</th>
                     </tr></thead>
                     <tbody>
@@ -4222,6 +4244,8 @@ function ModuloMagazzino({profilo,perm}){
                             <td style={{textAlign:"right",fontWeight:700,color:esaurito?"var(--danger)":sotto?"#b45309":"var(--ok)"}}>{disp}
                               {mql>0 && <div className="muted" style={{fontSize:11,fontWeight:400}}>~{Math.round(disp/mql*10)/10} lastre</div>}</td>
                             <td style={{textAlign:"right"}} className="muted">{sc||"—"}</td>
+                            {perm.economici && (()=>{ const co=Number(costi[a.id])||0; const val=gi*co;
+                              return <td style={{textAlign:"right",fontWeight:600}} title={co?("costo "+eur(co)+" × giac. "+gi):"costo non impostato"}>{co? eur(val) : <span className="muted">—</span>}</td>; })()}
                             <td>{esaurito? <span className="tag" style={{background:"#fde8e8",color:"#c0392b"}}>Esaurito</span>
                                  : sotto? <span className="tag" style={{background:"#fff4e5",color:"#b26a00"}}>Sotto scorta</span>
                                  : <span className="tag" style={{background:"#e6f4ee",color:"#1f9c68"}}>Disponibile</span>}</td>

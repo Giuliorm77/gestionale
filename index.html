@@ -11094,6 +11094,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const [consumi,setConsumi]=useState(()=> Array.isArray(commessa?.consumi)?commessa.consumi.map(x=>({...x})):[] );
   const [aiuti,setAiuti]=useState(()=> Array.isArray(commessa?.aiuti)?commessa.aiuti.map(x=>({...x})):[] );
   const [straordinari,setStraordinari]=useState(()=> Array.isArray(commessa?.straordinari)?commessa.straordinari.map(x=>({...x})):[] );
+  const [extraCosti,setExtraCosti]=useState(()=> Array.isArray(commessa?.extra_costi)?commessa.extra_costi.map(x=>({...x})):[] );
   const [giac,setGiac]=useState(()=>{ const g={}; (articoli||[]).forEach(a=>g[a.id]=Number(a.giacenza)||0); return g; });
   const [cercaArt,setCercaArt]=useState("");
   const [busy,setBusy]=useState(false);
@@ -11355,6 +11356,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const setStraord=(i,k,v)=>setStraordinari(p=>p.map((a,j)=>{ if(j!==i) return a; const na={...a,[k]:v};
     if(k==="operatore_id"){ const op=(operatori||[]).find(o=>o.id===v); na.nome=op?op.nome:""; } return na; }));
   const delStraord=i=>setStraordinari(p=>p.filter((_,j)=>j!==i));
+  const addExtra=()=>setExtraCosti(p=>[...p,{descrizione:"",costo:"",data:new Date().toISOString().slice(0,10),chi:(profilo&&profilo.nome)||"",addebita:false}]);
+  const setExtra=(i,k,v)=>setExtraCosti(p=>p.map((a,j)=>j===i?{...a,[k]:v}:a));
+  const delExtra=i=>setExtraCosti(p=>p.filter((_,j)=>j!==i));
 
   const orePrevTot=fasi.reduce((s,fa)=>s+(Number(fa.ore_previste)||0),0);
   const oreEffTot=fasi.reduce((s,fa)=>s+oreFase(fa),0);
@@ -11388,14 +11392,16 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const costoOrig=costoMateriali+costoManodopera+(Number(f.trasporto)||0);
   const costoInterventi=interventi.reduce((s,it)=>s+(it.interventi_righe||[]).reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0),0);
   const addebitiInterventi=interventi.reduce((s,it)=>s+(it.interventi_righe||[]).filter(r=>r.responsabilita==="cliente").reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.prezzo_addebito)||0),0),0);
-  const ricaviTot=(Number(f.valore)||0)+addebitiInterventi;
+  const costoExtra=extraCosti.reduce((s,x)=>s+(Number(x.costo)||0),0);
+  const addebitiExtra=extraCosti.filter(x=>x.addebita).reduce((s,x)=>s+(Number(x.costo)||0),0);
+  const ricaviTot=(Number(f.valore)||0)+addebitiInterventi+addebitiExtra;
   const costoPerdite=persi.reduce((s,p)=>{ const a=artMap[p.articolo_id];
     const mq=(Number(p.larghezza_cm)||0)*(Number(p.altezza_cm)||0)/10000*(Number(p.quantita)||1);
     return s+mq*(a?Number(a.costo)||0:0); },0);
   const costoEsterno=fasi.filter(fa=>fa.esterna).reduce((s,fa)=>s+(Number(fa.costo_reale)||0),0);
   const oreStraordTot=straordinari.reduce((s,a)=>s+(Number(a.ore)||0),0);
   const costoStraordinario=oreStraordTot*COSTO_STRAORDINARIO;
-  const costiTot=costoOrig+costoInterventi+costoAiuti+costoPerdite+costoEsterno+costoStraordinario;
+  const costiTot=costoOrig+costoInterventi+costoAiuti+costoPerdite+costoEsterno+costoStraordinario+costoExtra;
   const margineReale=ricaviTot-costiTot;
 
   async function generaOrdineFornitore(){
@@ -11436,6 +11442,12 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     // REGOLA DI VALIDITÀ (per tutti i ruoli): ogni articolo deve avere la data di consegna
     if(righeSenzaData>0){ setErr("Ogni articolo deve avere la sua data di consegna (obbligatoria): mancano "+righeSenzaData+" data/e."); return; }
     if(chiusaProd && sbloccata && !motivoMod.trim()){ setErr("Scrivi il MOTIVO della modifica: è obbligatorio per modificare una commessa chiusa."); return; }
+    // AVVISO extra costi imprevisti quando si CHIUDE la commessa (passaggio a pronta/consegnata/chiusa)
+    const chiudendo = ["pronta","consegnata","chiusa"].includes(f.stato) && !["pronta","consegnata","chiusa"].includes(commessa?.stato||"");
+    if(chiudendo && extraCosti.length){
+      const el=extraCosti.map(x=>"• "+(x.descrizione||"(senza descrizione)")+": "+eur(Number(x.costo)||0)+(x.addebita?" (riaddebitato al cliente)":"")).join("\n");
+      if(!window.confirm("⚠ Questa commessa ha "+extraCosti.length+" extra costo/i imprevisto/i — totale "+eur(costoExtra)+":\n\n"+el+"\n\nLi hai considerati? Chiudere comunque la commessa?")) return;
+    }
     setBusy(true); setErr("");
     // calcolo del "cosa è cambiato" PROTETTO: non deve mai bloccare il salvataggio della commessa
     let diffList=null;
@@ -11453,7 +11465,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         agente_id:f.agente_id||null,
         note:f.note||"", avviso_produzione:(f.avviso_produzione||"").trim()||null,
         avviso_il:(f.avviso_produzione||"").trim() ? (commessa?.avviso_il||new Date().toISOString()) : null,
-        consumi:consumi.map(c=>({...c})), aiuti:aiuti.map(a=>({...a})), straordinari:straordinari.map(a=>({...a})), aggiornato_il:new Date().toISOString()};
+        consumi:consumi.map(c=>({...c})), aiuti:aiuti.map(a=>({...a})), straordinari:straordinari.map(a=>({...a})), extra_costi:extraCosti.map(x=>({...x})), aggiornato_il:new Date().toISOString()};
       if(chiusaProd && sbloccata) rec.modifiche_post_chiusura = nModifiche+1;
       let id=commessa?.id;
       if(nuova){ rec.creato_da=profilo.id;
@@ -12120,6 +12132,27 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
           </div>
 
           {perm.economici && <div className="section">
+            <h3>Extra costi / spese impreviste</h3>
+            <div className="muted" style={{fontSize:12,marginBottom:8}}>Spese impreviste emerse <b>durante la lavorazione</b> da addebitare a questa commessa (es. materiale rotto da ricomprare, corriere urgente, lavorazione extra). Riga libera: descrizione + costo. Entrano nel <b>Consuntivo reale</b> e, quando chiudi la commessa, ti avvisa dell'extra costo.</div>
+            {extraCosti.length===0 && <div className="muted" style={{fontSize:13,marginBottom:8}}>Nessun extra costo.</div>}
+            {extraCosti.map((x,i)=>
+              <div className="row" key={i} style={{alignItems:"flex-end"}}>
+                <div className="field" style={{flex:2}}><label>Descrizione</label>
+                  <input value={x.descrizione||""} onChange={e=>setExtra(i,"descrizione",e.target.value)} placeholder="es. lastra forex rotta, ricomprata"/></div>
+                <div className="field" style={{maxWidth:120}}><label>Costo €</label>
+                  <input type="number" step="0.01" value={x.costo} onChange={e=>setExtra(i,"costo",e.target.value)}/></div>
+                <div className="field" style={{maxWidth:150}}><label>Data</label>
+                  <input type="date" value={x.data||""} onChange={e=>setExtra(i,"data",e.target.value)}/></div>
+                <label className="field" style={{maxWidth:130,display:"flex",flexDirection:"column",gap:2,cursor:"pointer"}} title="Se spuntato, l'extra costo viene riaddebitato al cliente: rientra nei ricavi e non erode il margine">
+                  <span style={{fontSize:10.5,textTransform:"uppercase",color:"var(--muted)",letterSpacing:.3}}>Riaddebita cliente</span>
+                  <input type="checkbox" checked={!!x.addebita} onChange={e=>setExtra(i,"addebita",e.target.checked)} style={{width:"auto",transform:"scale(1.3)",marginTop:6,alignSelf:"flex-start"}}/></label>
+                <button type="button" className="btn small danger" style={{marginBottom:4}} onClick={()=>delExtra(i)}>✕</button>
+              </div>)}
+            <button type="button" className="btn small" style={{marginTop:6}} onClick={addExtra}>+ Aggiungi extra costo</button>
+            {extraCosti.length>0 && <div className="muted" style={{fontSize:12,marginTop:8}}>Totale extra costi: <b style={{color:"var(--danger)"}}>{eur(costoExtra)}</b>{addebitiExtra>0?<> · di cui riaddebitati al cliente: <b style={{color:"var(--ok)"}}>{eur(addebitiExtra)}</b></>:null}</div>}
+          </div>}
+
+          {perm.economici && <div className="section">
             <h3>Spedizione</h3>
             <div className="row">
               <div className="field" style={{maxWidth:240}}><label>Trasporto €</label>
@@ -12159,6 +12192,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               {costoEsterno>0 && <><span className="k">Lavorazioni esterne (conto terzi)</span><span style={{textAlign:"right"}}>{eur(costoEsterno)}</span></>}
               {costoStraordinario>0 && <><span className="k">Straordinario ({oreStraordTot} h × €{COSTO_STRAORDINARIO})</span><span style={{textAlign:"right"}}>{eur(costoStraordinario)}</span></>}
               {costoAiuti>0 && <><span className="k" style={{color:"var(--danger)"}}>Costi imprevisti (aiuti produzione)</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoAiuti)}</span></>}
+              {costoExtra>0 && <><span className="k" style={{color:"var(--danger)"}}>Extra costi / spese impreviste{addebitiExtra>0?" (riaddebito nei ricavi)":""}</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoExtra)}</span></>}
               {costoPerdite>0 && <><span className="k" style={{color:"var(--danger)"}}>Perdite materiale (pezzi persi)</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoPerdite)}</span></>}
               {costoInterventi>0 && <><span className="k">Costo rilavorazioni</span><span style={{textAlign:"right"}}>{eur(costoInterventi)}</span></>}
               <span className="k" style={{fontWeight:800}}>MARGINE REALE</span><span style={{textAlign:"right",fontWeight:800,fontSize:16,color:margineReale>=0?"var(--ok)":"var(--danger)"}}>{eur(margineReale)}</span>
@@ -14114,6 +14148,8 @@ function ModuloReport({profilo,perm}){
     const addeb=ints.reduce((s,it)=>s+(it.interventi_righe||[]).filter(r=>r.responsabilita==="cliente").reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.prezzo_addebito)||0),0),0);
     const costiAiuti=(Array.isArray(c.aiuti)?c.aiuti:[]).reduce((s,a)=>{ const op=opMap[a.operatore_id]; return s+(Number(a.ore)||0)*(op?Number(op.costo_orario)||0:0); },0);
     const costoStraord=(Array.isArray(c.straordinari)?c.straordinari:[]).reduce((s,a)=>s+(Number(a.ore)||0)*COSTO_STRAORDINARIO,0);
+    const costiExtraImprev=(Array.isArray(c.extra_costi)?c.extra_costi:[]).reduce((s,x)=>s+(Number(x.costo)||0),0);
+    const addebExtraImprev=(Array.isArray(c.extra_costi)?c.extra_costi:[]).filter(x=>x.addebita).reduce((s,x)=>s+(Number(x.costo)||0),0);
     const costoPerdite=(persiByComm[c.id]||[]).reduce((s,p)=>{ const a=artMap[p.articolo_id];
       const mq=(Number(p.larghezza_cm)||0)*(Number(p.altezza_cm)||0)/10000*(Number(p.quantita)||1);
       return s+mq*(a?Number(a.costo)||0:0); },0);
@@ -14129,8 +14165,8 @@ function ModuloReport({profilo,perm}){
     const extraAgg=(c.commesse_righe||[]).filter(r=>r.aggiunta);
     const extraRic=extraAgg.reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0),0);
     const extraCos=extraAgg.reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0);
-    const ricavi=(Number(c.valore)||0)+addeb+extraRic;
-    const costi=costoMat+costoMdo+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos;
+    const ricavi=(Number(c.valore)||0)+addeb+extraRic+addebExtraImprev;
+    const costi=costoMat+costoMdo+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos+costiExtraImprev;
     return {ricavi,costi,margine:ricavi-costi,scostForn,extraRic};
   },[artMap,opMap,intByComm,persiByComm,ofByComm]);
 

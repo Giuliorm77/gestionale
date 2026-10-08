@@ -4791,6 +4791,14 @@ function RientroForm({pezzoIniziale,onClose,onFatto}){
 
   async function conferma(){
     if(esito==="avanzo" && !(Number(larg)>0 && Number(alt)>0)){ setErr("Inserisci le misure dell'avanzo rientrato."); return; }
+    if(esito==="avanzo"){
+      const al=Number(larg)||0, ah=Number(alt)||0;                               // avanzo in mm
+      const ol=(Number(pezzo.larghezza_cm)||0)*10, oh=(Number(pezzo.altezza_cm)||0)*10;  // pezzo di partenza in mm
+      if(ol>0 && oh>0){
+        const entra=(al<=ol+1 && ah<=oh+1) || (al<=oh+1 && ah<=ol+1);            // +1mm di tolleranza, con rotazione
+        if(!entra){ setErr("L'avanzo ("+al+"×"+ah+" mm) non può essere più grande del pezzo di partenza ("+ol+"×"+oh+" mm). Controlla la misura."); return; }
+      }
+    }
     setBusy(true); setErr("");
     const {data,error}=await sb.rpc("registra_rientro",{
       p_pezzo_id:pezzo.id, p_esito:esito,

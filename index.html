@@ -524,34 +524,41 @@ function puoModulo(perm, mod){
   return req==="sempre" ? true : !!perm[req];
 }
 const NAV_ITEMS = [
-  {m:"clienti", ico:"👥", label:"Anagrafica Clienti"},
-  {m:"crm", ico:"🎯", label:"CRM / Trattative"},
-  {m:"agenda", ico:"📅", label:"Agenda & Follow-up"},
-  {m:"catalogo", ico:"📦", label:"Catalogo"},
-  {m:"magazzino", ico:"🏬", label:"Magazzino"},
-  {m:"inarrivo", ico:"📥", label:"Materiale in arrivo"},
-  {m:"pezzi", ico:"🏷️", label:"Pezzi & Etichette"},
-  {m:"operatori", ico:"👷", label:"Operatori"},
-  {m:"fornitori", ico:"🚚", label:"Anagrafica Fornitori"},
-  {m:"agenti", ico:"🧑‍💼", label:"Agenti"},
-  {m:"impostazioni", ico:"⚙️", label:"Impostazioni"},
-  {m:"preventivi", ico:"🧾", label:"Preventivi"},
-  {m:"prodotticfg", ico:"🧩", label:"Prodotti config."},
-  {m:"vetrina", ico:"🖼️", label:"Vetrina e-commerce"},
-  {m:"imballi", ico:"🎁", label:"Imballi"},
-  {m:"commesse", ico:"🏭", label:"Commesse"},
-  {m:"postazione", ico:"⏱️", label:"Postazione operatore"},
-  {m:"mezzi", ico:"🔧", label:"Mezzi & Strumenti"},
-  {m:"ordinifor", ico:"🛒", label:"Ordini fornitori"},
-  {m:"trasporti", ico:"🚚", label:"Trasporti"},
-  {m:"ddt", ico:"📄", label:"DDT"},
-  {m:"ordinishop", ico:"🌐", label:"Ordini Komunigo"},
-  {m:"clientikomunigo", ico:"🤝", label:"Account Komunigo"},
-  {m:"scadenzario", ico:"💶", label:"Scadenzario"},
-  {m:"consuntivi", ico:"📋", label:"Consuntivi"},
-  {m:"report", ico:"📊", label:"Report"},
-  {m:"qualita", ico:"✅", label:"Qualità (ISO)"},
-  {m:"utenti", ico:"🔑", label:"Utenti & Ruoli"},
+  // 💼 Vendite
+  {g:"Vendite", m:"clienti", ico:"👥", label:"Anagrafica Clienti"},
+  {g:"Vendite", m:"crm", ico:"🎯", label:"CRM / Trattative"},
+  {g:"Vendite", m:"agenda", ico:"📅", label:"Agenda & Follow-up"},
+  {g:"Vendite", m:"preventivi", ico:"🧾", label:"Preventivi"},
+  {g:"Vendite", m:"agenti", ico:"🧑‍💼", label:"Agenti"},
+  // 🏭 Produzione
+  {g:"Produzione", m:"commesse", ico:"🏭", label:"Commesse"},
+  {g:"Produzione", m:"postazione", ico:"⏱️", label:"Postazione operatore"},
+  {g:"Produzione", m:"consuntivi", ico:"📋", label:"Consuntivi"},
+  {g:"Produzione", m:"operatori", ico:"👷", label:"Operatori"},
+  // 🏬 Magazzino
+  {g:"Magazzino", m:"catalogo", ico:"📦", label:"Catalogo"},
+  {g:"Magazzino", m:"magazzino", ico:"🏬", label:"Magazzino"},
+  {g:"Magazzino", m:"inarrivo", ico:"📥", label:"Materiale in arrivo"},
+  {g:"Magazzino", m:"pezzi", ico:"🏷️", label:"Pezzi & Etichette"},
+  {g:"Magazzino", m:"imballi", ico:"🎁", label:"Imballi"},
+  {g:"Magazzino", m:"ddt", ico:"📄", label:"DDT"},
+  {g:"Magazzino", m:"mezzi", ico:"🔧", label:"Mezzi & Strumenti"},
+  // 🚚 Acquisti
+  {g:"Acquisti", m:"fornitori", ico:"🚚", label:"Anagrafica Fornitori"},
+  {g:"Acquisti", m:"ordinifor", ico:"🛒", label:"Ordini fornitori"},
+  {g:"Acquisti", m:"trasporti", ico:"🚚", label:"Trasporti"},
+  // 💶 Amministrazione
+  {g:"Amministrazione", m:"scadenzario", ico:"💶", label:"Scadenzario"},
+  {g:"Amministrazione", m:"report", ico:"📊", label:"Report"},
+  {g:"Amministrazione", m:"qualita", ico:"✅", label:"Qualità (ISO)"},
+  // 🌐 E-commerce (Komunigo)
+  {g:"E-commerce", m:"prodotticfg", ico:"🧩", label:"Prodotti config."},
+  {g:"E-commerce", m:"vetrina", ico:"🖼️", label:"Vetrina e-commerce"},
+  {g:"E-commerce", m:"ordinishop", ico:"🌐", label:"Ordini Komunigo"},
+  {g:"E-commerce", m:"clientikomunigo", ico:"🤝", label:"Account Komunigo"},
+  // ⚙️ Sistema
+  {g:"Sistema", m:"impostazioni", ico:"⚙️", label:"Impostazioni"},
+  {g:"Sistema", m:"utenti", ico:"🔑", label:"Utenti & Ruoli"},
 ];
 const labelSede = v => (TIPI_SEDE.find(t=>t.v===v)||{}).label || v;
 const labelEmail = v => (CATEGORIE_EMAIL.find(c=>c.v===v)||{}).label || v;
@@ -953,13 +960,18 @@ function Gestionale({profilo}){
       <aside className={"sidebar"+(menuAperto?" open":"")}>
         <div className="logo">Gestionale Creatio</div>
         <nav className="nav">
-          {NAV_ITEMS.map(it=> puoModulo(perm,it.m)
-            ? <button key={it.m} className={modulo===it.m?"active":""} onClick={()=>{setModulo(it.m);setMenuAperto(false);}}>
-                <span className="ico">{it.ico}</span> {it.label}
-              </button>
-            : <button key={it.m} disabled title="Non disponibile per il tuo profilo">
-                <span className="ico">{it.ico}</span> {it.label}
-              </button>)}
+          {NAV_ITEMS.map((it,i)=>{
+            const header = (i===0 || NAV_ITEMS[i-1].g!==it.g)
+              ? <div key={"g-"+it.g} style={{fontSize:10,textTransform:"uppercase",letterSpacing:.7,color:"#8a97a6",fontWeight:800,padding:"13px 14px 4px"}}>{it.g}</div> : null;
+            const btn = puoModulo(perm,it.m)
+              ? <button key={it.m} className={modulo===it.m?"active":""} onClick={()=>{setModulo(it.m);setMenuAperto(false);}}>
+                  <span className="ico">{it.ico}</span> {it.label}
+                </button>
+              : <button key={it.m} disabled title="Non disponibile per il tuo profilo">
+                  <span className="ico">{it.ico}</span> {it.label}
+                </button>;
+            return <React.Fragment key={it.m}>{header}{btn}</React.Fragment>;
+          })}
         </nav>
         <div className="userbox">
           <div className="nm">{profilo.nome}</div>

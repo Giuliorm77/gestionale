@@ -72,29 +72,33 @@
       "reparti": ["commerciale"],
       "riporta_a": ["giulio-dellomo", "kledi-dellomo"],
       "responsabilita": [
-        "Gestione ordini clienti e fornitori",
-        "Inserimento ordini clienti e fornitori",
-        "Ricerca materiali"
+        "Gestione e inserimento ordini clienti",
+        "Supporto alla ricerca materiali",
+        "Acquisti verso i fornitori SOLO in assenza di Vito Barbara"
       ],
+      "titolare_di": [],
+      "subentra_su": ["acquisti-fornitori"],
       "sostituti": ["vito-barbara"],
       "tipo": "Agente esterno",
-      "note": null,
+      "note": "Mansioni separate da quelle di Vito Barbara su decisione dell'utente (22 settembre 2026): prima erano identiche.",
       "flag": ["doppio-riporto", "esterno-con-riporti"]
     },
     {
       "id": "vito-barbara",
       "nome": "Vito Barbara",
-      "ruolo": "Account Junior",
+      "ruolo": "Account Junior · Acquisti",
       "reparti": ["commerciale"],
       "riporta_a": ["cristina-mammetti"],
       "responsabilita": [
-        "Gestione ordini clienti e fornitori",
-        "Inserimento ordini clienti e fornitori",
-        "Ricerca materiali"
+        "Acquisti verso i fornitori: emissione e gestione degli ordini",
+        "Ricerca materiali e richiesta preventivi ai fornitori",
+        "Gestione e inserimento ordini clienti"
       ],
+      "titolare_di": ["acquisti-fornitori"],
+      "subentra_su": [],
       "sostituti": ["cristina-mammetti"],
       "tipo": "Interno",
-      "note": null,
+      "note": "Titolare degli acquisti verso i fornitori su decisione dell'utente (22 settembre 2026). Cristina Mammetti subentra solo in sua assenza.",
       "flag": []
     },
     {
@@ -323,6 +327,22 @@
       "persone": ["kledi-dellomo"],
       "titolo": "Il CEO è il sostituto di tre persone",
       "dettaglio": "Copre Amministrazione, Produzione e il Commerciale direzionale. Se manca lui manca anche il backup."
+    },
+    {
+      "n": 10,
+      "tipo": "scelta-organizzativa",
+      "persone": ["rebecca-bertilone", "fatima-dammando"],
+      "titolo": "Rebecca e Fatima hanno ancora mansioni identiche",
+      "dettaglio": "Stesse quattro voci: modellazione 3D, progettazione strutture e stand, sviluppo grafiche, rendering. Come per Cristina e Vito, servirebbe un criterio che stabilisca chi è titolare di cosa."
+    }
+  ],
+
+  "decisioni": [
+    {
+      "data": "2026-09-22",
+      "oggetto": "Divisione ruoli Cristina Mammetti / Vito Barbara",
+      "decisione": "Vito Barbara è il titolare degli acquisti verso i fornitori; Cristina Mammetti subentra solo quando lui non c'è. Cristina resta il riferimento sugli ordini clienti.",
+      "motivo": "Le due figure avevano mansioni identiche nell'Excel: serviva un titolare unico per gli acquisti."
     }
   ]
 }

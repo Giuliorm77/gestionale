@@ -230,6 +230,26 @@ Deno.serve(async (req) => {
       return json(prof);
     }
 
+    // ---------------------------------------------------- ELIMINA ACCOUNT (staff)
+    // Rimuove un cliente del negozio: accesso (auth) + riga komunigo_account.
+    // Gli ordini restano (account_id -> null). L'anagrafica cliente NON si tocca.
+    if (action === "account-elimina") {
+      const authE = (req.headers.get("Authorization") || "").replace("Bearer ", "").trim();
+      let uid: string | null = null;
+      if (authE) { try { const { data: u } = await admin.auth.getUser(authE); uid = u?.user?.id || null; } catch (_) { /* */ } }
+      if (!uid) return json({ error: "Non autenticato" }, 401);
+      const { data: prof } = await admin.from("profiles").select("ruolo").eq("id", uid).maybeSingle();
+      if (!prof || !["amministratore", "commerciale"].includes(prof.ruolo)) return json({ error: "Non autorizzato" }, 403);
+      const target = String(body.account_id || "");
+      if (!uuidRe.test(target)) return json({ error: "account_id non valido" }, 400);
+      const { data: acc } = await admin.from("komunigo_account").select("id").eq("id", target).maybeSingle();
+      if (!acc) return json({ error: "Account non trovato" }, 404);
+      await admin.from("komunigo_ordini").update({ account_id: null }).eq("account_id", target);
+      await admin.from("komunigo_account").delete().eq("id", target);
+      try { await admin.auth.admin.deleteUser(target); } catch (_) { /* utente auth già assente: ok */ }
+      return json({ ok: true });
+    }
+
     // ---------------------------------------------------------------- CREA
     if (action === "crea") {
       const righeIn = Array.isArray(body.righe) ? body.righe : [];
@@ -241,6 +261,9 @@ Deno.serve(async (req) => {
       if (authH) { try { const { data: u } = await admin.auth.getUser(authH); accountId = u?.user?.id || null; } catch (_) { /* ospite */ } }
       // profilo sconti del cliente loggato (0 se ospite o non B2B)
       const profB2b = await caricaProfiloB2b(admin, req.headers.get("Authorization"));
+      // dati pagamento differito (conto aperto) dell'account, se loggato
+      let acct: any = null;
+      if (accountId) { const { data } = await admin.from("komunigo_account").select("pagamento_differito,giorni_pagamento").eq("id", accountId).maybeSingle(); acct = data; }
 
       const righe: any[] = [];
       let imponibileMerce = 0;
@@ -293,12 +316,22 @@ Deno.serve(async (req) => {
         .select("*", { count: "exact", head: true }).like("numero", `K-${yr}-%`);
       const numero = `K-${yr}-${String((count || 0) + 1).padStart(4, "0")}`;
 
+      // pagamento: il "differito" (conto aperto) è ammesso solo se l'account lo ha abilitato
+      let pagMetodo = body.pagamento_metodo || null;
+      let pagStato = "in_attesa";
+      let pagGiorni: number | null = null;
+      if (pagMetodo === "differito") {
+        if (!acct || acct.pagamento_differito !== true) throw new Error("Pagamento differito non abilitato per questo account");
+        pagStato = "differito";
+        pagGiorni = Number(acct.giorni_pagamento) || 30;
+      }
+
       const cliente = body.cliente || {};
       const { data: ord, error: eOrd } = await admin.from("komunigo_ordini").insert({
         numero, stato: "nuovo",
         cliente_nome: cliente.nome || "", cliente_email: cliente.email || "", cliente_tel: cliente.tel || "",
         spedizione: { opzione: sped ? { id: sped.id, nome: sped.nome, prezzo: spedCosto, ritiro: !!sped.ritiro } : null, indirizzo: body.indirizzo || null },
-        pagamento_metodo: body.pagamento_metodo || null, pagamento_stato: "in_attesa",
+        pagamento_metodo: pagMetodo, pagamento_stato: pagStato, pagamento_giorni: pagGiorni,
         account_id: accountId,
         imponibile, iva, totale, note: body.note || "",
       }).select("id, numero, token").single();
@@ -330,7 +363,7 @@ Deno.serve(async (req) => {
           numero: ord.numero, stato: ord.stato, creato_il: ord.creato_il,
           cliente_nome: ord.cliente_nome, cliente_email: ord.cliente_email,
           spedizione: ord.spedizione, imponibile: ord.imponibile, iva: ord.iva, totale: ord.totale,
-          pagamento_metodo: ord.pagamento_metodo, pagamento_stato: ord.pagamento_stato,
+          pagamento_metodo: ord.pagamento_metodo, pagamento_stato: ord.pagamento_stato, pagamento_giorni: ord.pagamento_giorni,
           bozza_stato: ord.bozza_stato, bozza_feedback: ord.bozza_feedback,
         },
         righe: righe || [], file: fileOut,

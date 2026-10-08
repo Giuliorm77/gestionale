@@ -24,19 +24,26 @@ function toDate(s: any): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : null;
 }
 
-// Scarica tutte le pagine di una lista documenti (issued/received) di un dato type.
+// Scarica TUTTE le pagine di una lista documenti (issued/received) di un dato type.
+// Robusto: usa last_page se c'è, altrimenti continua finché la pagina è piena.
 async function listaDocumenti(token: string, company: number, kind: string, type: string) {
   const out: any[] = [];
-  let page = 1, last = 1;
-  do {
-    const url = `${FIC}/c/${company}/${kind}?type=${type}&fieldset=detailed&per_page=100&page=${page}`;
+  const perPage = 50;           // FIC può limitare per_page: 50 è un valore sicuro
+  const CAP = 400;              // guardia anti-loop (fino a 20.000 documenti)
+  let page = 1;
+  while (page <= CAP) {
+    const url = `${FIC}/c/${company}/${kind}?type=${type}&fieldset=detailed&per_page=${perPage}&page=${page}`;
     const r = await fetch(url, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
     const body = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(`${kind}/${type} HTTP ${r.status}: ${JSON.stringify(body).slice(0, 300)}`);
-    (body.data || []).forEach((d: any) => out.push(d));
-    last = Number(body.last_page || body.current_page || 1);
+    const batch: any[] = body.data || [];
+    batch.forEach((d: any) => out.push(d));
+    const last = Number(body.last_page || 0);
+    if (last) { if (page >= last) break; }          // conosciamo l'ultima pagina
+    else if (batch.length < perPage) break;         // niente info pagine: stop quando la pagina non è piena
+    if (batch.length === 0) break;
     page++;
-  } while (page <= last);
+  }
   return out;
 }
 

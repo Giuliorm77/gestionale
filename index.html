@@ -1892,6 +1892,8 @@ function ModuloClienti({profilo,perm}){
   const [fattMax,setFattMax]=useState("");
   const [selezionato,setSelezionato]=useState(null); // cliente per dettaglio
   const [form,setForm]=useState(null); // null | {} nuovo | cliente esistente
+  const [impBusy,setImpBusy]=useState(false);
+  const [impMsg,setImpMsg]=useState("");
 
   const carica=useCallback(async()=>{
     setErr("");
@@ -1902,6 +1904,20 @@ function ModuloClienti({profilo,perm}){
     setClienti(data||[]);
   },[]);
   useEffect(()=>{ carica(); },[carica]);
+
+  async function importaFIC(){
+    if(!window.confirm("Importare i CLIENTI da Fatture in Cloud? Verranno creati solo quelli non già presenti (confronto per P.IVA/Codice Fiscale).")) return;
+    setImpBusy(true); setImpMsg(""); setErr("");
+    try{
+      const {data,error}=await sb.functions.invoke("fic-anagrafiche",{body:{tipo:"clienti"}});
+      if(error) throw error;
+      if(data && data.ok===false) throw new Error(data.errore||"Import fallito");
+      const c=data?.clienti||{};
+      setImpMsg("Import da Fatture in Cloud: "+(c.creati||0)+" clienti nuovi creati, "+(c.gia_presenti||0)+" già presenti (su "+(c.da_fic||0)+" in FIC).");
+      await carica();
+    }catch(ex){ setErr("Import FIC: "+(ex.message||ex)); }
+    setImpBusy(false);
+  }
 
   // incidenza % sul fatturato: fatturato reale (commesse consegnate/chiuse) dell'anno in corso, per cliente
   const annoCorr=new Date().getFullYear();
@@ -1999,11 +2015,13 @@ function ModuloClienti({profilo,perm}){
         <h1>Anagrafica Clienti</h1>
         <button className="btn" onClick={esporta} disabled={!filtrati.length} title="Esporta la lista filtrata in Excel">⬇️ Esporta Excel</button>
         {puoFeedback && <button className="btn" onClick={esportaRegistroFeedback} title="Genera il registro ISO feedback clienti (Excel, con calcoli per anno)">📋 Registro feedback ISO</button>}
+        {perm.economici && <button className="btn" onClick={importaFIC} disabled={impBusy} title="Crea i clienti mancanti importandoli da Fatture in Cloud (dedup per P.IVA/CF)">{impBusy?"Importo…":"⬇ Importa da Fatture in Cloud"}</button>}
         {perm.scrivi &&
           <button className="btn primary" onClick={()=>setForm({})}>+ Nuovo cliente</button>}
       </div>
       <div className="content">
         {err && <div className="banner err">{err}</div>}
+        {impMsg && <div className="banner" style={{background:"#e6f4ee",color:"#1f9c68"}}>{impMsg}</div>}
         <div className="toolbar">
           <div className="search">
             <span className="mag">🔍</span>
@@ -5904,6 +5922,21 @@ function ModuloFornitori({profilo,perm}){
     setFornitori(data||[]);
   },[]);
   useEffect(()=>{ carica(); },[carica]);
+  const [impBusy,setImpBusy]=useState(false);
+  const [impMsg,setImpMsg]=useState("");
+  async function importaFIC(){
+    if(!window.confirm("Importare i FORNITORI da Fatture in Cloud? Verranno creati solo quelli non già presenti (confronto per P.IVA/Codice Fiscale).")) return;
+    setImpBusy(true); setImpMsg(""); setErr("");
+    try{
+      const {data,error}=await sb.functions.invoke("fic-anagrafiche",{body:{tipo:"fornitori"}});
+      if(error) throw error;
+      if(data && data.ok===false) throw new Error(data.errore||"Import fallito");
+      const c=data?.fornitori||{};
+      setImpMsg("Import da Fatture in Cloud: "+(c.creati||0)+" fornitori nuovi creati, "+(c.gia_presenti||0)+" già presenti (su "+(c.da_fic||0)+" in FIC).");
+      await carica();
+    }catch(ex){ setErr("Import FIC: "+(ex.message||ex)); }
+    setImpBusy(false);
+  }
   useEffect(()=>{ sb.from("articoli").select("categoria").then(({data})=>{ setCategorie([...new Set((data||[]).map(x=>String(x.categoria||"").trim()).filter(Boolean))].sort()); }); },[]);
 
   // incidenza % sugli acquisti (ordini fornitore, anno in corso), per fornitore
@@ -5986,10 +6019,12 @@ function ModuloFornitori({profilo,perm}){
         <button className="btn" onClick={esporta} disabled={!filtrati.length} title="Esporta la lista filtrata in Excel">⬇️ Esporta Excel</button>
         {perm.economici && <button className="btn" onClick={esportaRegistroFornitori} title="Genera il registro ISO valutazione fornitori (Excel, con medie e qualifica)">📋 Registro fornitori ISO</button>}
         {perm.scrivi && <button className="btn" onClick={()=>setImportOpen(true)} title="Importa fornitori da un file Excel (salta i duplicati)">⬆️ Importa Excel</button>}
+        {perm.economici && <button className="btn" onClick={importaFIC} disabled={impBusy} title="Crea i fornitori mancanti importandoli da Fatture in Cloud (dedup per P.IVA/CF)">{impBusy?"Importo…":"⬇ Importa da Fatture in Cloud"}</button>}
         {perm.scrivi && <button className="btn primary" onClick={()=>setEditor({})}>+ Nuovo fornitore</button>}
       </div>
       <div className="content">
         {err && <div className="banner err">{err}</div>}
+        {impMsg && <div className="banner" style={{background:"#e6f4ee",color:"#1f9c68"}}>{impMsg}</div>}
         <div className="toolbar">
           <div className="search"><span className="mag">🔍</span>
             <input placeholder="Cerca per nome, cosa fornisce, città, email…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>

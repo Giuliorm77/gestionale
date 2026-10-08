@@ -8121,19 +8121,24 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   }
   const addManodopera=()=>setRighe(p=>[...p,{tipo:"manodopera",descrizione:"",lavorazione:"",quantita:1,unita:"ora",costo_unitario:0,prezzo_unitario:0,sconto_pct:0}]);
   const addImpianto=()=>setRighe(p=>[...p,{tipo:"impianto",descrizione:"",lavorazione:"",quantita:1,unita:"",costo_unitario:0,prezzo_unitario:0,sconto_pct:0}]);
-  const addLibera=()=>setRighe(p=>[...p,{tipo:"altro",descrizione:"",lavorazione:"",quantita:1,unita:"",costo_unitario:0,prezzo_unitario:0,sconto_pct:0}]);
-  // Preventivo multi-prodotto: "chiudi" il prodotto in corso creando la sua riga breve per il cliente, poi continui col prossimo
-  const [marcatoreBreve,setMarcatoreBreve]=useState(0);
+  const addLibera=()=>setRighe(p=>[...p,{tipo:"altro",descrizione:"",lavorazione:"",quantita:1,unita:"",costo_unitario:0,prezzo_unitario:0,sconto_pct:0,gruppo:gruppoCorr}]);
+  // Preventivo multi-prodotto: ogni componente appartiene a un PRODOTTO (gruppo). Blocco per prodotto.
   const subtotaleRiga=r=>(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0)*(1-(Number(r.sconto_pct)||0)/100);
-  function rigaBreveProdotto(){
-    const a=righe.length, da=Math.min(marcatoreBreve,a);
-    if(a<=da){ alert("Aggiungi prima i componenti di questo prodotto, poi premi 'Riga breve prodotto'."); return; }
-    const nome=window.prompt("Nome del prodotto per il cliente (riga breve):", f.descrizione_breve||"");
-    if(nome===null) return;
-    const sub=righe.slice(da,a).reduce((s,r)=>s+subtotaleRiga(r),0);
-    setRigheCliente(p=>[...p,{descrizione:nome||"Prodotto", quantita:1, unita:"", prezzo_un:Math.round(sub*100)/100, mostra:true}]);
-    setMarcatoreBreve(a);
+  const [prodottoCorr,setProdottoCorr]=useState("");
+  const gruppoCorr=(prodottoCorr||f.descrizione_breve||"Prodotto 1");
+  function nuovoProdotto(){ const n=window.prompt("Nome del nuovo prodotto (es. Totem, Insegna…):",""); if(n===null) return; setProdottoCorr(n.trim()); }
+  function rinominaGruppo(vecchio,nuovo){ setRighe(p=>p.map(r=>((r.gruppo||gruppoCorr)===vecchio?{...r,gruppo:nuovo}:r))); if((prodottoCorr||"")===vecchio) setProdottoCorr(nuovo); }
+  // ordine dei prodotti (per prima apparizione) e subtotale per prodotto
+  const ordineProdotti=React.useMemo(()=>{ const o=[]; (righe||[]).forEach(r=>{ const g=r.gruppo||gruppoCorr; if(!o.includes(g)) o.push(g); }); return o; },[righe,gruppoCorr]);
+  const subProdotto=g=>(righe||[]).filter(r=>(r.gruppo||gruppoCorr)===g).reduce((s,r)=>s+subtotaleRiga(r),0);
+  function generaRigheClienteDaProdotti(){
+    const linee=ordineProdotti.map(g=>({descrizione:g||"Prodotto", quantita:1, unita:"", prezzo_un:Math.round(subProdotto(g)*100)/100, mostra:true}));
+    setRigheCliente(linee);
   }
+  function duplicaProdotto(g){ const items=(righe||[]).filter(r=>(r.gruppo||gruppoCorr)===g); if(!items.length) return;
+    const nuovo=(g||"Prodotto")+" (copia)"; setRighe(p=>[...p,...items.map(r=>({...r,gruppo:nuovo}))]); setProdottoCorr(nuovo); }
+  function rimuoviProdotto(g){ if(!window.confirm('Eliminare il prodotto "'+(g||"")+'" e tutte le sue righe?')) return;
+    setRighe(p=>p.filter(r=>(r.gruppo||gruppoCorr)!==g)); }
   // --- Prodotto composito: esplode nelle righe (struttura + componenti), misura propagata ---
   const [compPick,setCompPick]=useState(null);      // composito scelto da inserire
   const [compTaglia,setCompTaglia]=useState(0);     // indice taglia (standard)
@@ -8214,9 +8219,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     else if(cgSel.cont==="mtl"&&lung) misTxt=" · "+lung+" cm";
     else if(cgSel.cont==="tempo"&&Number(cg.min)) misTxt=" · "+Number(cg.min)+" min";
     if(cgSel.kind==="articolo"){ const a=cgSel.item;
-      setRighe(p=>[...p,{tipo:"materiale",descrizione:a.nome_articolo+misTxt,articolo_id:a.id,lavorazione:"",quantita:q,unita:a.unita||"",costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:pc.sconto}]);
+      setRighe(p=>[...p,{tipo:"materiale",descrizione:a.nome_articolo+misTxt,articolo_id:a.id,lavorazione:"",quantita:q,unita:a.unita||"",costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:pc.sconto,gruppo:gruppoCorr}]);
     } else { const t=cgSel.item; const o=(cgSel.cont==="tempo"&&cg.op)?(operatori||[]).find(x=>x.id===cg.op):null;
-      setRighe(p=>[...p,{tipo:"manodopera",descrizione:("Manodopera "+t.lavorazione)+(o?" · "+o.nome:"")+misTxt,lavorazione:t.lavorazione,quantita:q,unita:(t.modo==="ora"?"ora":(t.modo||"")),costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:0,operatore_id:o?o.id:null,operatore_nome:o?o.nome:""}]);
+      setRighe(p=>[...p,{tipo:"manodopera",descrizione:("Manodopera "+t.lavorazione)+(o?" · "+o.nome:"")+misTxt,lavorazione:t.lavorazione,quantita:q,unita:(t.modo==="ora"?"ora":(t.modo||"")),costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:0,operatore_id:o?o.id:null,operatore_nome:o?o.nome:"",gruppo:gruppoCorr}]);
     }
     setCgMsg("✓ "+cgSel.nome+" aggiunto ("+q+")"); setCgSel(null); setCg({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true,op:""}); setCgSearch("");
   }
@@ -8345,7 +8350,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       await sb.from("preventivi_righe").delete().eq("preventivo_id",id); }
     const rows=righe.map((r,idx)=>({preventivo_id:id,ordine:idx,tipo:r.tipo,descrizione:r.descrizione||"",
       articolo_id:r.articolo_id||null,lavorazione:r.lavorazione||"",quantita:Number(r.quantita)||0,unita:r.unita||"",
-      operatore_id:r.operatore_id||null, operatore_nome:r.operatore_nome||"",
+      operatore_id:r.operatore_id||null, operatore_nome:r.operatore_nome||"", gruppo:r.gruppo||null,
       costo_unitario:Number(r.costo_unitario)||0,prezzo_unitario:Number(r.prezzo_unitario)||0,sconto_pct:Number(r.sconto_pct)||0,
       config:r.config||null,modalita_consegna:r.modalita_consegna||"corriere", pagato_intero:r.pagato_intero!==false,
       sede_id:r.sede_id||null,
@@ -8409,7 +8414,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       if(fasi.length){ const {error:ef}=await sb.from("commesse_fasi").insert(fasi); if(ef) throw ef; }
       // righe articolo dagli articoli/prodotti del preventivo (data consegna da compilare)
       const artRighe=righe.filter(r=>(r.tipo==="materiale"||r.tipo==="altro") && String(r.descrizione||"").trim())
-        .map((r,idx)=>({commessa_id:nc.id, ordine:idx, descrizione:r.descrizione||"",
+        .map((r,idx)=>({commessa_id:nc.id, ordine:idx, descrizione:r.descrizione||"", gruppo:r.gruppo||null,
           articolo_id:r.articolo_id||null, quantita:Number(r.quantita)||0, unita:r.unita||"",
           data_consegna:null, stato:"da_produrre", config:r.config||null, costo_unitario:Number(r.costo_unitario)||0, prezzo_unitario:Number(r.prezzo_unitario)||0,
           modalita_consegna:r.modalita_consegna||"corriere", sede_id:r.sede_id||null,
@@ -8483,8 +8488,20 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                   {righe.length===0 && <tr><td colSpan={9+(hasSedi?1:0)} className="muted" style={{padding:14}}>Nessuna riga. Aggiungi materiale, manodopera o impianti qui sotto.</td></tr>}
                   {righe.map((r,i)=>{
                     const rt=(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0)*(1-(Number(r.sconto_pct)||0)/100);
+                    const gRiga=r.gruppo||gruppoCorr;
+                    const nuovoGrp = i===0 || ((righe[i-1].gruppo||gruppoCorr)!==gRiga);
                     return (
-                      <tr key={i}>
+                      <React.Fragment key={i}>
+                      {nuovoGrp && <tr style={{background:"#eef2ff"}}><td colSpan={9+(hasSedi?1:0)} style={{padding:"8px 10px"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                          <span style={{fontWeight:700,fontSize:13}}>🧩 Prodotto</span>
+                          <input value={gRiga} onChange={e=>rinominaGruppo(gRiga,e.target.value)} style={{padding:"5px 8px",border:"1px solid var(--line)",borderRadius:7,fontWeight:600,minWidth:220}}/>
+                          <span className="muted" style={{fontSize:12}}>subtotale <b>{eur(subProdotto(gRiga))}</b></span>
+                          <button type="button" className="btn small" onClick={()=>duplicaProdotto(gRiga)} title="Copia questo prodotto con le sue righe">⧉ Duplica</button>
+                          <button type="button" className="btn small danger" onClick={()=>rimuoviProdotto(gRiga)} title="Elimina questo prodotto e le sue righe">✕ Elimina prodotto</button>
+                        </div>
+                      </td></tr>}
+                      <tr>
                         <td style={{textTransform:"capitalize",fontSize:12}}>{r.tipo}</td>
                         <td style={{minWidth:220}}>
                           {r.tipo==="manodopera"
@@ -8578,18 +8595,24 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                           {r.config && <button type="button" className="btn small" title="Vedi/modifica composizione" onClick={()=>apriConfigModifica(i)}>🧩</button>}{" "}
                           <button type="button" className="btn small danger" onClick={()=>delRiga(i)}>✕</button></td>
                       </tr>
+                      </React.Fragment>
                     );
                   })}
                 </tbody>
               </table>
             </div>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+            <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:10,paddingTop:8,borderTop:"1px dashed var(--line)"}}>
+              <span style={{fontSize:12.5,fontWeight:600}}>Prodotto corrente:</span>
+              <input value={prodottoCorr} onChange={e=>setProdottoCorr(e.target.value)} placeholder={f.descrizione_breve||"Prodotto 1"} style={{padding:"6px 9px",border:"1px solid var(--line)",borderRadius:7,fontWeight:600,minWidth:200}}/>
+              <span className="muted" style={{fontSize:12}}>i prossimi componenti vanno in <b>{gruppoCorr}</b></span>
+              <button type="button" className="btn small primary" onClick={nuovoProdotto} style={{background:"#6d28d9"}}>➕ Nuovo prodotto</button>
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
               <button type="button" className="btn small primary" onClick={()=>{setCgMsg("");setCgSel(null);setCgSearch("");setCgOpen(true);}} style={{background:"#0e7c5a"}}>➕ Componente guidato</button>
-              <button type="button" className="btn small primary" onClick={rigaBreveProdotto} style={{background:"#6d28d9"}} title="Crea la riga sintetica per il cliente di questo prodotto (somma i componenti aggiunti dall'ultima riga breve) e continua col prossimo prodotto">📄 Riga breve prodotto</button>
               <button type="button" className="btn small" onClick={addLibera}>+ Riga libera</button>
+              {ordineProdotti.length>1 && <button type="button" className="btn small" onClick={generaRigheClienteDaProdotti} title="Crea la Versione cliente: una riga per prodotto, con il suo totale">📄 Righe cliente dai prodotti</button>}
               {righe.length>1 && <button type="button" className="btn small" style={{marginLeft:"auto"}} onClick={rimuoviDuplicatiRighePrev} title="Toglie le righe identiche (doppioni) lasciandone una">🧹 Rimuovi duplicati</button>}
             </div>
-            {righe.length>marcatoreBreve && <div className="muted" style={{fontSize:12,marginTop:6}}>🧩 Prodotto in corso: <b>{righe.length-marcatoreBreve}</b> component{righe.length-marcatoreBreve===1?"e":"i"} · subtotale <b>{eur(righe.slice(marcatoreBreve).reduce((s,r)=>s+subtotaleRiga(r),0))}</b> — premi <b>📄 Riga breve prodotto</b> per chiuderlo e passare al prossimo.</div>}
             {configOpen && <ConfiguratoreRiga prodotti={prodotti} imballi={imballi} articoli={articoli} modiLabel={MODI_VOCE}
               iniziale={configEditIdx!=null ? (righe[configEditIdx]&&righe[configEditIdx].config) : null} abbDefault={Number(imp.abbondanza_cm ?? 3)}
               onClose={()=>{setConfigOpen(false);setConfigEditIdx(null);}} onAdd={aggiungiRigaConfig}/>}

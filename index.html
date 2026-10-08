@@ -13630,6 +13630,7 @@ function ModuloScadenzario({profilo,perm}){
   const [tot,setTot]=useState({});                 // totali lato DB: {cliente:{aperto,scaduto,n}, fornitore:{...}}
   const [vista,setVista]=useState("cliente");     // 'cliente' (da incassare) | 'fornitore' (da pagare)
   const [filtro,setFiltro]=useState("aperte");    // aperte | scadute | inscadenza | tutte
+  const [anno,setAnno]=useState("");              // "" = tutti gli anni (filtra per anno della fattura)
   const [cerca,setCerca]=useState("");
   const [busy,setBusy]=useState(false);
   const [err,setErr]=useState("");
@@ -13645,17 +13646,19 @@ function ModuloScadenzario({profilo,perm}){
     // e solo non-pagate salvo il filtro "tutte".
     let qy=sb.from("scadenze").select("*").eq("tipo",vista).order("data_scadenza",{ascending:true}).limit(2000);
     if(filtro!=="tutte") qy=qy.eq("pagato",false);
+    if(anno) qy=qy.gte("data_documento",anno+"-01-01").lte("data_documento",anno+"-12-31");
     const [s,sy,t]=await Promise.all([
       qy,
       sb.from("scadenze_sync").select("*").eq("id",1).maybeSingle(),
-      sb.rpc("scadenze_totali"),
+      sb.rpc("scadenze_totali",{p_anno: anno? Number(anno) : null}),
     ]);
     if(s.error){ setErr(s.error.message); return; }
     setScad(s.data||[]); setSync(sy.data||null);
     const tm={}; (t.data||[]).forEach(r=>{ tm[r.tipo]={aperto:Number(r.totale_aperto)||0,scaduto:Number(r.totale_scaduto)||0,n:Number(r.n_aperte)||0}; });
     setTot(tm);
-  },[vista,filtro]);
+  },[vista,filtro,anno]);
   useEffect(()=>{ carica(); },[carica]);
+  const anniOpz=useMemo(()=>{ const y=new Date().getFullYear(); const a=[]; for(let i=y+1;i>=2020;i--) a.push(i); return a; },[]);
 
   async function sincronizza(){
     setBusy(true); setErr(""); setMsg("");
@@ -13740,6 +13743,10 @@ function ModuloScadenzario({profilo,perm}){
             <option value="scadute">Solo scadute</option>
             <option value="inscadenza">In scadenza (7 gg)</option>
             <option value="tutte">Tutte</option>
+          </select>
+          <select className="btn" value={anno} onChange={e=>setAnno(e.target.value)} style={{maxWidth:130}} title="Filtra per anno della fattura">
+            <option value="">Tutti gli anni</option>
+            {anniOpz.map(y=><option key={y} value={y}>{y}</option>)}
           </select>
           {filtrate.length>0 && <button className="btn" onClick={esportaExcel}>⬇ Excel</button>}
           <span className="muted">{filtrate.length} scadenze</span>

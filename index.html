@@ -8588,6 +8588,21 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
           imballo_id:null, imballo_ids:imballiSel(r).filter(x=>x!=="__pluriball__"), imballo_pluriball:pluriballDaSalvare(r),
           imballo_input:r.imballo_input||null,
           imballo_costo:Math.round(costoImballoRiga(r)*100)/100}));
+      // Ogni PRODOTTO del preventivo deve avere almeno una riga da PRODURRE/CONSEGNARE in commessa:
+      // se un prodotto è fatto SOLO di lavorazioni (nessun materiale), senza questo la produzione
+      // resterebbe senza articolo e la commessa non si potrebbe mandare in produzione.
+      const rigaProdotto=(desc,gruppo,ord)=>({commessa_id:nc.id, ordine:ord, descrizione:desc||"Prodotto", gruppo:gruppo||null,
+        articolo_id:null, quantita:1, unita:"pz", data_consegna:null, stato:"da_produrre", config:null,
+        costo_unitario:0, prezzo_unitario:0, modalita_consegna:"corriere", sede_id:null,
+        fornitore_prezzo_id:null, fornitore_prezzo_nome:"", fornitore_prezzo_nota:"",
+        fornitore_prezzo_allegato:null, fornitore_prezzo_allegato_nome:"",
+        imballo_id:null, imballo_ids:[], imballo_pluriball:null, imballo_input:null, imballo_costo:0});
+      const gruppiConArt=new Set(artRighe.map(r=>r.gruppo||"").filter(Boolean));
+      const gruppiTot=[...new Set(righe.map(r=>r.gruppo).filter(g=>g&&String(g).trim()))];
+      let ordX=artRighe.length;
+      gruppiTot.forEach(g=>{ if(!gruppiConArt.has(g)) artRighe.push(rigaProdotto(g,g,ordX++)); });
+      // nessun gruppo e nessuna riga, ma ci sono lavorazioni → una riga dal prodotto del preventivo
+      if(artRighe.length===0 && fasi.length) artRighe.push(rigaProdotto(f.descrizione_breve||rec.prodotto||"Prodotto",null,0));
       if(artRighe.length){ const {error:er}=await sb.from("commesse_righe").insert(artRighe); if(er) throw er; }
       try{ await sb.rpc("ricalcola_impegni"); }catch(e){}
       setBusy(false);

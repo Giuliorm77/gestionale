@@ -6908,11 +6908,13 @@ ${destBanner}
       ? `<colgroup><col style="width:52%"><col style="width:12%"><col style="width:14%"><col style="width:10%"><col style="width:12%"></colgroup><thead><tr><th>Descrizione</th><th class="r">Q.tà</th><th class="r">Prezzo</th><th class="r">Sconto</th><th class="r">Totale</th></tr></thead>`
       : `<colgroup><col style="width:56%"><col style="width:14%"><col style="width:15%"><col style="width:15%"></colgroup><thead><tr><th>Descrizione</th><th class="r">Q.tà</th><th class="r">Prezzo</th><th class="r">Totale</th></tr></thead>`)}
 <tbody>${righeHtml}${extra.join("")}</tbody></table>
-<table class="tot">
+${(opts&&opts.scaglioni)
+  ? `<div class="cond" style="margin-top:14px"><b>Prezzi per quantità</b> — gli importi indicati si riferiscono alle quantità in tabella e <b>non si sommano</b>: scegli la quantità desiderata. Importi IVA ${Number(prev.iva_pct)||22}% esclusa.</div>`
+  : `<table class="tot">
   <tr><td>Imponibile</td><td class="r">${eurf(tot.imponibile)}</td></tr>
   <tr><td>IVA ${Number(prev.iva_pct)||22}%</td><td class="r">${eurf(tot.iva)}</td></tr>
   <tr class="big"><td>TOTALE</td><td class="r">${eurf(tot.totale)}</td></tr>
-</table>
+</table>`}
 ${pagCond?`<div class="cond"><b>Pagamento:</b> ${escHtml(pagCond)}</div>`:""}
 ${prev.condizioni?`<div class="cond"><b>Condizioni particolari</b><br>${escHtml(prev.condizioni)}</div>`:""}
 ${prev.note?`<div class="cond"><b>Note</b><br>${escHtml(prev.note)}</div>`:""}
@@ -8126,6 +8128,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     provvigione_pct:preventivo?.provvigione_pct ?? "",
     prezzo_netto:preventivo?.prezzo_netto ?? "",
     quota_margine_pct:preventivo?.quota_margine_pct ?? "",
+    scaglioni: preventivo?.scaglioni || false,                 // true = prodotti = alternative di quantità (non si sommano)
+    scaglioni_qta: (preventivo?.scaglioni_qta && typeof preventivo.scaglioni_qta==="object") ? preventivo.scaglioni_qta : {},
   }));
   const [righe,setRighe]=useState(()=> (bozza&&bozza.righe) ? bozza.righe.map(r=>({...r}))
     : (preventivo?.preventivi_righe||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0))
@@ -8234,7 +8238,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const [prodottoCorr,setProdottoCorr]=useState("");
   const gruppoCorr=(prodottoCorr||f.descrizione_breve||"Prodotto 1");
   function nuovoProdotto(){ const n=window.prompt("Nome del nuovo prodotto (es. Totem, Insegna…):",""); if(n===null) return; setProdottoCorr(n.trim()); }
-  function rinominaGruppo(vecchio,nuovo){ setRighe(p=>p.map(r=>((r.gruppo||gruppoCorr)===vecchio?{...r,gruppo:nuovo}:r))); if((prodottoCorr||"")===vecchio) setProdottoCorr(nuovo); }
+  function rinominaGruppo(vecchio,nuovo){ setRighe(p=>p.map(r=>((r.gruppo||gruppoCorr)===vecchio?{...r,gruppo:nuovo}:r))); if((prodottoCorr||"")===vecchio) setProdottoCorr(nuovo);
+    setF(p=>{ const sq=p.scaglioni_qta||{}; if(!(vecchio in sq)) return p; const n={...sq}; n[nuovo]=n[vecchio]; if(nuovo!==vecchio) delete n[vecchio]; return {...p,scaglioni_qta:n}; }); }
   // ordine dei prodotti (per prima apparizione) e subtotale per prodotto
   const ordineProdotti=React.useMemo(()=>{ const o=[]; (righe||[]).forEach(r=>{ const g=r.gruppo||gruppoCorr; if(!o.includes(g)) o.push(g); }); return o; },[righe,gruppoCorr]);
   const subProdotto=g=>(righe||[]).filter(r=>(r.gruppo||gruppoCorr)===g).reduce((s,r)=>s+subtotaleRiga(r),0);
@@ -8413,7 +8418,12 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const pluriballDaSalvare=r=> imballiSel(r).includes("__pluriball__") ? pluriballRiga(r) : null;
   const righeCalc=righe.map(r=>({...r, imballo_costo:Math.round(costoImballoRiga(r)*100)/100}));
   const tot=calcolaPreventivo(righeCalc,f);
-  const sottoMargine = tot.imponibile>0 && tot.marginePct < (Number(f.margine_minimo_pct)||0);
+  // SCAGLIONI: ogni PRODOTTO (gruppo) è un'alternativa di quantità; il suo prezzo è l'imponibile
+  // del solo gruppo (spese generali incluse), senza i costi fissi di spedizione/imballaggio dell'ordine.
+  const optPrice=g=>calcolaPreventivo((righeCalc||[]).filter(r=>(r.gruppo||gruppoCorr)===g),{...f,imballaggio:0,trasporto:0}).imponibile;
+  const scQ=g=>Number((f.scaglioni_qta||{})[g])||0;
+  const setScQ=(g,v)=>setF(p=>({...p,scaglioni_qta:{...(p.scaglioni_qta||{}),[g]:v}}));
+  const sottoMargine = !f.scaglioni && tot.imponibile>0 && tot.marginePct < (Number(f.margine_minimo_pct)||0);
   // righe sotto l'OBIETTIVO di margine della loro categoria (fallback: margine minimo generale)
   const righeSottoObiettivo=React.useMemo(()=>{
     const catMap={}; (Array.isArray(imp?.margini_categoria)?imp.margini_categoria:[]).forEach(x=>{ const k=String(x.categoria||"").trim().toLowerCase(); if(k) catMap[k]=Number(x.obiettivo)||0; });
@@ -8441,6 +8451,14 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   async function stampa(){ const cli=await caricaCli(); stampaHTML(htmlPreventivo(f, righeCalc, imp, cli, tot, null, {raggruppaProdotti:true})); }
   async function stampaCliente(){
     const cli=await caricaCli();
+    if(f.scaglioni){
+      // PREVENTIVO A SCAGLIONI: una riga per prodotto (quantità → prezzo), nessuna somma
+      const ordine=[]; righeCalc.forEach(r=>{ const g=r.gruppo||gruppoCorr; if(!ordine.includes(g)) ordine.push(g); });
+      const rows=ordine.map(g=>{ const qn=scQ(g)||1; const prezzo=optPrice(g); return {descrizione:g||(f.descrizione_breve||"Prodotto"), quantita:qn, unita:"pz", prezzo_unitario:Math.round(prezzo/qn*100)/100, sconto_pct:0, modalita_consegna:"corriere", imballo_costo:0}; });
+      const totC={imponibile:0,iva:0,totale:0,imbRighe:0};
+      stampaHTML(htmlPreventivo(f, rows, imp, cli, totC, null, {noExtra:true, scaglioni:true}));
+      return;
+    }
     const rc=(righeCliente||[]).filter(x=>x.mostra!==false && (String(x.descrizione||"").trim()!==""||Number(x.prezzo_un)>0));
     if(rc.length){
       const rows=rc.map(x=>({descrizione:x.descrizione||"", quantita:Number(x.quantita)||0, unita:x.unita||"", prezzo_unitario:Number(x.prezzo_un)||0, sconto_pct:0, modalita_consegna:"corriere", imballo_costo:0}));
@@ -8537,6 +8555,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   async function creaCommessa(){
     if(!preventivo?.id){ setErr("Salva prima il preventivo, poi crea la commessa."); return; }
     setErr(""); setCommMsg("");
+    if(f.scaglioni && ordineProdotti.length>1){
+      if(!window.confirm("Questo preventivo è a SCAGLIONI (quantità alternative). La commessa prenderebbe TUTTI i prodotti sommati, che di norma non è corretto: meglio lasciare nel preventivo solo la quantità scelta dal cliente e poi creare la commessa. Procedere comunque?")) return;
+    }
     try{
       // esiste gia' una commessa per questo preventivo?
       const {data:esist}=await sb.from("commesse").select("numero").eq("preventivo_id",preventivo.id);
@@ -8676,7 +8697,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                         <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
                           <span style={{fontWeight:700,fontSize:13}}>🧩 Prodotto</span>
                           <input value={gRiga} onChange={e=>rinominaGruppo(gRiga,e.target.value)} style={{padding:"5px 8px",border:"1px solid var(--line)",borderRadius:7,fontWeight:600,minWidth:220}}/>
-                          <span className="muted" style={{fontSize:12}}>subtotale <b>{eur(subProdotto(gRiga))}</b></span>
+                          {f.scaglioni && <span style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:12.5}}>Q.tà <input type="number" step="any" value={scQ(gRiga)||""} onChange={e=>setScQ(gRiga,e.target.value)} placeholder="es. 100" style={{width:80,padding:"5px 8px",border:"1px solid #b89cff",borderRadius:7}}/> pz</span>}
+                          <span className="muted" style={{fontSize:12}}>{f.scaglioni? <>prezzo <b>{eur(optPrice(gRiga))}</b>{scQ(gRiga)>0?<> · cad. <b>{eur(optPrice(gRiga)/scQ(gRiga))}</b></>:null}</> : <>subtotale <b>{eur(subProdotto(gRiga))}</b></>}</span>
                           <button type="button" className="btn small" onClick={()=>duplicaProdotto(gRiga)} title="Copia questo prodotto con le sue righe">⧉ Duplica</button>
                           <button type="button" className="btn small danger" onClick={()=>rimuoviProdotto(gRiga)} title="Elimina questo prodotto e le sue righe">✕ Elimina prodotto</button>
                         </div>
@@ -8796,6 +8818,14 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
               {ordineProdotti.length>1 && <button type="button" className="btn small" onClick={generaRigheClienteDaProdotti} title="Crea la Versione cliente: una riga per prodotto, con il suo totale">📄 Righe cliente dai prodotti</button>}
               {righe.length>1 && <button type="button" className="btn small" style={{marginLeft:"auto"}} onClick={rimuoviDuplicatiRighePrev} title="Toglie le righe identiche (doppioni) lasciandone una">🧹 Rimuovi duplicati</button>}
             </div>
+            {ordineProdotti.length>1 && <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginTop:8,padding:"8px 10px",background:"#f6f4ff",border:"1px solid #e2dcff",borderRadius:8}}>
+              <span style={{fontWeight:700,fontSize:12.5}}>Totale preventivo:</span>
+              <label style={{display:"inline-flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:13}}>
+                <input type="radio" name="modoTot" checked={!f.scaglioni} onChange={()=>set("scaglioni",false)} style={{width:"auto"}}/> Somma dei prodotti</label>
+              <label style={{display:"inline-flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:13}}>
+                <input type="radio" name="modoTot" checked={!!f.scaglioni} onChange={()=>set("scaglioni",true)} style={{width:"auto"}}/> Scaglioni di quantità (alternative, non si sommano)</label>
+              <span className="muted" style={{fontSize:11.5,marginLeft:"auto",maxWidth:300}}>{f.scaglioni?"Stesso prodotto a quantità diverse: il cliente ne sceglie una. Imposta la Q.tà su ogni blocco.":"Prodotti diversi: i loro prezzi si sommano nel totale."}</span>
+            </div>}
             {configOpen && <ConfiguratoreRiga prodotti={prodotti} imballi={imballi} articoli={articoli} modiLabel={MODI_VOCE}
               iniziale={configEditIdx!=null ? (righe[configEditIdx]&&righe[configEditIdx].config) : null} abbDefault={Number(imp.abbondanza_cm ?? 3)}
               onClose={()=>{setConfigOpen(false);setConfigEditIdx(null);}} onAdd={aggiungiRigaConfig}/>}
@@ -8932,6 +8962,14 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
           </div>
 
           <div className="card" style={{padding:16,background:"#fafbfc"}}>
+            {f.scaglioni ? <>
+              <div style={{fontWeight:700,marginBottom:8}}>📊 Prezzi per quantità — il cliente sceglie (non si sommano)</div>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                <thead><tr><th style={{textAlign:"left",padding:"4px 6px"}}>Prodotto</th><th style={{textAlign:"right",padding:"4px 6px"}}>Q.tà</th><th style={{textAlign:"right",padding:"4px 6px"}}>Prezzo</th><th style={{textAlign:"right",padding:"4px 6px"}}>Cad.</th></tr></thead>
+                <tbody>{ordineProdotti.map(g=>{ const q=scQ(g),p=optPrice(g); return <tr key={g} style={{borderTop:"1px solid var(--line)"}}><td style={{padding:"4px 6px"}}>{g}</td><td style={{textAlign:"right",padding:"4px 6px"}}>{q||"—"}</td><td style={{textAlign:"right",fontWeight:700,padding:"4px 6px"}}>{eur(p)}</td><td style={{textAlign:"right",padding:"4px 6px"}} className="muted">{q>0?eur(p/q):"—"}</td></tr>; })}</tbody>
+              </table>
+              <div className="muted" style={{fontSize:12,marginTop:8}}>IVA {f.iva_pct||0}% esclusa. Imposta la Q.tà su ogni blocco-prodotto qui sopra.</div>
+            </> : <>
             <div className="kv" style={{gridTemplateColumns:"1fr auto"}}>
               {tot.imbRighe>0 && <><span className="k">di cui imballo articoli</span><span style={{textAlign:"right"}} className="muted">{eur(tot.imbRighe)}</span></>}
               <span className="k">Imponibile</span><span style={{textAlign:"right"}}>{eur(tot.imponibile)}</span>
@@ -8948,6 +8986,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                 {righeSottoObiettivo.map((x,k)=><li key={k}>{x.descr}{x.cat?" ("+x.cat+")":""}: margine {x.marg.toFixed(0)}% &lt; obiettivo {x.tgt}%</li>)}
               </ul>
             </div>}
+            </>}
           </div>
 
           <div className="section" style={{marginTop:18}}>

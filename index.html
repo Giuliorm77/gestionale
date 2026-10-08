@@ -8145,7 +8145,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   }
   const addManodopera=()=>setRighe(p=>[...p,{tipo:"manodopera",descrizione:"",lavorazione:"",quantita:1,unita:"ora",costo_unitario:0,prezzo_unitario:0,sconto_pct:0}]);
   const addImpianto=()=>setRighe(p=>[...p,{tipo:"impianto",descrizione:"",lavorazione:"",quantita:1,unita:"",costo_unitario:0,prezzo_unitario:0,sconto_pct:0}]);
-  const addLibera=()=>setRighe(p=>[...p,{tipo:"altro",descrizione:"",lavorazione:"",quantita:1,unita:"",costo_unitario:0,prezzo_unitario:0,sconto_pct:0,gruppo:gruppoCorr}]);
+  const addLibera=()=>aggiungiRigaInGruppo({tipo:"altro",descrizione:"",lavorazione:"",quantita:1,unita:"",costo_unitario:0,prezzo_unitario:0,sconto_pct:0,gruppo:gruppoCorr});
   // Preventivo multi-prodotto: ogni componente appartiene a un PRODOTTO (gruppo). Blocco per prodotto.
   const subtotaleRiga=r=>(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0)*(1-(Number(r.sconto_pct)||0)/100);
   const [prodottoCorr,setProdottoCorr]=useState("");
@@ -8163,6 +8163,11 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     const nuovo=(g||"Prodotto")+" (copia)"; setRighe(p=>[...p,...items.map(r=>({...r,gruppo:nuovo}))]); setProdottoCorr(nuovo); }
   function rimuoviProdotto(g){ if(!window.confirm('Eliminare il prodotto "'+(g||"")+'" e tutte le sue righe?')) return;
     setRighe(p=>p.filter(r=>(r.gruppo||gruppoCorr)!==g)); }
+  // inserisce la nuova riga ADIACENTE alle altre righe del suo prodotto (così il blocco non si spezza)
+  const aggiungiRigaInGruppo=(nuova)=>setRighe(p=>{ const g=nuova.gruppo;
+    let last=-1; p.forEach((r,i)=>{ if((r.gruppo||gruppoCorr)===g) last=i; });
+    if(last<0) return [...p,nuova];
+    const c=p.slice(); c.splice(last+1,0,nuova); return c; });
   // --- Prodotto composito: esplode nelle righe (struttura + componenti), misura propagata ---
   const [compPick,setCompPick]=useState(null);      // composito scelto da inserire
   const [compTaglia,setCompTaglia]=useState(0);     // indice taglia (standard)
@@ -8269,9 +8274,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     else if(cgSel.cont==="mtl"&&lung) misTxt=" · "+lung+" cm";
     else if(cgSel.cont==="tempo"&&Number(cg.min)) misTxt=" · "+Number(cg.min)+" min";
     if(cgSel.kind==="articolo"){ const a=cgSel.item;
-      setRighe(p=>[...p,{tipo:"materiale",descrizione:a.nome_articolo+misTxt,articolo_id:a.id,lavorazione:"",quantita:q,unita:a.unita||"",costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:pc.sconto,gruppo:gruppoCorr}]);
+      aggiungiRigaInGruppo({tipo:"materiale",descrizione:a.nome_articolo+misTxt,articolo_id:a.id,lavorazione:"",quantita:q,unita:a.unita||"",costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:pc.sconto,gruppo:gruppoCorr});
     } else { const t=cgSel.item; const o=(cgSel.cont==="tempo"&&cg.op)?(operatori||[]).find(x=>x.id===cg.op):null;
-      setRighe(p=>[...p,{tipo:"manodopera",descrizione:("Manodopera "+t.lavorazione)+(o?" · "+o.nome:"")+misTxt,lavorazione:t.lavorazione,quantita:q,unita:(t.modo==="ora"?"ora":(t.modo||"")),costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:0,operatore_id:o?o.id:null,operatore_nome:o?o.nome:"",gruppo:gruppoCorr}]);
+      aggiungiRigaInGruppo({tipo:"manodopera",descrizione:("Manodopera "+t.lavorazione)+(o?" · "+o.nome:"")+misTxt,lavorazione:t.lavorazione,quantita:q,unita:(t.modo==="ora"?"ora":(t.modo||"")),costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:0,operatore_id:o?o.id:null,operatore_nome:o?o.nome:"",gruppo:gruppoCorr});
     }
     setCgMsg("✓ "+cgSel.nome+" aggiunto ("+q+")"); setCgSel(null); setCg({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true,op:""}); setCgSearch("");
   }
@@ -8663,10 +8668,13 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
               </table>
             </div>
             <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:10,paddingTop:8,borderTop:"1px dashed var(--line)"}}>
-              <span style={{fontSize:12.5,fontWeight:600}}>Prodotto corrente:</span>
-              <input value={prodottoCorr} onChange={e=>setProdottoCorr(e.target.value)} placeholder={f.descrizione_breve||"Prodotto 1"} style={{padding:"6px 9px",border:"1px solid var(--line)",borderRadius:7,fontWeight:600,minWidth:200}}/>
-              <span className="muted" style={{fontSize:12}}>i prossimi componenti vanno in <b>{gruppoCorr}</b></span>
+              <span style={{fontSize:12.5,fontWeight:600}}>Aggiungi al prodotto:</span>
+              {(()=>{ const opz=[...new Set([...(righe||[]).map(r=>r.gruppo).filter(Boolean), gruppoCorr].filter(Boolean))];
+                return <select value={gruppoCorr} onChange={e=>setProdottoCorr(e.target.value)} style={{padding:"6px 9px",border:"1px solid var(--line)",borderRadius:7,fontWeight:600,minWidth:200}}>
+                  {opz.map(g=><option key={g} value={g}>{g}</option>)}
+                </select>; })()}
               <button type="button" className="btn small primary" onClick={nuovoProdotto} style={{background:"#6d28d9"}}>➕ Nuovo prodotto</button>
+              <span className="muted" style={{fontSize:12}}>i prossimi componenti vanno in <b>{gruppoCorr}</b></span>
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
               <button type="button" className="btn small primary" onClick={()=>{setCgMsg("");setCgSel(null);setCgSearch("");setCgOpen(true);}} style={{background:"#0e7c5a"}}>➕ Componente guidato</button>

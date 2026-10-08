@@ -124,20 +124,36 @@ Deno.serve(async (req) => {
     }
     const righeFor = ricevute.flatMap((d) => righeDaDoc(d, "fornitore"));
 
-    // DIAGNOSTICA: struttura reale FIC per mappare bene i campi (importo rata / data / stato)
+    // PROBE paginazione: quante fatture dice FIC di avere in totale?
+    let ficPag: any = {};
+    try {
+      const pr = await fetch(`${FIC}/c/${company}/issued_documents?type=invoice&per_page=50&page=1`, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+      const pb = await pr.json().catch(() => ({}));
+      ficPag = { top_keys: Object.keys(pb), current_page: pb.current_page, last_page: pb.last_page, total: pb.total, per_page: pb.per_page };
+    } catch (_) { /* ignora */ }
+
+    // AGGREGATI sulle rate clienti (per capire pagate vs non pagate e somme)
+    const somma = (arr: any[]) => Math.round(arr.reduce((s, r) => s + (Number(r.importo) || 0), 0) * 100) / 100;
+    const nonPag = righeCli.filter((r) => !r.pagato);
+    const perAnno: Record<string, number> = {};
+    righeCli.forEach((r) => { const y = String(r.data_documento || "").slice(0, 4) || "?"; perAnno[y] = (perAnno[y] || 0) + 1; });
+    const senzaPay = emesse.filter((d) => !Array.isArray(d.payments_list) || d.payments_list.length === 0).length;
+
     const sampleDoc = emesse[0] || null;
     const diagnostica = {
       issued_docs: emesse.length,
+      fic_paginazione: ficPag,
+      rate_totali: righeCli.length,
+      rate_non_pagate: nonPag.length,
+      rate_pagate: righeCli.length - nonPag.length,
+      somma_da_incassare: somma(nonPag),
+      somma_tutte_le_rate: somma(righeCli),
+      docs_senza_payments_list: senzaPay,
+      rate_per_anno_documento: perAnno,
       received_docs: ricevute.length,
       received_count_per_type: recCount,
       received_errori: recErr,
-      issued_sample_keys: sampleDoc ? Object.keys(sampleDoc) : [],
-      issued_sample: sampleDoc ? {
-        id: sampleDoc.id, number: sampleDoc.number, numeration: sampleDoc.numeration, date: sampleDoc.date,
-        amount_net: sampleDoc.amount_net, amount_gross: sampleDoc.amount_gross,
-        entity: sampleDoc.entity ? { name: sampleDoc.entity.name, vat_number: sampleDoc.entity.vat_number } : null,
-        payments_list: sampleDoc.payments_list || null,
-      } : null,
+      issued_sample: sampleDoc ? { id: sampleDoc.id, date: sampleDoc.date, amount_gross: sampleDoc.amount_gross, payments_list: sampleDoc.payments_list || null } : null,
     };
 
     await upsertScadenze(sbUrl, srv, [...righeCli, ...righeFor]);

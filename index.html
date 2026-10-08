@@ -13805,7 +13805,7 @@ function ModuloScadenzario({profilo,perm}){
             ⚠ Senza anagrafica
           </label>
           {filtrate.length>0 && <button className="btn" onClick={esportaExcel}>⬇ Excel</button>}
-          <span className="muted">{filtrate.length} scadenze</span>
+          <span className="muted">{filtrate.length} scadenze{filtrate.length>0 && <> · <b style={{color:"#136c4a"}}>{eur(filtrate.reduce((s,r)=>s+(Number(r.importo)||0),0))}</b></>}</span>
         </div>
 
         {scad===null ? <div className="empty">Caricamento…</div>

@@ -14422,6 +14422,11 @@ function ModuloReport({profilo,perm}){
   const [al,setAl]=useState("");
   const [meseStraord,setMeseStraord]=useState(()=>new Date().toISOString().slice(0,7));
   const [meseProvv,setMeseProvv]=useState(()=>new Date().toISOString().slice(0,7));
+  const [meseInc,setMeseInc]=useState(()=>new Date().toISOString().slice(0,7));
+  const [provvInc,setProvvInc]=useState(null);
+  useEffect(()=>{ if(!perm.economici){ setProvvInc([]); return; }
+    sb.rpc("provvigioni_incassato",{p_mese:meseInc||null}).then(({data,error})=>{ setProvvInc(error?[]:(data||[])); });
+  },[meseInc,perm.economici]);
   const [cliMap,setCliMap]=useState({});
   const [agMap,setAgMap]=useState({});
   const [crmTratt,setCrmTratt]=useState([]);      // trattative CRM (per report vendite/provvigioni agenti)
@@ -14895,6 +14900,37 @@ function ModuloReport({profilo,perm}){
                 </tr>}
               </tbody>
             </table>
+          </div>
+
+          <div className="card" style={{padding:20,marginBottom:18,overflow:"auto"}}>
+            <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:10}}>
+              <h3 style={{margin:0}}>💶 Provvigioni su incassato</h3>
+              <div className="field" style={{maxWidth:180,margin:0}}><label style={{fontSize:12}}>Mese incasso</label>
+                <input type="month" value={meseInc} onChange={e=>setMeseInc(e.target.value)}/></div>
+            </div>
+            <div className="muted" style={{fontSize:12,marginBottom:10}}>
+              Fatture-cliente <b>incassate</b> nel mese (da Fatture in Cloud), provvigione sull'<b>imponibile</b> incassato con la % del cliente (o dell'agente). Base reale: matura quando il cliente paga.
+            </div>
+            {provvInc===null ? <div className="muted">Caricamento…</div> : (()=>{
+              const tot=provvInc.reduce((o,r)=>({n:o.n+Number(r.n_fatture||0),inc:o.inc+Number(r.incassato_netto||0),pro:o.pro+Number(r.provvigione||0)}),{n:0,inc:0,pro:0});
+              return <table>
+                <thead><tr><th>Agente</th><th style={{textAlign:"right"}}>Fatture</th><th style={{textAlign:"right"}}>Incassato (netto)</th><th style={{textAlign:"right"}}>Provvigione</th></tr></thead>
+                <tbody>
+                  {provvInc.length===0 ? <tr><td colSpan={4} className="muted" style={{padding:12}}>Nessuna fattura incassata con agente in questo mese.</td></tr>
+                    : provvInc.map((r,i)=><tr key={i}>
+                      <td className="rs">{r.agente_nome||"—"}</td>
+                      <td style={{textAlign:"right"}} className="muted">{r.n_fatture}</td>
+                      <td style={{textAlign:"right"}}>{eur(r.incassato_netto)}</td>
+                      <td style={{textAlign:"right",fontWeight:700,color:"var(--ok)"}}>{eur(r.provvigione)}</td>
+                    </tr>)}
+                  {provvInc.length>0 && <tr style={{borderTop:"2px solid var(--line)"}}>
+                    <td style={{fontWeight:800}}>TOTALE</td>
+                    <td style={{textAlign:"right",fontWeight:800}}>{tot.n}</td>
+                    <td style={{textAlign:"right",fontWeight:800}}>{eur(tot.inc)}</td>
+                    <td style={{textAlign:"right",fontWeight:800,color:"var(--ok)"}}>{eur(tot.pro)}</td>
+                  </tr>}
+                </tbody>
+              </table>; })()}
           </div>
 
           <div className="card" style={{padding:20,marginBottom:18,overflow:"auto"}}>

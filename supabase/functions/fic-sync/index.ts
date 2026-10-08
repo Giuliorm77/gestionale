@@ -60,28 +60,37 @@ function righeDaDoc(doc: any, tipo: "cliente" | "fornitore") {
     controparte_cf: ent.tax_code || "",
     valuta: (doc.currency && doc.currency.id) || "EUR",
   };
+  const net = Number(doc.amount_net ?? 0) || 0;
+  const gross = Number(doc.amount_gross ?? 0) || 0;
+  const ratio = gross > 0 ? net / gross : 1;    // quota imponibile sul lordo della fattura
   const pays = Array.isArray(doc.payments_list) ? doc.payments_list : [];
   if (!pays.length) {
     // documento senza rate: una scadenza unica dall'importo lordo
+    const imp = gross || net;
     return [{
       ...base,
       fic_payment_id: null,
-      importo: Number(doc.amount_gross ?? doc.amount_net ?? 0) || 0,
+      importo: imp,
+      importo_netto: Math.round(imp * ratio * 100) / 100,
       data_scadenza: toDate(doc.date),
       pagato: false,
       data_pagamento: null,
       metodo: "",
     }];
   }
-  return pays.map((p: any) => ({
-    ...base,
-    fic_payment_id: p.id ?? null,
-    importo: Number(p.amount ?? 0) || 0,
-    data_scadenza: toDate(p.due_date),
-    pagato: String(p.status || "").toLowerCase() === "paid",
-    data_pagamento: toDate(p.paid_date),
-    metodo: (p.payment_account && p.payment_account.name) || "",
-  }));
+  return pays.map((p: any) => {
+    const amt = Number(p.amount ?? 0) || 0;
+    return {
+      ...base,
+      fic_payment_id: p.id ?? null,
+      importo: amt,
+      importo_netto: Math.round(amt * ratio * 100) / 100,
+      data_scadenza: toDate(p.due_date),
+      pagato: String(p.status || "").toLowerCase() === "paid",
+      data_pagamento: toDate(p.paid_date),
+      metodo: (p.payment_account && p.payment_account.name) || "",
+    };
+  });
 }
 
 async function upsertScadenze(sbUrl: string, srv: string, righe: any[]) {

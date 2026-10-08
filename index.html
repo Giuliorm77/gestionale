@@ -8531,14 +8531,22 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       const fasiRaw=[];
       righe.forEach(r=>{
         if(r.tipo==="manodopera" && (r.lavorazione||r.descrizione)){
-          fasiRaw.push({reparto:r.lavorazione||"", descrizione:r.descrizione||r.lavorazione||"", ore_previste:Number(r.quantita)||0,
-            operatori:r.operatore_id?[{id:r.operatore_id,nome:r.operatore_nome||"",ore:Number(r.quantita)||0}]:[]});
+          const q=Number(r.quantita)||0;
+          // lavorazione a TEMPO (unità "ora" o vuota) → ore previste; a QUANTITÀ (battute/pz/mq/mtl…) → q.tà da fare + unità
+          const aTempo=(r.unita||"")==="ora" || (r.unita||"")==="";
+          fasiRaw.push({reparto:r.lavorazione||"", descrizione:r.descrizione||r.lavorazione||"",
+            ore_previste: aTempo? q : 0,
+            quantita_prevista: aTempo? 0 : q,
+            unita_lavorata: aTempo? "" : (r.unita||""),
+            operatori:r.operatore_id?[{id:r.operatore_id,nome:r.operatore_nome||"",ore: aTempo? q : 0}]:[]});
         } else if((r.tipo==="materiale"||r.tipo==="altro") && r.config && r.config.prodotto_id){
           fasiDaConfigurato(r,prodotti).forEach(fx=>fasiRaw.push({reparto:fx.reparto, descrizione:fx.descrizione, ore_previste:0, operatori:[]}));
         }
       });
       const fasi=fasiRaw.map((fx,idx)=>({commessa_id:nc.id, ordine:idx, chiave:uid(), reparto:fx.reparto,
-        descrizione:fx.descrizione, stato:"da_fare", ore_previste:fx.ore_previste, operatori:fx.operatori||[]}));
+        descrizione:fx.descrizione, stato:"da_fare", ore_previste:fx.ore_previste||0,
+        quantita_prevista:fx.quantita_prevista||0, unita_lavorata:fx.unita_lavorata||"",
+        operatori:fx.operatori||[]}));
       if(fasi.length){ const {error:ef}=await sb.from("commesse_fasi").insert(fasi); if(ef) throw ef; }
       // righe articolo dagli articoli/prodotti del preventivo (data consegna da compilare)
       const artRighe=righe.filter(r=>(r.tipo==="materiale"||r.tipo==="altro") && String(r.descrizione||"").trim())

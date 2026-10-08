@@ -8221,14 +8221,40 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const [cg,setCg]=useState({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true,op:""});
   const [cgMsg,setCgMsg]=useState("");
   const cgAbb=Number(imp && imp.abbondanza_cm!=null ? imp.abbondanza_cm : 3);
+  const [nuoviComp,setNuoviComp]=useState([]);   // componenti creati al volo dal guidato
+  const [cgNuovo,setCgNuovo]=useState(false);
+  const [cgN,setCgN]=useState({tipo:"materiale",nome:"",unita:"mq",acquisto:"",listino:"",modo:"ora",costo:"",ricarico:"100"});
+  const [cgNbusy,setCgNbusy]=useState(false);
   const cgLista=React.useMemo(()=>{
     const s=cgSearch.trim().toLowerCase();
     const lavs=(tariffe||[]).filter(t=>t.lavorazione).map(t=>({kind:"tariffa",nome:t.lavorazione,sub:(t.modo||"ora"),cont:conteggioComponente(t.modo),item:t}));
     const mats=(articoli||[]).map(a=>({kind:"articolo",nome:a.nome_articolo,sub:a.unita||"",cont:conteggioComponente(a.unita),item:a}));
-    let all=[...lavs,...mats];
+    let all=[...nuoviComp,...lavs,...mats];
     if(s) all=all.filter(x=>x.nome.toLowerCase().includes(s));
     return all.slice(0,50);
-  },[cgSearch,articoli,tariffe]);
+  },[cgSearch,articoli,tariffe,nuoviComp]);
+  async function creaComponente(){
+    const nome=(cgN.nome||"").trim(); if(!nome){ setCgMsg("Dai un nome al componente."); return; }
+    setCgNbusy(true); setCgMsg("");
+    try{
+      if(cgN.tipo==="materiale"){
+        const rec={nome_articolo:nome, tipo:"prodotto", unita:cgN.unita||"mq", costo:Number(cgN.acquisto)||0, prezzo_pubblico:Number(cgN.listino)||0, attivo:true, creato_da:profilo.id};
+        const {data,error}=await sb.from("articoli").insert(rec).select("id,nome_articolo,unita,categoria,costo,prezzo_pubblico").single(); if(error) throw error;
+        const item={kind:"articolo", nome:data.nome_articolo, sub:data.unita||"", cont:conteggioComponente(data.unita), item:data};
+        setNuoviComp(p=>[item,...p]); setCgSel(item);
+      } else {
+        const r2=Number(cgN.ricarico)||0, c2=Number(cgN.costo)||0;
+        const rec={lavorazione:nome, modo:cgN.modo||"ora", tariffa_oraria:c2, margine_obiettivo:r2};
+        const {error}=await sb.from("impostazioni_lavorazioni").insert(rec); if(error) throw error;
+        try{ const {data:ex}=await sb.from("lavorazioni").select("id").ilike("nome",nome); if(!(ex&&ex.length)) await sb.from("lavorazioni").insert({nome,ordine:1000,attivo:true}); }catch(e){}
+        const t={lavorazione:nome, modo:cgN.modo||"ora", tariffa_oraria:c2, margine_obiettivo:r2};
+        const item={kind:"tariffa", nome:nome, sub:cgN.modo||"ora", cont:conteggioComponente(cgN.modo), item:t};
+        setNuoviComp(p=>[item,...p]); setCgSel(item);
+      }
+      setCgNuovo(false); setCg({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true,op:""});
+    }catch(ex){ setCgMsg("Errore: "+(ex.message||ex)); }
+    setCgNbusy(false);
+  }
   const cgQ=cgSel?qtaComponente(cgSel.cont,cg,cgAbb):0;
   function cgPC(){ if(!cgSel) return {prezzo:0,costo:0,sconto:0};
     if(cgSel.kind==="articolo"){ const a=cgSel.item; const cli=(clienti||[]).find(c=>c.id===f.cliente_id); const sc=scontoPerCategoria(cli,cli&&cli.clienti_sconti,a.categoria,imp&&imp.sconto_rivenditori_pct); return {prezzo:Number(a.prezzo_pubblico)||0,costo:Number(a.costo)||0,sconto:sc}; }
@@ -8655,17 +8681,56 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
               <header><h2>➕ Componente guidato</h2><button type="button" className="x" onClick={()=>setCgOpen(false)}>×</button></header>
               <div className="body">
                 {cgMsg && <div className="banner" style={{background:"#e6f4ee",color:"#127a3e",marginBottom:10}}>{cgMsg}</div>}
-                {!cgSel ? <>
+                {!cgSel ? (cgNuovo ? <>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <b>➕ Nuovo componente</b>
+                    <button type="button" className="btn small" onClick={()=>setCgNuovo(false)}>← torna alla lista</button>
+                  </div>
+                  <div className="row" style={{alignItems:"flex-end"}}>
+                    <div className="field" style={{maxWidth:180}}><label>Tipo</label>
+                      <select value={cgN.tipo} onChange={e=>setCgN(m=>({...m,tipo:e.target.value}))} style={{padding:"6px",border:"1px solid var(--line)",borderRadius:7}}>
+                        <option value="materiale">Materiale (catalogo)</option>
+                        <option value="lavorazione">Lavorazione (tariffa)</option>
+                      </select></div>
+                    <div className="field" style={{flex:2}}><label>Nome</label>
+                      <input value={cgN.nome} onChange={e=>setCgN(m=>({...m,nome:e.target.value}))} placeholder="es. Forex 5mm / Plastificazione" style={{padding:"6px",border:"1px solid var(--line)",borderRadius:7,width:"100%"}}/></div>
+                  </div>
+                  {cgN.tipo==="materiale"
+                    ? <div className="row" style={{alignItems:"flex-end",marginTop:6}}>
+                        <div className="field" style={{maxWidth:140}}><label>Unità</label>
+                          <select value={cgN.unita} onChange={e=>setCgN(m=>({...m,unita:e.target.value}))} style={{padding:"6px",border:"1px solid var(--line)",borderRadius:7}}>
+                            {UNITA.map(u=><option key={u} value={u}>{u}</option>)}
+                          </select></div>
+                        <div className="field" style={{maxWidth:150}}><label>Prezzo d'acquisto €</label><input type="number" step="0.01" value={cgN.acquisto} onChange={e=>setCgN(m=>({...m,acquisto:e.target.value}))} style={{padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></div>
+                        <div className="field" style={{maxWidth:150}}><label>Prezzo di listino €</label><input type="number" step="0.01" value={cgN.listino} onChange={e=>setCgN(m=>({...m,listino:e.target.value}))} style={{padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></div>
+                      </div>
+                    : <div className="row" style={{alignItems:"flex-end",marginTop:6}}>
+                        <div className="field" style={{maxWidth:230}}><label>Modo di calcolo</label>
+                          <select value={cgN.modo} onChange={e=>setCgN(m=>({...m,modo:e.target.value}))} style={{padding:"6px",border:"1px solid var(--line)",borderRadius:7}}>
+                            {MODI_VOCE.filter(mo=>mo.v!=="passaggio"&&mo.v!=="battuta").map(mo=><option key={mo.v} value={mo.v}>{mo.l}</option>)}
+                          </select></div>
+                        <div className="field" style={{maxWidth:140}}><label>Costo (€/unità)</label><input type="number" step="0.01" value={cgN.costo} onChange={e=>setCgN(m=>({...m,costo:e.target.value}))} style={{padding:"6px",border:"1px solid var(--line)",borderRadius:7}} title="A tempo (operatore) lascia 0: il costo arriva dall'operatore"/></div>
+                        <div className="field" style={{maxWidth:120}}><label>Ricarico %</label><input type="number" step="1" value={cgN.ricarico} onChange={e=>setCgN(m=>({...m,ricarico:e.target.value}))} style={{padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></div>
+                      </div>}
+                  <div style={{display:"flex",gap:8,marginTop:12}}>
+                    <button type="button" className="btn primary" disabled={cgNbusy} onClick={creaComponente}>{cgNbusy?"Salvo…":"Salva e usa"}</button>
+                    <button type="button" className="btn" onClick={()=>setCgNuovo(false)}>Annulla</button>
+                  </div>
+                  <div className="muted" style={{fontSize:11,marginTop:8}}>Viene aggiunto al Catalogo / alle Tariffe e selezionato subito. Potrai completarne i dettagli più avanti nella scheda.</div>
+                </> : <>
                   <div className="muted" style={{fontSize:12.5,marginBottom:8}}>Cerca e scegli un componente (materiali dal Catalogo, lavorazioni dalle Tariffe). Poi ti chiedo la misura in base al conteggio. Puoi aggiungerne più d'uno di seguito.</div>
-                  <input value={cgSearch} onChange={e=>setCgSearch(e.target.value)} placeholder="Cerca: materiale, taglio, stampa, montaggio…" autoFocus style={{width:"100%",maxWidth:460,padding:"8px 10px",border:"1px solid var(--line)",borderRadius:8,marginBottom:10}}/>
+                  <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+                    <input value={cgSearch} onChange={e=>setCgSearch(e.target.value)} placeholder="Cerca: materiale, taglio, stampa, montaggio…" autoFocus style={{flex:1,minWidth:240,maxWidth:460,padding:"8px 10px",border:"1px solid var(--line)",borderRadius:8}}/>
+                    <button type="button" className="btn small primary" onClick={()=>{ setCgN(m=>({...m,nome:cgSearch})); setCgNuovo(true); setCgMsg(""); }} style={{background:"#0e7c5a"}}>➕ Nuovo componente</button>
+                  </div>
                   <div style={{overflow:"auto",maxHeight:360,border:"1px solid var(--line)",borderRadius:8}}>
-                    {cgLista.length===0 && <div className="muted" style={{padding:12}}>Nessun componente trovato.</div>}
+                    {cgLista.length===0 && <div className="muted" style={{padding:12}}>Nessun componente trovato. Crealo con <b>➕ Nuovo componente</b>.</div>}
                     {cgLista.map((x,i)=><div key={i} onClick={()=>{ setCgSel(x); setCgMsg(""); }} style={{padding:"8px 12px",borderBottom:"1px solid var(--line)",cursor:"pointer",display:"flex",justifyContent:"space-between",gap:10}}>
                       <span>{x.kind==="tariffa"?"🛠️ ":"📦 "}{x.nome}</span>
                       <span className="muted" style={{fontSize:12}}>{x.sub} · {x.cont}</span>
                     </div>)}
                   </div>
-                </> : (()=>{ const pc=cgPC(); const tot=Math.round(cgQ*pc.prezzo*(1-pc.sconto/100)*100)/100; const cont=cgSel.cont;
+                </>) : (()=>{ const pc=cgPC(); const tot=Math.round(cgQ*pc.prezzo*(1-pc.sconto/100)*100)/100; const cont=cgSel.cont;
                   return <>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                       <div><b>{cgSel.kind==="tariffa"?"🛠️ ":"📦 "}{cgSel.nome}</b> <span className="muted" style={{fontSize:12}}>· conteggio {cont}</span></div>

@@ -13627,6 +13627,7 @@ function ModuloAgenda({profilo,perm}){
 function ModuloScadenzario({profilo,perm}){
   const [scad,setScad]=useState(null);
   const [sync,setSync]=useState(null);
+  const [tot,setTot]=useState({});                 // totali lato DB: {cliente:{aperto,scaduto,n}, fornitore:{...}}
   const [vista,setVista]=useState("cliente");     // 'cliente' (da incassare) | 'fornitore' (da pagare)
   const [filtro,setFiltro]=useState("aperte");    // aperte | scadute | inscadenza | tutte
   const [cerca,setCerca]=useState("");
@@ -13640,13 +13641,20 @@ function ModuloScadenzario({profilo,perm}){
 
   const carica=useCallback(async()=>{
     setErr("");
-    const [s,sy]=await Promise.all([
-      sb.from("scadenze").select("*").order("data_scadenza",{ascending:true}),
+    // lista filtrata lato SERVER (per restare sotto il limite di 1000 righe): tipo corrente,
+    // e solo non-pagate salvo il filtro "tutte".
+    let qy=sb.from("scadenze").select("*").eq("tipo",vista).order("data_scadenza",{ascending:true}).limit(2000);
+    if(filtro!=="tutte") qy=qy.eq("pagato",false);
+    const [s,sy,t]=await Promise.all([
+      qy,
       sb.from("scadenze_sync").select("*").eq("id",1).maybeSingle(),
+      sb.rpc("scadenze_totali"),
     ]);
     if(s.error){ setErr(s.error.message); return; }
     setScad(s.data||[]); setSync(sy.data||null);
-  },[]);
+    const tm={}; (t.data||[]).forEach(r=>{ tm[r.tipo]={aperto:Number(r.totale_aperto)||0,scaduto:Number(r.totale_scaduto)||0,n:Number(r.n_aperte)||0}; });
+    setTot(tm);
+  },[vista,filtro]);
   useEffect(()=>{ carica(); },[carica]);
 
   async function sincronizza(){
@@ -13682,8 +13690,8 @@ function ModuloScadenzario({profilo,perm}){
     });
   },[scad,vista,filtro,cerca]);
 
-  const totAppagare=useMemo(()=>(scad||[]).filter(r=>r.tipo===vista && !r.pagato).reduce((s,r)=>s+(Number(r.importo)||0),0),[scad,vista]);
-  const totScadute=useMemo(()=>(scad||[]).filter(r=>r.tipo===vista && !r.pagato && r.data_scadenza && r.data_scadenza<oggi).reduce((s,r)=>s+(Number(r.importo)||0),0),[scad,vista]);
+  const totAppagare=(tot[vista]&&tot[vista].aperto)||0;   // totali lato DB (su TUTTE le scadenze, non solo quelle caricate)
+  const totScadute=(tot[vista]&&tot[vista].scaduto)||0;
   const dataIt=d=> d? new Date(d).toLocaleDateString("it-IT") : "—";
 
   function esportaExcel(){

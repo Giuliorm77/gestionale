@@ -503,7 +503,7 @@ const MODULO_REQ = {
   clienti:"sempre", catalogo:"economici", magazzino:"commesse", pezzi:"magazzino", operatori:"economici",
   fornitori:"economici", agenti:"economici", impostazioni:"economici", preventivi:"economici", prodotticfg:"economici",
   imballi:"economici", commesse:"commesse", postazione:"commesse", ordinifor:"economici", trasporti:"economici",
-  report:"economici", utenti:"utenti", crm:"crm", agenda:"crm", mezzi:"commesse", ddt:"magazzino",
+  report:"economici", utenti:"utenti", crm:"crm", agenda:"crm", mezzi:"commesse", ddt:"magazzino", scadenzario:"economici",
   vetrina:"economici", ordinishop:"commesse", clientikomunigo:"economici", qualita:"economici",
   inarrivo:"magazzino",
 };
@@ -547,6 +547,7 @@ const NAV_ITEMS = [
   {m:"ddt", ico:"📄", label:"DDT"},
   {m:"ordinishop", ico:"🌐", label:"Ordini Komunigo"},
   {m:"clientikomunigo", ico:"🤝", label:"Account Komunigo"},
+  {m:"scadenzario", ico:"💶", label:"Scadenzario"},
   {m:"report", ico:"📊", label:"Report"},
   {m:"qualita", ico:"✅", label:"Qualità (ISO)"},
   {m:"utenti", ico:"🔑", label:"Utenti & Ruoli"},
@@ -993,6 +994,7 @@ function Gestionale({profilo}){
         {modulo==="mezzi" && <ModuloMezzi profilo={profilo} perm={perm}/>}
         {modulo==="ordinifor" && <ModuloOrdiniFornitori profilo={profilo} perm={perm}/>}
         {modulo==="trasporti" && <ModuloTrasporti profilo={profilo} perm={perm}/>}
+        {modulo==="scadenzario" && <ModuloScadenzario profilo={profilo} perm={perm}/>}
         {modulo==="report" && <ModuloReport profilo={profilo} perm={perm}/>}
         {modulo==="qualita" && <ModuloQualita profilo={profilo} perm={perm}/>}
         {modulo==="utenti"  && <ModuloUtenti profilo={profilo}/>}
@@ -13617,6 +13619,137 @@ function ModuloAgenda({profilo,perm}){
       </div>
       {editor && <AttivitaForm profilo={profilo} clienti={clienti} attivita={editor.id?editor:null}
         onClose={()=>setEditor(null)} onSalvato={()=>{setEditor(null);carica();}}/>}
+    </>
+  );
+}
+
+/* ================================================================ SCADENZARIO (Fatture in Cloud) */
+function ModuloScadenzario({profilo,perm}){
+  const [scad,setScad]=useState(null);
+  const [sync,setSync]=useState(null);
+  const [vista,setVista]=useState("cliente");     // 'cliente' (da incassare) | 'fornitore' (da pagare)
+  const [filtro,setFiltro]=useState("aperte");    // aperte | scadute | inscadenza | tutte
+  const [cerca,setCerca]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [err,setErr]=useState("");
+  const [msg,setMsg]=useState("");
+  const eur=n=>Number(n||0).toLocaleString("it-IT",{style:"currency",currency:"EUR",maximumFractionDigits:0});
+  const oggi=new Date().toISOString().slice(0,10);
+  const tra7=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+
+  const carica=useCallback(async()=>{
+    setErr("");
+    const [s,sy]=await Promise.all([
+      sb.from("scadenze").select("*").order("data_scadenza",{ascending:true}),
+      sb.from("scadenze_sync").select("*").eq("id",1).maybeSingle(),
+    ]);
+    if(s.error){ setErr(s.error.message); return; }
+    setScad(s.data||[]); setSync(sy.data||null);
+  },[]);
+  useEffect(()=>{ carica(); },[carica]);
+
+  async function sincronizza(){
+    setBusy(true); setErr(""); setMsg("");
+    try{
+      const {data,error}=await sb.functions.invoke("fic-sync");
+      if(error) throw error;
+      if(data && data.ok===false) throw new Error(data.errore||"Sincronizzazione fallita");
+      setMsg("Sincronizzato da Fatture in Cloud: "+(data?.clienti||0)+" scadenze clienti, "+(data?.fornitori||0)+" fornitori.");
+      await carica();
+    }catch(ex){ setErr("Sync: "+(ex.message||ex)); }
+    setBusy(false);
+  }
+
+  const statoScad=r=>{ if(r.pagato) return r.tipo==="cliente"?"incassata":"pagata";
+    if(r.data_scadenza && r.data_scadenza<oggi) return "scaduta";
+    if(r.data_scadenza && r.data_scadenza<=tra7) return "inscadenza";
+    return "aperta"; };
+  const COL={incassata:{l:"Incassata",bg:"#e6f4ee",c:"#1f9c68"},pagata:{l:"Pagata",bg:"#e6f4ee",c:"#1f9c68"},
+    scaduta:{l:"Scaduta",bg:"#fdecec",c:"#c0392b"},inscadenza:{l:"In scadenza",bg:"#fff4e5",c:"#b26a00"},aperta:{l:"Aperta",bg:"#eef2ff",c:"#3454d1"}};
+
+  const filtrate=useMemo(()=>{
+    const q=cerca.trim().toLowerCase();
+    return (scad||[]).filter(r=>{
+      if(r.tipo!==vista) return false;
+      const st=statoScad(r);
+      if(filtro==="aperte" && r.pagato) return false;
+      if(filtro==="scadute" && st!=="scaduta") return false;
+      if(filtro==="inscadenza" && st!=="inscadenza") return false;
+      if(q && ![r.controparte_nome,r.numero].join(" ").toLowerCase().includes(q)) return false;
+      return true;
+    });
+  },[scad,vista,filtro,cerca]);
+
+  const totAppagare=useMemo(()=>(scad||[]).filter(r=>r.tipo===vista && !r.pagato).reduce((s,r)=>s+(Number(r.importo)||0),0),[scad,vista]);
+  const totScadute=useMemo(()=>(scad||[]).filter(r=>r.tipo===vista && !r.pagato && r.data_scadenza && r.data_scadenza<oggi).reduce((s,r)=>s+(Number(r.importo)||0),0),[scad,vista]);
+  const dataIt=d=> d? new Date(d).toLocaleDateString("it-IT") : "—";
+
+  function esportaExcel(){
+    const rows=filtrate.map(r=>({Tipo:r.tipo, Numero:r.numero||"", Data:r.data_documento||"", Controparte:r.controparte_nome||"",
+      Scadenza:r.data_scadenza||"", Importo:Number(r.importo)||0, Stato:(COL[statoScad(r)]||{}).l||"", Pagata:r.pagato?"Sì":"No", "Data pagamento":r.data_pagamento||""}));
+    const ws=XLSX.utils.json_to_sheet(rows);
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Scadenzario");
+    XLSX.writeFile(wb, "Scadenzario_"+vista+"_"+new Date().toISOString().slice(0,10)+".xlsx");
+  }
+
+  return (
+    <>
+      <div className="topbar">
+        <h1>Scadenzario</h1>
+        <button className="btn primary" onClick={sincronizza} disabled={busy} title="Scarica le scadenze aggiornate da Fatture in Cloud">{busy?"Sincronizzo…":"↻ Sincronizza ora"}</button>
+      </div>
+      <div className="content">
+        {err && <div className="banner err">{err}</div>}
+        {msg && <div className="banner" style={{background:"#e6f4ee",color:"#1f9c68"}}>{msg}</div>}
+        <div className="muted" style={{fontSize:12,marginBottom:10}}>
+          Dati da <b>Fatture in Cloud</b> (sola lettura).{sync?<> Ultimo aggiornamento: <b>{sync.ultimo_sync?new Date(sync.ultimo_sync).toLocaleString("it-IT"):"mai"}</b>{sync.esito&&sync.esito!=="ok"?<span style={{color:"#c0392b"}}> · {sync.esito}</span>:null}</>:null}
+        </div>
+
+        <div className="toolbar" style={{gap:8}}>
+          <button className={"btn"+(vista==="cliente"?" primary":"")} onClick={()=>setVista("cliente")}>🧾 Da incassare (clienti)</button>
+          <button className={"btn"+(vista==="fornitore"?" primary":"")} onClick={()=>setVista("fornitore")}>📥 Da pagare (fornitori)</button>
+        </div>
+
+        <div className="card" style={{display:"flex",gap:20,flexWrap:"wrap",alignItems:"center",padding:"12px 18px",marginBottom:12,background:"#f6faf8",border:"1px solid #cfe8dd"}}>
+          <div><div className="muted" style={{fontSize:11,textTransform:"uppercase"}}>{vista==="cliente"?"Totale da incassare":"Totale da pagare"}</div>
+            <div style={{fontSize:22,fontWeight:800,color:"#136c4a"}}>{eur(totAppagare)}</div></div>
+          <div style={{borderLeft:"1px solid #cfe8dd",paddingLeft:20}}><div className="muted" style={{fontSize:12}}>di cui scadute</div>
+            <div style={{fontWeight:700,color:totScadute>0?"#c0392b":"#136c4a"}}>{eur(totScadute)}</div></div>
+        </div>
+
+        <div className="toolbar">
+          <div className="search"><span className="mag">🔍</span>
+            <input placeholder="Cerca per controparte o numero…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
+          <select className="btn" value={filtro} onChange={e=>setFiltro(e.target.value)} style={{maxWidth:190}}>
+            <option value="aperte">Non ancora {vista==="cliente"?"incassate":"pagate"}</option>
+            <option value="scadute">Solo scadute</option>
+            <option value="inscadenza">In scadenza (7 gg)</option>
+            <option value="tutte">Tutte</option>
+          </select>
+          {filtrate.length>0 && <button className="btn" onClick={esportaExcel}>⬇ Excel</button>}
+          <span className="muted">{filtrate.length} scadenze</span>
+        </div>
+
+        {scad===null ? <div className="empty">Caricamento…</div>
+          : filtrate.length===0 ? <div className="card empty">Nessuna scadenza. Premi <b>↻ Sincronizza ora</b> per scaricarle da Fatture in Cloud.</div>
+          : <div className="card" style={{overflow:"auto"}}>
+              <table>
+                <thead><tr><th>Numero</th><th>{vista==="cliente"?"Cliente":"Fornitore"}</th><th>Data doc.</th><th>Scadenza</th><th style={{textAlign:"right"}}>Importo</th><th>Stato</th></tr></thead>
+                <tbody>
+                  {filtrate.map(r=>{ const st=statoScad(r); const c=COL[st]||COL.aperta;
+                    return <tr key={r.id}>
+                      <td className="rs">{r.numero||"—"}</td>
+                      <td>{r.controparte_nome||"—"}{r.controparte_piva?<div className="muted" style={{fontSize:11}}>{r.controparte_piva}</div>:null}</td>
+                      <td className="muted">{dataIt(r.data_documento)}</td>
+                      <td style={{fontWeight:600,color:st==="scaduta"?"#c0392b":st==="inscadenza"?"#b26a00":"inherit"}}>{dataIt(r.data_scadenza)}</td>
+                      <td style={{textAlign:"right",fontWeight:700}}>{eur(r.importo)}</td>
+                      <td><span className="tag" style={{background:c.bg,color:c.c}}>{c.l}</span>{r.pagato&&r.data_pagamento?<div className="muted" style={{fontSize:11}}>il {dataIt(r.data_pagamento)}</div>:null}</td>
+                    </tr>; })}
+                </tbody>
+              </table>
+            </div>}
+      </div>
     </>
   );
 }

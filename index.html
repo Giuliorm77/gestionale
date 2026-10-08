@@ -8289,14 +8289,19 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const [cgNuovo,setCgNuovo]=useState(false);
   const [cgN,setCgN]=useState({tipo:"materiale",nome:"",unita:"mq",acquisto:"",listino:"",modo:"ora",costo:"",ricarico:"100"});
   const [cgNbusy,setCgNbusy]=useState(false);
+  const [cgFiltro,setCgFiltro]=useState("tutti");   // tutti | lavorazioni | materiali
   const cgLista=React.useMemo(()=>{
     const s=cgSearch.trim().toLowerCase();
     const lavs=(tariffe||[]).filter(t=>t.lavorazione).map(t=>({kind:"tariffa",nome:t.lavorazione,sub:(t.modo||"ora"),cont:conteggioComponente(t.modo),item:t}));
     const mats=(articoli||[]).map(a=>({kind:"articolo",nome:a.nome_articolo,sub:a.unita||"",cont:conteggioComponente(a.unita),item:a}));
-    let all=[...nuoviComp,...lavs,...mats];
+    const nuoviLav=nuoviComp.filter(x=>x.kind==="tariffa"), nuoviMat=nuoviComp.filter(x=>x.kind==="articolo");
+    let all;
+    if(cgFiltro==="lavorazioni") all=[...nuoviLav,...lavs];
+    else if(cgFiltro==="materiali") all=[...nuoviMat,...mats];
+    else all=[...nuoviComp,...lavs,...mats];
     if(s) all=all.filter(x=>x.nome.toLowerCase().includes(s));
-    return all.slice(0,50);
-  },[cgSearch,articoli,tariffe,nuoviComp]);
+    return all.slice(0,80);
+  },[cgSearch,cgFiltro,articoli,tariffe,nuoviComp]);
   async function creaComponente(){
     const nome=(cgN.nome||"").trim(); if(!nome){ setCgMsg("Dai un nome al componente."); return; }
     setCgNbusy(true); setCgMsg("");
@@ -8796,9 +8801,14 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                   </div>
                   <div className="muted" style={{fontSize:11,marginTop:8}}>Viene aggiunto al Catalogo / alle Tariffe e selezionato subito. Potrai completarne i dettagli più avanti nella scheda.</div>
                 </> : <>
-                  <div className="muted" style={{fontSize:12.5,marginBottom:8}}>Cerca e scegli un componente (materiali dal Catalogo, lavorazioni dalle Tariffe). Poi ti chiedo la misura in base al conteggio. Puoi aggiungerne più d'uno di seguito.</div>
+                  <div className="muted" style={{fontSize:12.5,marginBottom:8}}>Scegli cosa aggiungere: <b>🛠️ Lavorazioni</b> (dalle Tariffe) o <b>📦 Materiali</b> (dal Catalogo). Poi ti chiedo la misura in base al conteggio. Puoi aggiungerne più d'uno di seguito.</div>
+                  <div style={{display:"flex",gap:6,marginBottom:8}}>
+                    {[["tutti","Tutti"],["lavorazioni","🛠️ Lavorazioni"],["materiali","📦 Materiali"]].map(([k,l])=>(
+                      <button key={k} type="button" className="btn small" onClick={()=>setCgFiltro(k)} style={cgFiltro===k?{background:"#0e7c5a",color:"#fff",borderColor:"#0e7c5a"}:{}}>{l}</button>
+                    ))}
+                  </div>
                   <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                    <input value={cgSearch} onChange={e=>setCgSearch(e.target.value)} placeholder="Cerca: materiale, taglio, stampa, montaggio…" autoFocus style={{flex:1,minWidth:240,maxWidth:460,padding:"8px 10px",border:"1px solid var(--line)",borderRadius:8}}/>
+                    <input value={cgSearch} onChange={e=>setCgSearch(e.target.value)} placeholder={cgFiltro==="lavorazioni"?"Filtra tra le lavorazioni…":(cgFiltro==="materiali"?"Filtra tra i materiali…":"Cerca: materiale, taglio, stampa, montaggio…")} autoFocus style={{flex:1,minWidth:240,maxWidth:460,padding:"8px 10px",border:"1px solid var(--line)",borderRadius:8}}/>
                     <button type="button" className="btn small primary" onClick={()=>{ setCgN(m=>({...m,nome:cgSearch})); setCgNuovo(true); setCgMsg(""); }} style={{background:"#0e7c5a"}}>➕ Nuovo componente</button>
                   </div>
                   <div style={{overflow:"auto",maxHeight:360,border:"1px solid var(--line)",borderRadius:8}}>

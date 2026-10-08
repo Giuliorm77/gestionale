@@ -12392,12 +12392,12 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               <span className="k">Costo materiali</span><span style={{textAlign:"right"}}>{eur(costoMateriali)}</span>
               <span className="k">Costo manodopera</span><span style={{textAlign:"right"}}>{eur(costoManodopera)}</span>
               <span className="k">Trasporto</span><span style={{textAlign:"right"}}>{eur(Number(f.trasporto)||0)}</span>
-              {costoEsterno>0 && <><span className="k">Lavorazioni esterne (conto terzi)</span><span style={{textAlign:"right"}}>{eur(costoEsterno)}</span></>}
-              {costoStraordinario>0 && <><span className="k">Straordinario ({oreStraordTot} h × €{COSTO_STRAORDINARIO})</span><span style={{textAlign:"right"}}>{eur(costoStraordinario)}</span></>}
+              {costoEsterno>0 && <><span className="k" style={{color:"var(--danger)"}}>Lavorazioni esterne (conto terzi)</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoEsterno)}</span></>}
+              {costoStraordinario>0 && <><span className="k" style={{color:"var(--danger)"}}>Straordinario ({oreStraordTot} h × €{COSTO_STRAORDINARIO})</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoStraordinario)}</span></>}
               {costoAiuti>0 && <><span className="k" style={{color:"var(--danger)"}}>Costi imprevisti (aiuti produzione)</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoAiuti)}</span></>}
               {costoExtra>0 && <><span className="k" style={{color:"var(--danger)"}}>Extra costi / spese impreviste{addebitiExtra>0?" (riaddebito nei ricavi)":""}</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoExtra)}</span></>}
               {costoPerdite>0 && <><span className="k" style={{color:"var(--danger)"}}>Perdite materiale (pezzi persi)</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoPerdite)}</span></>}
-              {costoInterventi>0 && <><span className="k">Costo rilavorazioni</span><span style={{textAlign:"right"}}>{eur(costoInterventi)}</span></>}
+              {costoInterventi>0 && <><span className="k" style={{color:"var(--danger)"}}>Costo rilavorazioni</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoInterventi)}</span></>}
               <span className="k" style={{fontWeight:800}}>MARGINE REALE</span><span style={{textAlign:"right",fontWeight:800,fontSize:16,color:margineReale>=0?"var(--ok)":"var(--danger)"}}>{eur(margineReale)}</span>
             </div>
             <div className="muted" style={{fontSize:11,marginTop:8}}>Costi materiali/manodopera dai costi di catalogo e costi orari operatori. Le rilavorazioni "a nostro carico" riducono il margine; quelle "a carico cliente" rientrano nei ricavi.</div>
@@ -13789,11 +13789,11 @@ function ModuloConsuntivi({profilo,perm}){
                         {voce("Costo materiali",c.costo_materiali)}
                         {voce("Costo manodopera",c.costo_manodopera)}
                         {voce("Trasporto",c.trasporto)}
-                        {voce("Lavorazioni esterne",c.costo_esterno)}
-                        {voce("Straordinario",c.costo_straordinario)}
+                        {voce("Lavorazioni esterne",c.costo_esterno,true)}
+                        {voce("Straordinario",c.costo_straordinario,true)}
                         {voce("Aiuti imprevisti",c.costo_aiuti,true)}
                         {voce("Perdite materiale",c.costo_perdite,true)}
-                        {voce("Rilavorazioni",c.costo_interventi)}
+                        {voce("Rilavorazioni",c.costo_interventi,true)}
                         {voce("Extra costi",c.costo_extra,true)}
                         <span className="k" style={{fontWeight:800}}>MARGINE</span><span style={{textAlign:"right",fontWeight:800,color:(Number(c.margine)||0)>=0?"var(--ok)":"var(--danger)"}}>{eur(c.margine)} ({Number(c.margine_pct)||0}%)</span>
                       </div>

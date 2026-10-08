@@ -13631,6 +13631,7 @@ function ModuloScadenzario({profilo,perm}){
   const [vista,setVista]=useState("cliente");     // 'cliente' (da incassare) | 'fornitore' (da pagare)
   const [filtro,setFiltro]=useState("aperte");    // aperte | scadute | inscadenza | tutte
   const [anno,setAnno]=useState("");              // "" = tutti gli anni (filtra per anno della fattura)
+  const [soloNonMap,setSoloNonMap]=useState(false); // mostra solo le scadenze non collegate all'anagrafica
   const [cerca,setCerca]=useState("");
   const [busy,setBusy]=useState(false);
   const [err,setErr]=useState("");
@@ -13673,6 +13674,18 @@ function ModuloScadenzario({profilo,perm}){
     setBusy(false);
   }
 
+  async function rimappa(){
+    setBusy(true); setErr(""); setMsg("");
+    try{
+      const {data,error}=await sb.rpc("mappa_scadenze");
+      if(error) throw error;
+      setMsg("Mappatura anagrafica aggiornata: "+(Number(data)||0)+" scadenze collegate.");
+      await carica();
+    }catch(ex){ setErr("Mappatura: "+(ex.message||ex)); }
+    setBusy(false);
+  }
+  const mappata=r=> r.tipo==="cliente" ? !!r.cliente_id : !!r.fornitore_id;
+
   const statoScad=r=>{ if(r.pagato) return r.tipo==="cliente"?"incassata":"pagata";
     if(r.data_scadenza && r.data_scadenza<oggi) return "scaduta";
     if(r.data_scadenza && r.data_scadenza<=tra7) return "inscadenza";
@@ -13688,10 +13701,11 @@ function ModuloScadenzario({profilo,perm}){
       if(filtro==="aperte" && r.pagato) return false;
       if(filtro==="scadute" && st!=="scaduta") return false;
       if(filtro==="inscadenza" && st!=="inscadenza") return false;
+      if(soloNonMap && mappata(r)) return false;
       if(q && ![r.controparte_nome,r.numero].join(" ").toLowerCase().includes(q)) return false;
       return true;
     });
-  },[scad,vista,filtro,cerca]);
+  },[scad,vista,filtro,cerca,soloNonMap]);
 
   const totAppagare=(tot[vista]&&tot[vista].aperto)||0;   // totali lato DB (su TUTTE le scadenze, non solo quelle caricate)
   const totScadute=(tot[vista]&&tot[vista].scaduto)||0;
@@ -13710,7 +13724,10 @@ function ModuloScadenzario({profilo,perm}){
     <>
       <div className="topbar">
         <h1>Scadenzario</h1>
-        <button className="btn primary" onClick={sincronizza} disabled={busy} title="Scarica le scadenze aggiornate da Fatture in Cloud">{busy?"Sincronizzo…":"↻ Sincronizza ora"}</button>
+        <div style={{display:"flex",gap:8}}>
+          <button className="btn" onClick={rimappa} disabled={busy} title="Ricollega le scadenze all'anagrafica (per P.IVA o Codice Fiscale) — utile dopo aver aggiunto un cliente/fornitore">🔗 Rimappa anagrafica</button>
+          <button className="btn primary" onClick={sincronizza} disabled={busy} title="Scarica le scadenze aggiornate da Fatture in Cloud">{busy?"Sincronizzo…":"↻ Sincronizza ora"}</button>
+        </div>
       </div>
       <div className="content">
         {err && <div className="banner err">{err}</div>}
@@ -13748,6 +13765,10 @@ function ModuloScadenzario({profilo,perm}){
             <option value="">Tutti gli anni</option>
             {anniOpz.map(y=><option key={y} value={y}>{y}</option>)}
           </select>
+          <label className="btn" style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",whiteSpace:"nowrap"}} title="Mostra solo le scadenze la cui controparte NON è in anagrafica">
+            <input type="checkbox" checked={soloNonMap} onChange={e=>setSoloNonMap(e.target.checked)} style={{width:"auto"}}/>
+            ⚠ Senza anagrafica
+          </label>
           {filtrate.length>0 && <button className="btn" onClick={esportaExcel}>⬇ Excel</button>}
           <span className="muted">{filtrate.length} scadenze</span>
         </div>
@@ -13761,7 +13782,8 @@ function ModuloScadenzario({profilo,perm}){
                   {filtrate.map(r=>{ const st=statoScad(r); const c=COL[st]||COL.aperta;
                     return <tr key={r.id}>
                       <td className="rs">{r.numero||"—"}</td>
-                      <td>{r.controparte_nome||"—"}{r.controparte_piva?<div className="muted" style={{fontSize:11}}>{r.controparte_piva}</div>:null}</td>
+                      <td>{r.controparte_nome||"—"}{(r.controparte_piva||r.controparte_cf)?<div className="muted" style={{fontSize:11}}>{r.controparte_piva||r.controparte_cf}</div>:null}
+                        {!mappata(r) && <span className="tag" style={{background:"#fff4e5",color:"#b26a00",fontSize:10.5,marginTop:2,display:"inline-block"}} title="Questa controparte non è presente nell'anagrafica del gestionale (per P.IVA/CF)">⚠ non in anagrafica</span>}</td>
                       <td className="muted">{dataIt(r.data_documento)}</td>
                       <td style={{fontWeight:600,color:st==="scaduta"?"#c0392b":st==="inscadenza"?"#b26a00":"inherit"}}>{dataIt(r.data_scadenza)}</td>
                       <td style={{textAlign:"right",fontWeight:700}}>{eur(r.importo)}</td>

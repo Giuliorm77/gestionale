@@ -56,7 +56,8 @@ function righeDaDoc(doc: any, tipo: "cliente" | "fornitore") {
     numero: [doc.numeration, doc.number].filter(Boolean).join("/") || String(doc.number ?? ""),
     data_documento: toDate(doc.date),
     controparte_nome: ent.name || "",
-    controparte_piva: ent.vat_number || ent.tax_code || "",
+    controparte_piva: ent.vat_number || "",
+    controparte_cf: ent.tax_code || "",
     valuta: (doc.currency && doc.currency.id) || "EUR",
   };
   const pays = Array.isArray(doc.payments_list) ? doc.payments_list : [];
@@ -157,6 +158,15 @@ Deno.serve(async (req) => {
     };
 
     await upsertScadenze(sbUrl, srv, [...righeCli, ...righeFor]);
+
+    // mappa le scadenze all'anagrafica del gestionale (per P.IVA)
+    try {
+      await fetch(`${sbUrl}/rest/v1/rpc/mappa_scadenze`, {
+        method: "POST",
+        headers: { apikey: srv, Authorization: "Bearer " + srv, "Content-Type": "application/json" },
+        body: "{}",
+      });
+    } catch (_) { /* non bloccante */ }
 
     // aggiorna stato sync
     await fetch(`${sbUrl}/rest/v1/scadenze_sync?id=eq.1`, {

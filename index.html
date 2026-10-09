@@ -5870,11 +5870,13 @@ function AgenteForm({agente,profilo,perm,onClose,onSalvato}){
     const payload={ ...f, provvigione_pct: f.provvigione_pct===""?0:Number(f.provvigione_pct), aggiornato_il:new Date().toISOString() };
     try{
       if(nuovo){
-        const {error}=await sb.from("agenti").insert({...payload, creato_da:profilo.id});
+        const {data,error}=await sb.from("agenti").insert({...payload, creato_da:profilo.id}).select("id");
         if(error) throw error;
+        if(!data || !data.length) throw new Error("Agente non creato: permessi insufficienti. Serve il ruolo Amministratore o Back office.");
       }else{
-        const {error}=await sb.from("agenti").update(payload).eq("id",agente.id);
+        const {data,error}=await sb.from("agenti").update(payload).eq("id",agente.id).select("id");
         if(error) throw error;
+        if(!data || !data.length) throw new Error("Modifica non salvata: permessi insufficienti sul record (serve ruolo Amministratore o Back office), oppure l'agente non esiste più.");
       }
       onSalvato();
     }catch(ex){ setErr(ex.message); setBusy(false); }

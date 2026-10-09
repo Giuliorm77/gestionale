@@ -15170,22 +15170,27 @@ function ModuloReport({profilo,perm}){
             </div>
             <div className="muted" style={{fontSize:12,marginBottom:10}}>
               Commesse <b>consegnate/chiuse</b> nel mese scelto, provvigione stimata sul <b>valore</b> della commessa.
-              ⚠️ Stima provvisoria: a regime, con Fatturazione + Scadenzario, la base passerà all'<b>incassato reale</b>.
+              La % è quella della <b>commessa</b> (ereditata dal preventivo) o, se non impostata, l'eccezione del <b>cliente</b> o la % <b>standard dell'agente</b>.
             </div>
+            {provvAgg.length>0 && provvTot.prov===0 && <div className="banner err" style={{marginBottom:10}}>
+              ⚠ Provvigioni a <b>0</b>: le commesse hanno un agente ma <b>nessuna % impostata</b>. Imposta la <b>% standard</b> sulla scheda Agente (o l'eccezione sul cliente); le commesse generate da un preventivo con provvigione la ereditano già.
+            </div>}
             <table>
-              <thead><tr><th>Agente</th><th style={{textAlign:"right"}}>Commesse</th><th style={{textAlign:"right"}}>Valore</th><th style={{textAlign:"right"}}>Provvigione</th></tr></thead>
+              <thead><tr><th>Agente</th><th style={{textAlign:"right"}}>Commesse</th><th style={{textAlign:"right"}}>Valore</th><th style={{textAlign:"right"}}>%</th><th style={{textAlign:"right"}}>Provvigione</th></tr></thead>
               <tbody>
-                {provvAgg.length===0 ? <tr><td colSpan={4} className="muted" style={{padding:12}}>Nessuna commessa consegnata con agente in questo mese.</td></tr>
+                {provvAgg.length===0 ? <tr><td colSpan={5} className="muted" style={{padding:12}}>Nessuna commessa consegnata con agente in questo mese.</td></tr>
                   : provvAgg.map((r,i)=><tr key={i}>
                     <td className="rs">{r.nome}</td>
                     <td style={{textAlign:"right"}} className="muted">{r.ncomm}</td>
                     <td style={{textAlign:"right"}}>{eur(r.valore)}</td>
-                    <td style={{textAlign:"right",fontWeight:700,color:"var(--ok)"}}>{eur(r.prov)}</td>
+                    <td style={{textAlign:"right"}} className="muted">{r.valore>0?(Math.round(r.prov/r.valore*1000)/10):0}%</td>
+                    <td style={{textAlign:"right",fontWeight:700,color:r.prov>0?"var(--ok)":"var(--danger)"}}>{eur(r.prov)}</td>
                   </tr>)}
                 {provvAgg.length>0 && <tr style={{borderTop:"2px solid var(--line)"}}>
                   <td style={{fontWeight:800}}>TOTALE</td>
                   <td style={{textAlign:"right",fontWeight:800}}>{provvTot.ncomm}</td>
                   <td style={{textAlign:"right",fontWeight:800}}>{eur(provvTot.valore)}</td>
+                  <td style={{textAlign:"right"}}></td>
                   <td style={{textAlign:"right",fontWeight:800,color:"var(--ok)"}}>{eur(provvTot.prov)}</td>
                 </tr>}
               </tbody>

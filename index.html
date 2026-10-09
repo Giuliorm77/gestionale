@@ -11637,7 +11637,12 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const oreStraordTot=straordinari.reduce((s,a)=>s+(Number(a.ore)||0),0);
   const costoStraordinario=oreStraordTot*COSTO_STRAORDINARIO;
   const costoProvvigione=Math.round((Number(f.valore)||0)*(Number(agenteInfo.pct)||0)/100*100)/100;   // provvigione agente = costo reale
-  const costiTot=costoOrig+costoInterventi+costoAiuti+costoPerdite+costoEsterno+costoStraordinario+costoExtra+costoProvvigione;
+  // CORREZIONE COSTO REALE FORNITORI: se ci sono ordini fornitore collegati e una base
+  // preventivata sulle righe, sostituiamo il preventivato col realmente pagato (risparmio o extra).
+  const realeFornC=(ofColl||[]).reduce((s,o)=>s+(o.ordini_fornitore_righe||[]).reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0),0),0);
+  const prevFornC=(righe||[]).filter(r=>r.fornitore_prezzo_id).reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0);
+  const scostFornC=(ofColl.length && prevFornC>0) ? Math.round((realeFornC-prevFornC)*100)/100 : 0;
+  const costiTot=costoOrig+costoInterventi+costoAiuti+costoPerdite+costoEsterno+costoStraordinario+costoExtra+costoProvvigione+scostFornC;
   const margineReale=ricaviTot-costiTot;
 
   async function generaOrdineFornitore(){
@@ -11783,7 +11788,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       cliente_nome:(cli?cli.ragione_sociale:(f.cliente_nome||commessa?.cliente_nome||"")),
       stato:f.stato||"", data_chiusura:new Date().toISOString().slice(0,10),
       ricavi:Math.round(ricaviTot*100)/100,
-      costo_materiali:Math.round(costoMateriali*100)/100,
+      costo_materiali:Math.round((costoMateriali+scostFornC)*100)/100,
       costo_manodopera:Math.round(costoManodopera*100)/100,
       trasporto:Math.round((Number(f.trasporto)||0)*100)/100,
       costo_esterno:Math.round(costoEsterno*100)/100,
@@ -12179,7 +12184,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                   {ofColl.length>0 && <span style={{fontWeight:700,color:diff>0.009?"#c0392b":(diff<-0.009?"#127a3e":"#41505c")}}>
                     Differenza: {diff>0?"+":""}{eur(diff)}{diff>0.009?" — stai spendendo di più":diff<-0.009?" — risparmio":""}</span>}
                 </div>
-                <div className="muted" style={{fontSize:11,marginTop:6}}>Solo informativo: non modifica il margine. Il prezzo realmente pagato si imposta nell'ordine fornitore.</div>
+                <div className="muted" style={{fontSize:11,marginTop:6}}>La differenza aggiorna il <b>margine reale</b> nel Consuntivo (risparmio = margine più alto). Il prezzo realmente pagato si imposta nell'ordine fornitore.</div>
               </div>; })()}
             {righe.some(r=>r.evasione==="neutro") && <div className="muted" style={{fontSize:12,marginTop:8}}>📦 <b>{righe.filter(r=>r.evasione==="neutro").length}</b> riga/e <b>neutre</b>: nessuna stampa/produzione, si spediscono così come sono.</div>}
           </div>
@@ -12504,6 +12509,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
             <div className="kv" style={{gridTemplateColumns:"1fr auto"}}>
               <span className="k">Ricavi (valore commessa{addebitiInterventi>0?" + addebiti":""})</span><span style={{textAlign:"right"}}>{eur(ricaviTot)}</span>
               <span className="k">Costo materiali</span><span style={{textAlign:"right"}}>{eur(costoMateriali)}</span>
+              {Math.abs(scostFornC)>=0.01 && <><span className="k" style={{color:scostFornC<0?"var(--ok)":"var(--danger)"}}>Correzione costo reale fornitori{scostFornC<0?" (risparmio)":""}</span><span style={{textAlign:"right",color:scostFornC<0?"var(--ok)":"var(--danger)"}}>{scostFornC>0?"+":""}{eur(scostFornC)}</span></>}
               <span className="k">Costo manodopera</span><span style={{textAlign:"right"}}>{eur(costoManodopera)}</span>
               <span className="k">Trasporto</span><span style={{textAlign:"right"}}>{eur(Number(f.trasporto)||0)}</span>
               {costoEsterno>0 && <><span className="k" style={{color:"var(--danger)"}}>Lavorazioni esterne (conto terzi)</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoEsterno)}</span></>}

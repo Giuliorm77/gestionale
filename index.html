@@ -8529,7 +8529,13 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const optPrice=g=>calcolaPreventivo((righeCalc||[]).filter(r=>(r.gruppo||gruppoCorr)===g),{...f,imballaggio:0,trasporto:0}).imponibile;
   const scQ=g=>Number((f.scaglioni_qta||{})[g])||0;
   const setScQ=(g,v)=>setF(p=>({...p,scaglioni_qta:{...(p.scaglioni_qta||{}),[g]:v}}));
-  const sottoMargine = !f.scaglioni && tot.imponibile>0 && tot.marginePct < (Number(f.margine_minimo_pct)||0);
+  // PROVVIGIONE agente = costo reale → va sottratta dal margine
+  const provvPrev = calcProvvTratt({valore_stimato:Number(tot.imponibile)||0, tipo_provvigione:f.tipo_provvigione,
+    provvigione_pct:f.provvigione_pct===""?null:Number(f.provvigione_pct),
+    prezzo_netto:Number(f.prezzo_netto)||0, quota_margine_pct:Number(f.quota_margine_pct)||0},{cliPct:null,agPct:null});
+  const margineNet = tot.margine - provvPrev;
+  const margineNetPct = tot.imponibile>0 ? margineNet/tot.imponibile*100 : 0;
+  const sottoMargine = !f.scaglioni && tot.imponibile>0 && margineNetPct < (Number(f.margine_minimo_pct)||0);
   // righe sotto l'OBIETTIVO di margine della loro categoria (fallback: margine minimo generale)
   const righeSottoObiettivo=React.useMemo(()=>{
     const catMap={}; (Array.isArray(imp?.margini_categoria)?imp.margini_categoria:[]).forEach(x=>{ const k=String(x.categoria||"").trim().toLowerCase(); if(k) catMap[k]=Number(x.obiettivo)||0; });
@@ -9083,8 +9089,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
               {tot.imbRighe>0 && <><span className="k">di cui imballo articoli</span><span style={{textAlign:"right"}} className="muted">{eur(tot.imbRighe)}</span></>}
               <span className="k">Imponibile</span><span style={{textAlign:"right"}}>{eur(tot.imponibile)}</span>
               <span className="k">Costo totale (incl. spese generali {f.spese_generali_pct||0}%)</span><span style={{textAlign:"right"}}>{eur(tot.costoTot)}</span>
-              <span className="k">Margine</span>
-              <span style={{textAlign:"right",fontWeight:700,color:sottoMargine?"var(--danger)":"var(--ok)"}}>{eur(tot.margine)} ({tot.marginePct.toFixed(1)}%)</span>
+              {provvPrev>0 && <><span className="k" style={{color:"var(--danger)"}}>Provvigione agente</span><span style={{textAlign:"right",color:"var(--danger)"}}>− {eur(provvPrev)}</span></>}
+              <span className="k">Margine{provvPrev>0?" (netto provvigione)":""}</span>
+              <span style={{textAlign:"right",fontWeight:700,color:sottoMargine?"var(--danger)":"var(--ok)"}}>{eur(margineNet)} ({margineNetPct.toFixed(1)}%)</span>
               <span className="k">IVA {f.iva_pct||0}%</span><span style={{textAlign:"right"}}>{eur(tot.iva)}</span>
               <span className="k" style={{fontWeight:800}}>TOTALE</span><span style={{textAlign:"right",fontWeight:800,fontSize:16}}>{eur(tot.totale)}</span>
             </div>

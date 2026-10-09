@@ -8687,6 +8687,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
         cliente_nome:cli?cli.ragione_sociale:(preventivo.cliente_nome||""),
         prodotto:f.descrizione_breve||"",
         riferimento:f.riferimento||"", stato:"aperta", priorita:"normale",
+        agente_id:(cli&&cli.agente_id)||null,
+        provvigione_pct: f.provvigione_pct===""||f.provvigione_pct==null ? null : Number(f.provvigione_pct),
         consumi:suggerisciConsumi(righe.map(r=>({...r, imballo_pluriball:pluriballDaSalvare(r)})), prodotti),
         valore:Math.round((tot.imponibile||0)*100)/100, creato_da:profilo.id, aggiornato_il:new Date().toISOString()};
       const {data:nc,error}=await sb.from("commesse").insert(rec).select("id").single();
@@ -11209,6 +11211,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     valore:commessa?.valore ?? 0,
     trasporto:commessa?.trasporto ?? 0,
     agente_id:commessa?.agente_id||"",
+    provvigione_pct:commessa?.provvigione_pct ?? "",
     note:commessa?.note||"",
     avviso_produzione:commessa?.avviso_produzione||"",
   }));
@@ -11400,10 +11403,12 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     const cli=(clienti||[]).find(c=>c.id===f.cliente_id);
     const eredit = cli? (agenti||[]).find(a=>a.id===cli.agente_id) : null;
     const eff = f.agente_id? (agenti||[]).find(a=>a.id===f.agente_id) : eredit;
-    const pct = (cli && cli.provvigione_pct!=null && (!f.agente_id || f.agente_id===cli.agente_id))
-      ? Number(cli.provvigione_pct) : (eff? Number(eff.provvigione_pct)||0 : 0);
+    const pct = (f.provvigione_pct!==""&&f.provvigione_pct!=null)   // override dalla commessa/preventivo
+      ? Number(f.provvigione_pct)
+      : (cli && cli.provvigione_pct!=null && (!f.agente_id || f.agente_id===cli.agente_id))
+        ? Number(cli.provvigione_pct) : (eff? Number(eff.provvigione_pct)||0 : 0);
     return {eredit, eff, pct};
-  },[clienti,agenti,f.cliente_id,f.agente_id]);
+  },[clienti,agenti,f.cliente_id,f.agente_id,f.provvigione_pct]);
 
   const setRiga=(i,k,v)=>setRighe(p=>p.map((r,j)=>j===i?{...r,[k]:v}:r));
   const addRiga=()=>setRighe(p=>[...p,{descrizione:"",quantita:1,unita:"",data_consegna:"",stato:"da_produrre",note:"",config:null,aggiunta:!nuova}]);
@@ -11661,6 +11666,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         riferimento:f.riferimento||"", data_consegna:consegnaFinale,
         stato:f.stato, priorita:f.priorita, valore:Number(f.valore)||0, trasporto:Number(f.trasporto)||0,
         agente_id:f.agente_id||null,
+        provvigione_pct: f.provvigione_pct===""||f.provvigione_pct==null ? null : Number(f.provvigione_pct),
         note:f.note||"", avviso_produzione:(f.avviso_produzione||"").trim()||null,
         avviso_il:(f.avviso_produzione||"").trim() ? (commessa?.avviso_il||new Date().toISOString()) : null,
         consumi:consumi.map(c=>({...c})), aiuti:aiuti.map(a=>({...a})), straordinari:straordinari.map(a=>({...a})), extra_costi:extraCosti.map(x=>({...x})), aggiornato_il:new Date().toISOString()};
@@ -11936,11 +11942,14 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                     <option value="">{agenteInfo.eredit? "Eredita dal cliente ("+agenteInfo.eredit.nome+")" : "— nessuno —"}</option>
                     {(agenti||[]).map(a=><option key={a.id} value={a.id}>{a.nome}{a.attivo===false?" (non attivo)":""}</option>)}
                   </select></div>
+                <div className="field" style={{maxWidth:150}}><label>Provvigione %</label>
+                  <input type="number" step="0.5" min="0" value={f.provvigione_pct} onChange={e=>set("provvigione_pct",e.target.value)}
+                    placeholder="(da preventivo / cliente)"/></div>
                 <div className="field" style={{alignSelf:"flex-end"}}>
                   <div className="muted" style={{fontSize:12,marginBottom:12}}>
-                    {agenteInfo.eff
-                      ? "Provvigione stimata: "+agenteInfo.eff.nome+" · "+agenteInfo.pct+"% di "+ (Number(f.valore)||0) +"€ = "+(Math.round((Number(f.valore)||0)*agenteInfo.pct)/100)+"€ (matura alla consegna)"
-                      : "Nessun agente: questa commessa non genera provvigioni."}
+                    {(Number(agenteInfo.pct)||0)>0
+                      ? "Provvigione: "+agenteInfo.pct+"% di "+(Number(f.valore)||0)+"€ = "+(Math.round((Number(f.valore)||0)*agenteInfo.pct)/100)+"€"+(agenteInfo.eff?" · "+agenteInfo.eff.nome:"")+" (matura alla consegna)"
+                      : "Nessuna provvigione impostata."}
                   </div>
                 </div>
               </div>}
@@ -14711,7 +14720,8 @@ function ModuloReport({profilo,perm}){
     const extraCos=extraAgg.reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0);
     // PROVVIGIONE agente = costo reale (% del valore commessa; eccezione cliente o standard agente)
     const cliP=cliMap[c.cliente_id]; const agIdP=c.agente_id || (cliP&&cliP.agente_id); const agP=agMap[agIdP];
-    const pctP=(cliP && cliP.provvigione_pct!=null && (!c.agente_id || c.agente_id===cliP.agente_id)) ? Number(cliP.provvigione_pct) : (agP?Number(agP.provvigione_pct)||0:0);
+    const pctP=(c.provvigione_pct!=null) ? Number(c.provvigione_pct)
+      : (cliP && cliP.provvigione_pct!=null && (!c.agente_id || c.agente_id===cliP.agente_id)) ? Number(cliP.provvigione_pct) : (agP?Number(agP.provvigione_pct)||0:0);
     const costoProvv=(Number(c.valore)||0)*pctP/100;
     const ricavi=(Number(c.valore)||0)+addeb+extraRic+addebExtraImprev;
     const costi=costoMat+costoMdo+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos+costiExtraImprev+costoProvv;
@@ -14814,8 +14824,9 @@ function ModuloReport({profilo,perm}){
       const agId = c.agente_id || (cli && cli.agente_id);
       if(!agId) return;
       const ag=agMap[agId];
-      const pct = (cli && cli.provvigione_pct!=null && (!c.agente_id || c.agente_id===cli.agente_id))
-        ? Number(cli.provvigione_pct) : (ag?Number(ag.provvigione_pct)||0:0);
+      const pct = (c.provvigione_pct!=null) ? Number(c.provvigione_pct)
+        : (cli && cli.provvigione_pct!=null && (!c.agente_id || c.agente_id===cli.agente_id))
+          ? Number(cli.provvigione_pct) : (ag?Number(ag.provvigione_pct)||0:0);
       const valore=Number(c.valore)||0;
       const e=m[agId]||(m[agId]={nome:(ag&&ag.nome)||"—",ncomm:0,valore:0,prov:0});
       e.ncomm++; e.valore+=valore; e.prov+=valore*pct/100;

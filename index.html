@@ -7950,7 +7950,7 @@ function ModuloPreventivi({profilo,perm}){
     setErr("");
     const [p,c,a,i,t,pc,imb,co,fo,cmp,op]=await Promise.all([
       sb.from("preventivi").select("*, preventivi_righe(*)").order("creato_il",{ascending:false}),
-      sb.from("clienti").select("id,ragione_sociale,categoria,sconto_pct, clienti_sconti(categoria,sconto_pct)").order("ragione_sociale"),
+      sb.from("clienti").select("id,ragione_sociale,categoria,sconto_pct,agente_id,provvigione_pct, clienti_sconti(categoria,sconto_pct), agente:agenti(provvigione_pct)").order("ragione_sociale"),
       caricaArticoliTutti("id,codice,nome_articolo,unita,categoria,costo,prezzo_pubblico,giacenza,impegnato,peso_kg,peso_um,peso_eccedenza_pct,traccia_avanzo,materiale_tipo,formati"),
       sb.from("impostazioni").select("*").eq("id",1).maybeSingle(),
       sb.from("impostazioni_lavorazioni").select("*"),
@@ -8582,10 +8582,14 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const optPrice=g=>calcolaPreventivo((righeCalc||[]).filter(r=>(r.gruppo||gruppoCorr)===g),{...f,imballaggio:0,trasporto:0}).imponibile;
   const scQ=g=>Number((f.scaglioni_qta||{})[g])||0;
   const setScQ=(g,v)=>setF(p=>({...p,scaglioni_qta:{...(p.scaglioni_qta||{}),[g]:v}}));
-  // PROVVIGIONE agente = costo reale → va sottratta dal margine
+  // PROVVIGIONE agente = costo reale → va sottratta dal margine.
+  // Se la % nel preventivo è vuota, ripiega sulla % del cliente (eccezione) o dell'agente (standard).
+  const cliProvv=(clienti||[]).find(c=>c.id===f.cliente_id);
+  const provvFb={ cliPct: (cliProvv&&cliProvv.provvigione_pct!=null)?Number(cliProvv.provvigione_pct):null,
+    agPct: (cliProvv&&cliProvv.agente&&cliProvv.agente.provvigione_pct!=null)?Number(cliProvv.agente.provvigione_pct):null };
   const provvPrev = calcProvvTratt({valore_stimato:Number(tot.imponibile)||0, tipo_provvigione:f.tipo_provvigione,
     provvigione_pct:f.provvigione_pct===""?null:Number(f.provvigione_pct),
-    prezzo_netto:Number(f.prezzo_netto)||0, quota_margine_pct:Number(f.quota_margine_pct)||0},{cliPct:null,agPct:null});
+    prezzo_netto:Number(f.prezzo_netto)||0, quota_margine_pct:Number(f.quota_margine_pct)||0}, provvFb);
   const margineNet = tot.margine - provvPrev;
   const margineNetPct = tot.imponibile>0 ? margineNet/tot.imponibile*100 : 0;
   const sottoMargine = !f.scaglioni && tot.imponibile>0 && margineNetPct < (Number(f.margine_minimo_pct)||0);
@@ -9173,7 +9177,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
             {(()=>{ const base=Number(tot.imponibile)||0;
               const provv=calcProvvTratt({valore_stimato:base, tipo_provvigione:f.tipo_provvigione,
                 provvigione_pct:f.provvigione_pct===""?null:Number(f.provvigione_pct),
-                prezzo_netto:Number(f.prezzo_netto)||0, quota_margine_pct:Number(f.quota_margine_pct)||0},{cliPct:null,agPct:null});
+                prezzo_netto:Number(f.prezzo_netto)||0, quota_margine_pct:Number(f.quota_margine_pct)||0}, provvFb);
               const marg=Math.max(0, base-(Number(f.prezzo_netto)||0));
               return <>
                 <div className="row">

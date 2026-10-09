@@ -11393,6 +11393,10 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       .eq("commessa_id",commessa.id).order("inizio")
       .then(({data})=>setSegmenti(data||[]));
   },[commessa?.id]);
+  // % spese generali (gestione) dalle Impostazioni: entra nel consuntivo come nel preventivo
+  const [sgPct,setSgPct]=useState(0);
+  useEffect(()=>{ sb.from("impostazioni").select("spese_generali_pct").eq("id",1).maybeSingle()
+    .then(({data})=>setSgPct(Number(data&&data.spese_generali_pct)||0)).catch(()=>{}); },[]);
   // Ordini fornitore collegati: per la spia "preventivato vs costo reale pagato"
   const [ofColl,setOfColl]=useState([]);
   useEffect(()=>{
@@ -11642,7 +11646,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const realeFornC=(ofColl||[]).reduce((s,o)=>s+(o.ordini_fornitore_righe||[]).reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0),0),0);
   const prevFornC=(righe||[]).filter(r=>r.fornitore_prezzo_id).reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0);
   const scostFornC=(ofColl.length && prevFornC>0) ? Math.round((realeFornC-prevFornC)*100)/100 : 0;
-  const costiTot=costoOrig+costoInterventi+costoAiuti+costoPerdite+costoEsterno+costoStraordinario+costoExtra+costoProvvigione+scostFornC;
+  // SPESE GENERALI (gestione): % sui costi diretti (materiali + manodopera), come nel preventivo
+  const speseGenC=Math.round((costoMateriali+scostFornC+costoManodopera)*(Number(sgPct)||0)/100*100)/100;
+  const costiTot=costoOrig+costoInterventi+costoAiuti+costoPerdite+costoEsterno+costoStraordinario+costoExtra+costoProvvigione+scostFornC+speseGenC;
   const margineReale=ricaviTot-costiTot;
 
   async function generaOrdineFornitore(){
@@ -11790,6 +11796,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       ricavi:Math.round(ricaviTot*100)/100,
       costo_materiali:Math.round((costoMateriali+scostFornC)*100)/100,
       costo_manodopera:Math.round(costoManodopera*100)/100,
+      costo_spese_generali:Math.round(speseGenC*100)/100,
       trasporto:Math.round((Number(f.trasporto)||0)*100)/100,
       costo_esterno:Math.round(costoEsterno*100)/100,
       costo_straordinario:Math.round(costoStraordinario*100)/100,
@@ -12511,6 +12518,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               <span className="k">Costo materiali</span><span style={{textAlign:"right"}}>{eur(costoMateriali)}</span>
               {Math.abs(scostFornC)>=0.01 && <><span className="k" style={{color:scostFornC<0?"var(--ok)":"var(--danger)"}}>Correzione costo reale fornitori{scostFornC<0?" (risparmio)":""}</span><span style={{textAlign:"right",color:scostFornC<0?"var(--ok)":"var(--danger)"}}>{scostFornC>0?"+":""}{eur(scostFornC)}</span></>}
               <span className="k">Costo manodopera</span><span style={{textAlign:"right"}}>{eur(costoManodopera)}</span>
+              {speseGenC>0 && <><span className="k">Spese generali ({sgPct}%)</span><span style={{textAlign:"right"}}>{eur(speseGenC)}</span></>}
               <span className="k">Trasporto</span><span style={{textAlign:"right"}}>{eur(Number(f.trasporto)||0)}</span>
               {costoEsterno>0 && <><span className="k" style={{color:"var(--danger)"}}>Lavorazioni esterne (conto terzi)</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoEsterno)}</span></>}
               {costoStraordinario>0 && <><span className="k" style={{color:"var(--danger)"}}>Straordinario ({oreStraordTot} h × €{COSTO_STRAORDINARIO})</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoStraordinario)}</span></>}
@@ -13851,7 +13859,7 @@ function ModuloConsuntivi({profilo,perm}){
 
   function esporta(){
     const rows=filtrati.map(c=>({Commessa:c.numero||"",Cliente:c.cliente_nome||"",Chiusa:c.data_chiusura||"",Stato:c.stato||"",
-      Ricavi:Number(c.ricavi)||0,"Costo materiali":Number(c.costo_materiali)||0,"Costo manodopera":Number(c.costo_manodopera)||0,
+      Ricavi:Number(c.ricavi)||0,"Costo materiali":Number(c.costo_materiali)||0,"Costo manodopera":Number(c.costo_manodopera)||0,"Spese generali":Number(c.costo_spese_generali)||0,
       Trasporto:Number(c.trasporto)||0,"Lav. esterne":Number(c.costo_esterno)||0,Straordinario:Number(c.costo_straordinario)||0,
       "Aiuti":Number(c.costo_aiuti)||0,Perdite:Number(c.costo_perdite)||0,Rilavorazioni:Number(c.costo_interventi)||0,
       "Extra costi":Number(c.costo_extra)||0,"Provvigione":Number(c.costo_provvigione)||0,"Costi totali":Number(c.costi_totali)||0,Margine:Number(c.margine)||0,"Margine %":Number(c.margine_pct)||0}));
@@ -13909,6 +13917,7 @@ function ModuloConsuntivi({profilo,perm}){
                         {voce("Ricavi",c.ricavi)}
                         {voce("Costo materiali",c.costo_materiali)}
                         {voce("Costo manodopera",c.costo_manodopera)}
+                        {voce("Spese generali",c.costo_spese_generali)}
                         {voce("Trasporto",c.trasporto)}
                         {voce("Lavorazioni esterne",c.costo_esterno,true)}
                         {voce("Straordinario",c.costo_straordinario,true)}
@@ -14701,6 +14710,7 @@ function ModuloReport({profilo,perm}){
   },[meseInc,perm.economici]);
   const [cliMap,setCliMap]=useState({});
   const [agMap,setAgMap]=useState({});
+  const [impSg,setImpSg]=useState(0);   // % spese generali (gestione) dalle Impostazioni
   const [crmTratt,setCrmTratt]=useState([]);      // trattative CRM (per report vendite/provvigioni agenti)
   const [segmenti,setSegmenti]=useState(null);   // storico timbrature postazione
   const [filtroOp,setFiltroOp]=useState("");
@@ -14726,7 +14736,7 @@ function ModuloReport({profilo,perm}){
 
   const carica=useCallback(async()=>{
     setErr("");
-    const [c,a,o,it,pz,cl,ag,tr,of]=await Promise.all([
+    const [c,a,o,it,pz,cl,ag,tr,of,sg]=await Promise.all([
       sb.from("commesse").select("*, commesse_fasi(*), commesse_righe(*)").order("creato_il",{ascending:false}),
       caricaArticoliTutti("id,costo"),
       sb.from("operatori").select("id,costo_orario"),
@@ -14736,9 +14746,10 @@ function ModuloReport({profilo,perm}){
       sb.from("agenti").select("id,nome,provvigione_pct"),
       sb.from("crm_trattative").select("agente_id,cliente_id,stato,valore_stimato,aggiornato_il,tipo_provvigione,prezzo_netto,quota_margine_pct,provvigione_pct"),
       sb.from("ordini_fornitore").select("commessa_id, ordini_fornitore_righe(quantita,prezzo_unitario)"),
+      sb.from("impostazioni").select("spese_generali_pct").eq("id",1).maybeSingle(),
     ]);
     if(c.error){ setErr(c.error.message); return; }
-    setCommesse(c.data||[]);
+    setCommesse(c.data||[]); setImpSg(Number(sg&&sg.data&&sg.data.spese_generali_pct)||0);
     const am={}; (a||[]).forEach(x=>am[x.id]=x); setArtMap(am);
     const om={}; (o.data||[]).forEach(x=>om[x.id]=x); setOpMap(om);
     const ibc={}; (it.data||[]).forEach(x=>{ (ibc[x.commessa_id]=ibc[x.commessa_id]||[]).push(x); }); setIntByComm(ibc);
@@ -14787,10 +14798,11 @@ function ModuloReport({profilo,perm}){
     const pctP=(c.provvigione_pct!=null) ? Number(c.provvigione_pct)
       : (cliP && cliP.provvigione_pct!=null && (!c.agente_id || c.agente_id===cliP.agente_id)) ? Number(cliP.provvigione_pct) : (agP?Number(agP.provvigione_pct)||0:0);
     const costoProvv=(Number(c.valore)||0)*pctP/100;
+    const speseGenR=(costoMat+scostForn+costoMdo)*(Number(impSg)||0)/100;   // spese generali (gestione)
     const ricavi=(Number(c.valore)||0)+addeb+extraRic+addebExtraImprev;
-    const costi=costoMat+costoMdo+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos+costiExtraImprev+costoProvv;
+    const costi=costoMat+costoMdo+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos+costiExtraImprev+costoProvv+speseGenR;
     return {ricavi,costi,margine:ricavi-costi,scostForn,extraRic};
-  },[artMap,opMap,intByComm,persiByComm,ofByComm,cliMap,agMap]);
+  },[artMap,opMap,intByComm,persiByComm,ofByComm,cliMap,agMap,impSg]);
 
   const tot=useMemo(()=>{ let ric=0,cos=0; filtrate.forEach(c=>{ const x=consunt(c); ric+=x.ricavi; cos+=x.costi; });
     return {ric,cos,mar:ric-cos,n:filtrate.length}; },[filtrate,consunt]);

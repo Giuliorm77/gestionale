@@ -8158,6 +8158,57 @@ function FileCommessa({commessaId, canEdit, uploaderId}){
     {err && <div style={{color:"#c0392b",fontSize:11,marginTop:4}}>{err}</div>}
   </div>;
 }
+// Allegati del PREVENTIVO (firmato, ODA, grafiche…): riusa il bucket "commesse-file".
+const CAT_PREV=[["grafica","🎨 Grafica"],["firmato","✍️ Prev. firmato"],["oda","📄 ODA / Ordine cliente"],["altro","📎 Altro"]];
+function FilePreventivo({preventivoId, uploaderId}){
+  const [files,setFiles]=useState([]); const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
+  const [cat,setCat]=useState("firmato");
+  const [showLink,setShowLink]=useState(false); const [linkUrl,setLinkUrl]=useState(""); const [linkNome,setLinkNome]=useState("");
+  const inputRef=React.useRef(null);
+  const carica=React.useCallback(()=>{ if(!preventivoId){ setFiles([]); return; }
+    sb.from("preventivi_file").select("*").eq("preventivo_id",preventivoId).order("caricato_il").then(({data})=>setFiles(data||[])); },[preventivoId]);
+  useEffect(()=>{ carica(); },[carica]);
+  async function uploadFiles(list){ if(!list||!list.length) return; setBusy(true); setErr("");
+    try{ for(const file of list){ const safe=String(file.name||"file").replace(/[^a-zA-Z0-9._-]/g,"_").slice(-80);
+        const p="preventivi/"+preventivoId+"/"+uid()+"_"+safe;
+        const {error}=await sb.storage.from(BUCKET_COMMESSE).upload(p,file,{upsert:false}); if(error) throw error;
+        const {error:e2}=await sb.from("preventivi_file").insert({preventivo_id:preventivoId, tipo:"file", categoria:cat, nome:file.name||safe, path:p, caricato_da:uploaderId||null}); if(e2) throw e2;
+      } carica(); }catch(ex){ setErr(ex.message||"Errore nel caricamento (file troppo grande? usa il link al server)"); } setBusy(false);
+  }
+  async function aggiungiLink(){ const u=linkUrl.trim(); if(!u) return; setBusy(true); setErr("");
+    try{ const {error}=await sb.from("preventivi_file").insert({preventivo_id:preventivoId, tipo:"link", categoria:cat, nome:linkNome.trim()||u, url:u, caricato_da:uploaderId||null}); if(error) throw error;
+      setLinkUrl(""); setLinkNome(""); setShowLink(false); carica(); }catch(ex){ setErr(ex.message); } setBusy(false);
+  }
+  async function apri(f){ setErr(""); if(f.tipo==="link"){ if(/^https?:\/\//i.test(f.url||"")) window.open(f.url,"_blank"); else { try{ await navigator.clipboard.writeText(f.url||""); alert("Percorso copiato:\n"+f.url+"\nIncollalo in Esplora file."); }catch(e){ alert(f.url); } } return; }
+    try{ const {data,error}=await sb.storage.from(BUCKET_COMMESSE).createSignedUrl(f.path,600); if(error) throw error; window.open(data.signedUrl,"_blank"); }catch(ex){ setErr(ex.message||"Impossibile aprire il file"); } }
+  async function elimina(f){ if(!window.confirm("Rimuovere «"+(f.nome||"")+"»?")) return; setBusy(true); setErr("");
+    try{ if(f.tipo==="file"&&f.path){ try{ await sb.storage.from(BUCKET_COMMESSE).remove([f.path]); }catch(e){} } await sb.from("preventivi_file").delete().eq("id",f.id); carica(); }catch(ex){ setErr(ex.message); } setBusy(false); }
+  const catLbl=v=>(CAT_PREV.find(c=>c[0]===v)||[,"📎 Altro"])[1];
+  return <div>
+    {files.length===0
+      ? <div className="muted" style={{fontSize:12.5}}>Nessun allegato. Carica il <b>preventivo firmato</b>, l'<b>ODA</b>, le <b>grafiche</b>…</div>
+      : <div style={{display:"flex",flexDirection:"column",gap:4}}>
+          {files.map(f=><div key={f.id} style={{display:"flex",alignItems:"center",gap:8,fontSize:13}}>
+            <span className="tag" style={{fontSize:10.5,whiteSpace:"nowrap"}}>{catLbl(f.categoria)}</span>
+            <button type="button" className="btn small" onClick={()=>apri(f)} title={f.tipo==="link"?(f.url||""):"Scarica/apri"} style={{maxWidth:340,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.tipo==="link"?"🔗":"📄"} {f.nome||"file"}</button>
+            <button type="button" className="btn small danger" style={{padding:"2px 7px"}} onClick={()=>elimina(f)}>✕</button>
+          </div>)}
+        </div>}
+    <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap",alignItems:"center"}}>
+      <select className="btn small" value={cat} onChange={e=>setCat(e.target.value)} title="Che tipo di documento stai allegando">{CAT_PREV.map(c=><option key={c[0]} value={c[0]}>{c[1]}</option>)}</select>
+      <button type="button" className="btn small" disabled={busy} onClick={()=>inputRef.current&&inputRef.current.click()}>{busy?"⏳ carico…":"📎 Carica file"}</button>
+      <button type="button" className="btn small" disabled={busy} onClick={()=>setShowLink(s=>!s)}>🔗 Link al server</button>
+      <input ref={inputRef} type="file" multiple style={{display:"none"}} onChange={e=>{ const l=Array.from(e.target.files||[]); e.target.value=""; uploadFiles(l); }}/>
+      <span className="muted" style={{fontSize:11}}>scegli la categoria, poi carica</span>
+    </div>
+    {showLink && <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
+      <input value={linkUrl} onChange={e=>setLinkUrl(e.target.value)} placeholder="percorso o link (\\server\... oppure https://...)" style={{flex:1,minWidth:260,padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/>
+      <input value={linkNome} onChange={e=>setLinkNome(e.target.value)} placeholder="etichetta (facoltativa)" style={{width:160,padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/>
+      <button type="button" className="btn small primary" onClick={aggiungiLink} disabled={busy}>Aggiungi</button>
+    </div>}
+    {err && <div style={{color:"#c0392b",fontSize:11,marginTop:4}}>{err}</div>}
+  </div>;
+}
 const BUCKET_OFFERTE="offerte-fornitori";
 function AllegatoOfferta({riga,onSet}){
   const [busy,setBusy]=useState(false);
@@ -9107,6 +9158,13 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
               </ul>
             </div>}
             </>}
+          </div>
+
+          <div className="section" style={{marginTop:18}}>
+            <h3>📎 Allegati <span className="muted" style={{fontSize:12,fontWeight:400}}>— preventivo firmato, ODA, grafiche…</span></h3>
+            {preventivo?.id
+              ? <FilePreventivo preventivoId={preventivo.id} uploaderId={profilo.id}/>
+              : <div className="muted" style={{fontSize:12.5}}>Salva prima il preventivo, poi potrai allegare i documenti (preventivo firmato, ODA, file di grafica…).</div>}
           </div>
 
           <div className="section" style={{marginTop:18}}>

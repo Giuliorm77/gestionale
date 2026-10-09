@@ -11571,7 +11571,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const costoEsterno=fasi.filter(fa=>fa.esterna).reduce((s,fa)=>s+(Number(fa.costo_reale)||0),0);
   const oreStraordTot=straordinari.reduce((s,a)=>s+(Number(a.ore)||0),0);
   const costoStraordinario=oreStraordTot*COSTO_STRAORDINARIO;
-  const costiTot=costoOrig+costoInterventi+costoAiuti+costoPerdite+costoEsterno+costoStraordinario+costoExtra;
+  const costoProvvigione=Math.round((Number(f.valore)||0)*(Number(agenteInfo.pct)||0)/100*100)/100;   // provvigione agente = costo reale
+  const costiTot=costoOrig+costoInterventi+costoAiuti+costoPerdite+costoEsterno+costoStraordinario+costoExtra+costoProvvigione;
   const margineReale=ricaviTot-costiTot;
 
   async function generaOrdineFornitore(){
@@ -11725,6 +11726,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       costo_perdite:Math.round(costoPerdite*100)/100,
       costo_interventi:Math.round(costoInterventi*100)/100,
       costo_extra:Math.round(costoExtra*100)/100,
+      costo_provvigione:Math.round(costoProvvigione*100)/100,
       costi_totali:Math.round(costiTot*100)/100,
       margine:Math.round(margineReale*100)/100,
       margine_pct: ricaviTot>0? Math.round(margineReale/ricaviTot*10000)/100 : 0,
@@ -12441,6 +12443,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               {costoExtra>0 && <><span className="k" style={{color:"var(--danger)"}}>Extra costi / spese impreviste{addebitiExtra>0?" (riaddebito nei ricavi)":""}</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoExtra)}</span></>}
               {costoPerdite>0 && <><span className="k" style={{color:"var(--danger)"}}>Perdite materiale (pezzi persi)</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoPerdite)}</span></>}
               {costoInterventi>0 && <><span className="k" style={{color:"var(--danger)"}}>Costo rilavorazioni</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoInterventi)}</span></>}
+              {costoProvvigione>0 && <><span className="k" style={{color:"var(--danger)"}}>Provvigione agente ({agenteInfo.pct}%{agenteInfo.eff?" · "+agenteInfo.eff.nome:""})</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoProvvigione)}</span></>}
               <span className="k" style={{fontWeight:800}}>MARGINE REALE</span><span style={{textAlign:"right",fontWeight:800,fontSize:16,color:margineReale>=0?"var(--ok)":"var(--danger)"}}>{eur(margineReale)}</span>
             </div>
             <div className="muted" style={{fontSize:11,marginTop:8}}>Costi materiali/manodopera dai costi di catalogo e costi orari operatori. Le rilavorazioni "a nostro carico" riducono il margine; quelle "a carico cliente" rientrano nei ricavi.</div>
@@ -13776,7 +13779,7 @@ function ModuloConsuntivi({profilo,perm}){
       Ricavi:Number(c.ricavi)||0,"Costo materiali":Number(c.costo_materiali)||0,"Costo manodopera":Number(c.costo_manodopera)||0,
       Trasporto:Number(c.trasporto)||0,"Lav. esterne":Number(c.costo_esterno)||0,Straordinario:Number(c.costo_straordinario)||0,
       "Aiuti":Number(c.costo_aiuti)||0,Perdite:Number(c.costo_perdite)||0,Rilavorazioni:Number(c.costo_interventi)||0,
-      "Extra costi":Number(c.costo_extra)||0,"Costi totali":Number(c.costi_totali)||0,Margine:Number(c.margine)||0,"Margine %":Number(c.margine_pct)||0}));
+      "Extra costi":Number(c.costo_extra)||0,"Provvigione":Number(c.costo_provvigione)||0,"Costi totali":Number(c.costi_totali)||0,Margine:Number(c.margine)||0,"Margine %":Number(c.margine_pct)||0}));
     const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,"Consuntivi"); XLSX.writeFile(wb,"Consuntivi_"+new Date().toISOString().slice(0,10)+".xlsx");
   }
@@ -13838,6 +13841,7 @@ function ModuloConsuntivi({profilo,perm}){
                         {voce("Perdite materiale",c.costo_perdite,true)}
                         {voce("Rilavorazioni",c.costo_interventi,true)}
                         {voce("Extra costi",c.costo_extra,true)}
+                        {voce("Provvigione agente",c.costo_provvigione,true)}
                         <span className="k" style={{fontWeight:800}}>MARGINE</span><span style={{textAlign:"right",fontWeight:800,color:(Number(c.margine)||0)>=0?"var(--ok)":"var(--danger)"}}>{eur(c.margine)} ({Number(c.margine_pct)||0}%)</span>
                       </div>
                       <div className="muted" style={{fontSize:11}}>Fotografia salvata il {dataIt(c.aggiornato_il)} · stato «{c.stato||"—"}». Per i numeri live apri la commessa in 🏭 Commesse.</div>
@@ -14703,10 +14707,14 @@ function ModuloReport({profilo,perm}){
     const extraAgg=(c.commesse_righe||[]).filter(r=>r.aggiunta);
     const extraRic=extraAgg.reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0),0);
     const extraCos=extraAgg.reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0);
+    // PROVVIGIONE agente = costo reale (% del valore commessa; eccezione cliente o standard agente)
+    const cliP=cliMap[c.cliente_id]; const agIdP=c.agente_id || (cliP&&cliP.agente_id); const agP=agMap[agIdP];
+    const pctP=(cliP && cliP.provvigione_pct!=null && (!c.agente_id || c.agente_id===cliP.agente_id)) ? Number(cliP.provvigione_pct) : (agP?Number(agP.provvigione_pct)||0:0);
+    const costoProvv=(Number(c.valore)||0)*pctP/100;
     const ricavi=(Number(c.valore)||0)+addeb+extraRic+addebExtraImprev;
-    const costi=costoMat+costoMdo+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos+costiExtraImprev;
+    const costi=costoMat+costoMdo+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos+costiExtraImprev+costoProvv;
     return {ricavi,costi,margine:ricavi-costi,scostForn,extraRic};
-  },[artMap,opMap,intByComm,persiByComm,ofByComm]);
+  },[artMap,opMap,intByComm,persiByComm,ofByComm,cliMap,agMap]);
 
   const tot=useMemo(()=>{ let ric=0,cos=0; filtrate.forEach(c=>{ const x=consunt(c); ric+=x.ricavi; cos+=x.costi; });
     return {ric,cos,mar:ric-cos,n:filtrate.length}; },[filtrate,consunt]);

@@ -7547,7 +7547,7 @@ function htmlDDT(ddt, righe, az, cli){
   const sedeC=sedi.find(s=>s.tipo==="destinazione_merce")||sedi.find(s=>s.tipo==="operativa")||sedi.find(s=>s.tipo==="legale")||sedi[0];
   const d=(ddt.destinatario&&ddt.destinatario.indirizzo)?ddt.destinatario:(sedeC||{});
   const indDest=[d.indirizzo,[d.cap,d.citta].filter(Boolean).join(" "),d.provincia&&"("+d.provincia+")"].filter(Boolean).join(", ");
-  const righeHtml=(righe||[]).map((r,i)=>`<tr><td class="c">${i+1}</td><td>${escHtml(r.descrizione)}</td><td class="r">${Number(r.quantita)||0}</td><td class="c">${escHtml(r.unita||"")}</td></tr>`).join("");
+  const righeHtml=(righe||[]).map((r,i)=>`<tr><td class="c">${i+1}</td><td class="cod">${escHtml(r.codice||"")}</td><td>${escHtml(r.descrizione)}</td><td class="r">${Number(r.quantita)||0}</td><td class="c">${escHtml(r.unita||"")}</td></tr>`).join("");
   const vettMap={mittente:"A cura del mittente",destinatario:"A cura del destinatario",vettore:"Vettore: "+escHtml(ddt.vettore_nome||"—")};
   const carta=az.carta_intestata||"";
   const mT=carta?(Number(az.carta_margine_top)||40):14, mB=carta?(Number(az.carta_margine_bottom)||25):14, mS=carta?(Number(az.carta_margine_lati)||15):16;
@@ -7573,6 +7573,7 @@ h1{margin:0 0 2px;font-size:20px;letter-spacing:.03em;color:#1c2a44}
 .righe td{padding:7px 8px;border-bottom:1px solid #e4e7ec;background:rgba(255,255,255,.85)}
 .righe td.r,.righe th.r{text-align:right}.righe td.c,.righe th.c{text-align:center}
 .righe th:first-child,.righe td.c:first-child{width:34px}
+.righe td.cod{font-family:Consolas,monospace;font-size:11px;white-space:nowrap}.righe .cod{width:95px}
 .note{margin-top:12px;font-size:11px;color:#444;white-space:pre-wrap}
 .firme{display:flex;justify-content:space-between;gap:30px;margin-top:30px;font-size:11.5px;color:#333}
 .firme div{flex:1}.firme .l{border-top:1px solid #aaa;margin-top:34px;padding-top:4px;color:#777;font-size:10.5px}
@@ -7594,7 +7595,7 @@ ${cartaImg}
   ${meta(["Trasporto",vettMap[ddt.vettore_tipo]||"—"])}
   ${meta(["Vettore",escHtml(ddt.vettore_nome||"—")])}
 </div>
-<table class="righe"><thead><tr><th class="c">#</th><th>Descrizione</th><th class="r">Quantità</th><th class="c">U.M.</th></tr></thead><tbody>${righeHtml||'<tr><td colspan="4" style="padding:14px;color:#888">Nessuna riga.</td></tr>'}</tbody></table>
+<table class="righe"><thead><tr><th class="c">#</th><th class="cod">Codice</th><th>Descrizione</th><th class="r">Quantità</th><th class="c">U.M.</th></tr></thead><tbody>${righeHtml||'<tr><td colspan="5" style="padding:14px;color:#888">Nessuna riga.</td></tr>'}</tbody></table>
 ${ddt.note?`<div class="note"><b>Annotazioni:</b> ${escHtml(ddt.note)}</div>`:""}
 <div class="firme">
   <div>Firma conducente / vettore<div class="l">&nbsp;</div></div>
@@ -7604,6 +7605,13 @@ ${ddt.note?`<div class="note"><b>Annotazioni:</b> ${escHtml(ddt.note)}</div>`:""
 <div class="foot">Documento di trasporto emesso ai sensi del DPR 472/96.</div>
 </td></tr></tbody></table>
 </body></html>`;
+}
+
+async function codiciArticoli(ids){
+  const u=[...new Set((ids||[]).filter(Boolean))];
+  if(!u.length) return {};
+  try{ const {data}=await sb.from("articoli").select("id,codice").in("id",u);
+    const m={}; (data||[]).forEach(a=>{ m[a.id]=a.codice||""; }); return m; }catch(e){ return {}; }
 }
 
 function ModuloDDT({profilo,perm}){
@@ -7637,7 +7645,9 @@ function ModuloDDT({profilo,perm}){
   async function stampa(x){
     let cli=null;
     if(x.cliente_id){ const {data}=await sb.from("clienti").select("*, clienti_sedi(*)").eq("id",x.cliente_id).maybeSingle(); cli=data; }
-    stampaHTML(htmlDDT(x, (x.ddt_righe||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0)), az, cli));
+    const rg=(x.ddt_righe||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0));
+    const cod=await codiciArticoli(rg.map(r=>r.articolo_id));
+    stampaHTML(htmlDDT(x, rg.map(r=>({...r, codice: cod[r.articolo_id]||""})), az, cli));
   }
   async function elimina(x){
     if(!window.confirm("Eliminare il DDT "+x.numero+"?")) return;
@@ -7717,7 +7727,10 @@ function DDTEditor({ddt,commessaId,profilo,perm,onClose,onSalvato}){
   const [sediInComm,setSediInComm]=useState([]);     // sede_id distinti presenti nella commessa
   const [busy,setBusy]=useState(false);
   const [err,setErr]=useState("");
+  const [artCod,setArtCod]=useState({});   // id articolo -> codice (per mostrarlo nel DDT)
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  useEffect(()=>{ const ids=(righe||[]).map(r=>r.articolo_id).filter(Boolean); if(!ids.length) return;
+    codiciArticoli(ids).then(m=>setArtCod(p=>({...p,...m}))); },[righe]);
 
   const autoSede=sedi=>{ const s=(sedi||[]).find(x=>x.tipo==="destinazione_merce")||(sedi||[]).find(x=>x.tipo==="operativa")||(sedi||[]).find(x=>x.tipo==="legale")||(sedi||[])[0]||{}; return {indirizzo:s.indirizzo||"",cap:s.cap||"",citta:s.citta||"",provincia:s.provincia||""}; };
   const destDaSede=(sede,sedi,auto)=>{ if(!sede) return auto||{}; const s=(sedi||[]).find(x=>x.id===sede); return s?{indirizzo:s.indirizzo||"",cap:s.cap||"",citta:s.citta||"",provincia:s.provincia||""}:(auto||{}); };
@@ -7814,7 +7827,7 @@ function DDTEditor({ddt,commessaId,profilo,perm,onClose,onSalvato}){
   }
   function stampa(){
     const cli={ragione_sociale:f.cliente_nome, partita_iva:(clienti.find(c=>c.id===f.cliente_id)||{}).partita_iva, clienti_sedi:[{tipo:"destinazione_merce",...dest}]};
-    stampaHTML(htmlDDT({...f,destinatario:dest}, righe, az, cli));
+    stampaHTML(htmlDDT({...f,destinatario:dest}, righe.map(r=>({...r, codice: artCod[r.articolo_id]||""})), az, cli));
   }
   const inNum={width:70,padding:"6px 7px",border:"1px solid var(--line)",borderRadius:7,textAlign:"right"};
 
@@ -7875,11 +7888,12 @@ function DDTEditor({ddt,commessaId,profilo,perm,onClose,onSalvato}){
             {righe.some(r=>r.commessa_riga_id) && <div className="banner info" style={{marginTop:8,fontSize:12.5}}>Quantità modificabili: spedisci <b>meno del pronto</b> per una <b>consegna parziale</b> — il resto resta in commessa e lo spedisci con un DDT successivo. All'<b>emissione</b> le righe spedite passano a <b>consegnato</b>.</div>}
             <div style={{overflow:"auto",marginTop:10}}>
               <table>
-                <thead><tr><th>Descrizione</th><th style={{width:80}}>Q.tà</th><th style={{width:70}}>U.M.</th><th></th></tr></thead>
+                <thead><tr><th style={{width:95}}>Codice</th><th>Descrizione</th><th style={{width:80}}>Q.tà</th><th style={{width:70}}>U.M.</th><th></th></tr></thead>
                 <tbody>
-                  {righe.length===0 && <tr><td colSpan={4} className="muted" style={{padding:12}}>Nessuna riga. Aggiungi a mano o importa da una commessa.</td></tr>}
+                  {righe.length===0 && <tr><td colSpan={5} className="muted" style={{padding:12}}>Nessuna riga. Aggiungi a mano o importa da una commessa.</td></tr>}
                   {righe.map((r,i)=>(
                     <tr key={i}>
+                      <td style={{fontFamily:"Consolas,monospace",fontSize:12,color:"#1e46c4",whiteSpace:"nowrap"}}>{artCod[r.articolo_id]||"—"}</td>
                       <td><input value={r.descrizione} onChange={e=>setRiga(i,"descrizione",e.target.value)} style={{width:"100%",padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></td>
                       <td><input type="number" step="0.01" value={r.quantita} onChange={e=>setRiga(i,"quantita",e.target.value)} style={inNum}/></td>
                       <td><input value={r.unita||""} onChange={e=>setRiga(i,"unita",e.target.value)} style={{width:60,padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></td>
@@ -8407,13 +8421,13 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const cgLista=React.useMemo(()=>{
     const s=cgSearch.trim().toLowerCase();
     const lavs=(tariffe||[]).filter(t=>t.lavorazione).map(t=>({kind:"tariffa",nome:t.lavorazione,sub:(t.modo||"ora"),cont:conteggioComponente(t.modo),item:t}));
-    const mats=(articoli||[]).map(a=>({kind:"articolo",nome:a.nome_articolo,sub:a.unita||"",cont:conteggioComponente(a.unita),item:a}));
+    const mats=(articoli||[]).map(a=>({kind:"articolo",nome:a.nome_articolo,codice:a.codice||"",sub:a.unita||"",cont:conteggioComponente(a.unita),item:a}));
     const nuoviLav=nuoviComp.filter(x=>x.kind==="tariffa"), nuoviMat=nuoviComp.filter(x=>x.kind==="articolo");
     let all;
     if(cgFiltro==="lavorazioni") all=[...nuoviLav,...lavs];
     else if(cgFiltro==="materiali") all=[...nuoviMat,...mats];
     else all=[...nuoviComp,...lavs,...mats];
-    if(s) all=all.filter(x=>x.nome.toLowerCase().includes(s));
+    if(s) all=all.filter(x=>x.nome.toLowerCase().includes(s) || String(x.codice||"").toLowerCase().includes(s));
     return all.slice(0,80);
   },[cgSearch,cgFiltro,articoli,tariffe,nuoviComp]);
   async function creaComponente(){
@@ -8968,7 +8982,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                   <div style={{overflow:"auto",maxHeight:360,border:"1px solid var(--line)",borderRadius:8}}>
                     {cgLista.length===0 && <div className="muted" style={{padding:12}}>Nessun componente trovato. Crealo con <b>➕ Nuovo componente</b>.</div>}
                     {cgLista.map((x,i)=><div key={i} onClick={()=>{ setCgSel(x); setCgMsg(""); }} style={{padding:"8px 12px",borderBottom:"1px solid var(--line)",cursor:"pointer",display:"flex",justifyContent:"space-between",gap:10}}>
-                      <span>{x.kind==="tariffa"?"🛠️ ":"📦 "}{x.nome}</span>
+                      <span>{x.kind==="tariffa"?"🛠️ ":"📦 "}{x.codice? <b style={{fontFamily:"Consolas,monospace",color:"#1e46c4",marginRight:6}}>{x.codice}</b>:null}{x.nome}</span>
                       <span className="muted" style={{fontSize:12}}>{x.sub} · {x.cont}</span>
                     </div>)}
                   </div>

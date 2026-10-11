@@ -1091,7 +1091,7 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
     const d=new Date(a.promemoria_il); const scad=d.getTime()<Date.now();
     return <div className="cmrow" key={a.id} onClick={()=>setEditorAtt(a)} style={{cursor:"pointer"}}>
       <div className="l">
-        <div className="n">{T.ico} {(a.clienti&&a.clienti.ragione_sociale)||"—"} <span style={{fontWeight:400,color:"#5b6773"}}>· {T.l}</span></div>
+        <div className="n">{T.ico} {(a.clienti&&a.clienti.ragione_sociale)||a.contatto||"—"} <span style={{fontWeight:400,color:"#5b6773"}}>· {T.l}</span></div>
         {(a.esito||a.note) && <div className="c">{a.esito||a.note}</div>}
       </div>
       <div className="r">
@@ -1263,7 +1263,7 @@ function CruscottoAgente({profilo,perm,onApriCompleto}){
         : att.map(a=>{ const cl=classFU(a.promemoria_il);
           return <div className="agrow" key={a.id}>
             <div className="l">
-              <div className="n">{(()=>{const T=TIPI_ATTIVITA[a.tipo];return T?T.ico+" "+T.l:a.tipo;})()} · {(a.clienti&&a.clienti.ragione_sociale)||"—"}</div>
+              <div className="n">{(()=>{const T=TIPI_ATTIVITA[a.tipo];return T?T.ico+" "+T.l:a.tipo;})()} · {(a.clienti&&a.clienti.ragione_sociale)||a.contatto||"—"}</div>
               {a.note && <div className="c">{a.note}</div>}
               <span className={"agchip"+(cl?" "+cl:"")}>
                 {cl==="scad"?"⚠️ scaduto · ":cl==="oggi"?"oggi · ":""}
@@ -10644,7 +10644,7 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
   const [fasce,setFasce]=useState(()=> ord(prodotto?.prodotti_config_fasce||[]) );
   const [stampe,setStampe]=useState(()=> ord(prodotto?.prodotti_config_stampe||[]) );
   const setStampa=(i,k,v)=>setStampe(p=>p.map((x,j)=>j===i?{...x,[k]:v}:x));
-  const addStampa=()=>setStampe(p=>[...p,{nome:"",area_cm:"",max_colori:4,prezzo_pz:"",setup:""}]);
+  const addStampa=()=>setStampe(p=>[...p,{nome:"",area_cm:"",tecnica:"",max_colori:4,prezzo_pz:"",setup:""}]);
   const delStampa=i=>setStampe(p=>p.filter((_,j)=>j!==i));
   const [selVar,setSelVar]=useState(0);
   const [busy,setBusy]=useState(false);
@@ -10673,6 +10673,12 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
     if(!f.nome.trim()){ setErr("Il nome è obbligatorio."); return; }
     const varValide=varianti.filter(v=>String(v.nome).trim()||Number(v.costo_materiale)>0);
     if(!varValide.length){ setErr("Aggiungi almeno una variante (nome + costo materiale)."); return; }
+    if(gadget){
+      const sc=String(f.shop_quantita||"").split(/[,\s]+/).map(x=>parseInt(x,10)).filter(x=>x>0);
+      const minQ=Number(f.minimo)||0;
+      const sotto=sc.filter(x=>x<minQ);
+      if(minQ>0 && sotto.length){ setErr(`Le quantità scaglioni devono essere ≥ al minimo ordinabile (${minQ}). Correggi o rimuovi: ${sotto.join(", ")}.`); return; }
+    }
     setBusy(true); setErr("");
     try{
       const rec={nome:f.nome,tipo:f.tipo,categoria:(f.categoria||"").trim(),giorni_lavorazione:Number(f.giorni_lavorazione)||0,
@@ -10701,7 +10707,7 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
       const rf=fasce.filter(x=>x.da_quantita!=="").map((x,idx)=>({prodotto_id:id,da_quantita:Number(x.da_quantita)||1,sconto_pct:Number(x.sconto_pct)||0,ordine:idx}));
       if(rf.length){ const {error}=await sb.from("prodotti_config_fasce").insert(rf); if(error) throw error; }
       if(gadget){
-        const rs=stampe.filter(s=>String(s.nome).trim()).map((s,idx)=>({prodotto_id:id,nome:s.nome||"",area_cm:s.area_cm||"",
+        const rs=stampe.filter(s=>String(s.nome).trim()).map((s,idx)=>({prodotto_id:id,nome:s.nome||"",area_cm:s.area_cm||"",tecnica:s.tecnica||"",
           max_colori:Number(s.max_colori)||4,prezzo_pz:Number(s.prezzo_pz)||0,setup:Number(s.setup)||0,ordine:idx}));
         if(rs.length){ const {error}=await sb.from("prodotti_config_stampe").insert(rs); if(error) throw error; }
       }
@@ -10815,6 +10821,7 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
 
           {gadget && <div className="section">
             <h3>Posizioni di stampa</h3>
+            <datalist id="tecniche-stampa"><option value="Serigrafia"/><option value="Tampografia"/><option value="Stampa digitale"/><option value="Transfer / DTF"/><option value="Ricamo"/><option value="Incisione laser"/><option value="Doming / resinatura"/></datalist>
             <div className="muted" style={{fontSize:12,marginBottom:8}}>Dove si può stampare sul gadget e con quanti colori. Il cliente sceglie posizione e n° colori: il prezzo si somma. <b>Prezzo/pz</b> = costo per pezzo per ogni colore; <b>Setup</b> = costo una-tantum di attrezzaggio.</div>
             {stampe.map((s,i)=>
               <div className="subrow" key={i}>
@@ -10823,6 +10830,8 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
                     <input value={s.nome} onChange={e=>setStampa(i,"nome",e.target.value)} placeholder="es. Centrato sulla clip"/></div>
                   <div className="field" style={{maxWidth:130}}><label>Area (cm)</label>
                     <input value={s.area_cm} onChange={e=>setStampa(i,"area_cm",e.target.value)} placeholder="es. 3 × 4,3"/></div>
+                  <div className="field" style={{maxWidth:170}}><label>Tecnica</label>
+                    <input list="tecniche-stampa" value={s.tecnica||""} onChange={e=>setStampa(i,"tecnica",e.target.value)} placeholder="es. Serigrafia"/></div>
                   <button type="button" className="btn small danger" style={{alignSelf:"flex-end",marginBottom:12}} onClick={()=>delStampa(i)}>✕</button>
                 </div>
                 <div className="row" style={{alignItems:"flex-end"}}>
@@ -13623,6 +13632,7 @@ function AttivitaForm({profilo,clienti,attivita,clienteFisso,trattativaFissa,onC
   const nuovo=!attivita;
   const [f,setF]=useState(()=>({
     tipo:attivita?.tipo||"chiamata", cliente_id:attivita?.cliente_id||clienteFisso||"",
+    contatto:attivita?.contatto||"",
     data_ora:toLocalDT(attivita?.data_ora)||toLocalDT(new Date().toISOString()),
     esito:attivita?.esito||"", note:attivita?.note||"",
     completata:attivita?attivita.completata:true,
@@ -13634,7 +13644,7 @@ function AttivitaForm({profilo,clienti,attivita,clienteFisso,trattativaFissa,onC
   async function salva(e){ e&&e.preventDefault(); setBusy(true); setErr("");
     const cli=(clienti||[]).find(c=>c.id===f.cliente_id);
     const agente_id=isAgente?(profilo.agente_id||null):(cli?cli.agente_id:(attivita?attivita.agente_id:null));
-    const rec={ tipo:f.tipo, cliente_id:f.cliente_id||null, trattativa_id:(attivita?attivita.trattativa_id:trattativaFissa)||null,
+    const rec={ tipo:f.tipo, cliente_id:f.cliente_id||null, contatto:(f.cliente_id?"":(f.contatto||"").trim()), trattativa_id:(attivita?attivita.trattativa_id:trattativaFissa)||null,
       agente_id, data_ora:fromLocalDT(f.data_ora)||new Date().toISOString(), esito:f.esito||"", note:f.note||"",
       completata:!!f.completata, promemoria_il:fromLocalDT(f.promemoria_il) };
     try{
@@ -13676,6 +13686,8 @@ function AttivitaForm({profilo,clienti,attivita,clienteFisso,trattativaFissa,onC
             <option value="">— nessuno —</option>
             {(clienti||[]).map(c=><option key={c.id} value={c.id}>{c.ragione_sociale}</option>)}
           </select></div>}
+        {!clienteFisso && !f.cliente_id && <div className="field"><label>Nominativo <span className="muted" style={{textTransform:"none",fontWeight:400}}>(se non è un cliente in anagrafica)</span></label>
+          <input value={f.contatto} onChange={e=>set("contatto",e.target.value)} placeholder="es. nome contatto / azienda potenziale"/></div>}
         <div className="field"><label>Esito</label>
           <input value={f.esito} onChange={e=>set("esito",e.target.value)} placeholder="es. interessato, richiamare, ordine confermato…"/></div>
         <div className="field"><label>Note</label>
@@ -13804,7 +13816,7 @@ function ModuloAgenda({profilo,perm}){
     <div className="po-section" style={{color:col}}>{titolo} <span className="count">({lista.length})</span></div>
     {lista.map(a=>{ const T=TIPI_ATTIVITA[a.tipo]||TIPI_ATTIVITA.nota;
       return <div key={a.id} className="card" style={{padding:"10px 12px",marginBottom:8,display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}>
-        <div><div style={{fontWeight:600}}>{T.ico} {(a.clienti&&a.clienti.ragione_sociale)||"—"} <span className="muted" style={{fontWeight:400,fontSize:12}}>· {T.l}</span></div>
+        <div><div style={{fontWeight:600}}>{T.ico} {(a.clienti&&a.clienti.ragione_sociale)||a.contatto||"—"} <span className="muted" style={{fontWeight:400,fontSize:12}}>· {T.l}</span></div>
           {(a.note||a.esito) && <div className="muted" style={{fontSize:12}}>{a.esito||a.note}</div>}
           <div className="muted" style={{fontSize:11,marginTop:2}}>🕐 {new Date(a.promemoria_il).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</div></div>
         <button className="btn small primary" onClick={()=>completa(a.id)}>✓ Fatto</button>

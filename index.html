@@ -13794,37 +13794,51 @@ function ModuloAgenda({profilo,perm}){
   const [clienti,setClienti]=useState([]);
   const [editor,setEditor]=useState(null);
   const [err,setErr]=useState("");
+  const [vediSvolte,setVediSvolte]=useState(false);
   const carica=useCallback(async()=>{
+    let q=sb.from("crm_attivita").select("*, clienti(ragione_sociale)").not("promemoria_il","is",null);
+    if(!vediSvolte) q=q.eq("completata",false);
     const [a,c]=await Promise.all([
-      sb.from("crm_attivita").select("*, clienti(ragione_sociale)").eq("completata",false).not("promemoria_il","is",null).order("promemoria_il"),
+      q.order("promemoria_il"),
       sb.from("clienti").select("id,ragione_sociale,agente_id").order("ragione_sociale"),
     ]);
     if(a.error){ setErr(a.error.message); return; }
     setAtt(a.data||[]); setClienti(c.data||[]);
-  },[]);
+  },[vediSvolte]);
   useEffect(()=>{ carica(); },[carica]);
   async function completa(id){ await sb.from("crm_attivita").update({completata:true}).eq("id",id); carica(); }
+  async function riapri(id){ await sb.from("crm_attivita").update({completata:false}).eq("id",id); carica(); }
+  async function elimina(id){ if(!window.confirm("Eliminare definitivamente questa attività? (operazione irreversibile)")) return;
+    await sb.from("crm_attivita").delete().eq("id",id); carica(); }
   const oggi=new Date(); const inizioOggi=new Date(oggi.getFullYear(),oggi.getMonth(),oggi.getDate());
   const fine7=new Date(inizioOggi.getTime()+7*86400000);
-  const grp={scaduti:[],oggi:[],sett:[],oltre:[]};
-  (att||[]).forEach(a=>{ const d=new Date(a.promemoria_il);
+  const grp={scaduti:[],oggi:[],sett:[],oltre:[]}; const svolte=[];
+  (att||[]).forEach(a=>{ if(a.completata){ svolte.push(a); return; } const d=new Date(a.promemoria_il);
     if(d<inizioOggi) grp.scaduti.push(a);
     else if(d<new Date(inizioOggi.getTime()+86400000)) grp.oggi.push(a);
     else if(d<fine7) grp.sett.push(a);
     else grp.oltre.push(a); });
+  svolte.sort((x,y)=>String(y.promemoria_il||"").localeCompare(String(x.promemoria_il||"")));
   const sezione=(titolo,lista,col)=> lista.length>0 && <div className="section">
     <div className="po-section" style={{color:col}}>{titolo} <span className="count">({lista.length})</span></div>
     {lista.map(a=>{ const T=TIPI_ATTIVITA[a.tipo]||TIPI_ATTIVITA.nota;
-      return <div key={a.id} className="card" style={{padding:"10px 12px",marginBottom:8,display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}>
-        <div><div style={{fontWeight:600}}>{T.ico} {(a.clienti&&a.clienti.ragione_sociale)||a.contatto||"—"} <span className="muted" style={{fontWeight:400,fontSize:12}}>· {T.l}</span></div>
+      return <div key={a.id} className="card" onClick={()=>setEditor(a)} title="Clicca per riaprire e aggiornare" style={{padding:"10px 12px",marginBottom:8,display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",cursor:"pointer",...(a.completata?{opacity:.72}:{})}}>
+        <div><div style={{fontWeight:600}}>{T.ico} {(a.clienti&&a.clienti.ragione_sociale)||a.contatto||"—"} <span className="muted" style={{fontWeight:400,fontSize:12}}>· {T.l}</span>{a.completata && <span className="tag" style={{marginLeft:6,background:"#e6f4ee",color:"#1f9c68",fontSize:10.5}}>✓ svolta</span>}</div>
           {(a.note||a.esito) && <div className="muted" style={{fontSize:12}}>{a.esito||a.note}</div>}
           <div className="muted" style={{fontSize:11,marginTop:2}}>🕐 {new Date(a.promemoria_il).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</div></div>
-        <button className="btn small primary" onClick={()=>completa(a.id)}>✓ Fatto</button>
+        <div style={{display:"flex",gap:6,flexShrink:0}}>
+          {!a.completata
+            ? <button className="btn small primary" onClick={e=>{e.stopPropagation();completa(a.id);}}>✓ Fatto</button>
+            : <button className="btn small" onClick={e=>{e.stopPropagation();riapri(a.id);}} title="Rimetti tra i da fare">↩ Riapri</button>}
+          {perm.scrivi && <button className="btn small danger" onClick={e=>{e.stopPropagation();elimina(a.id);}} title="Elimina definitivamente (solo tu)">🗑</button>}
+        </div>
       </div>;})}
   </div>;
   return (
     <>
       <div className="topbar"><h1>📅 Agenda & Follow-up</h1>
+        <label className="btn" style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",whiteSpace:"nowrap"}} title="Mostra anche le attività già svolte (storico), per riaprirle">
+          <input type="checkbox" checked={vediSvolte} onChange={e=>setVediSvolte(e.target.checked)} style={{width:"auto"}}/> Mostra svolte</label>
         {perm.scrivi && <button className="btn primary" onClick={()=>setEditor({})}>+ Nuovo promemoria</button>}
       </div>
       <div className="content">
@@ -13836,6 +13850,7 @@ function ModuloAgenda({profilo,perm}){
                 {sezione("📌 Oggi",grp.oggi,"#b26a00")}
                 {sezione("🗓️ Prossimi 7 giorni",grp.sett,"#1e46c4")}
                 {sezione("Più avanti",grp.oltre,"#697386")}
+                {vediSvolte && sezione("✅ Svolte (storico)",svolte,"#1f9c68")}
               </>)}
       </div>
       {editor && <AttivitaForm profilo={profilo} clienti={clienti} attivita={editor.id?editor:null}

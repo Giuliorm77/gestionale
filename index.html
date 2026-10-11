@@ -13636,7 +13636,7 @@ function AttivitaForm({profilo,clienti,attivita,clienteFisso,contattoIniz,refere
     referente:attivita?.referente||"",
     data_ora:toLocalDT(attivita?.data_ora)||toLocalDT(new Date().toISOString()),
     esito:attivita?.esito||"", note:attivita?.note||"",
-    completata:attivita?attivita.completata:true,
+    completata:attivita?attivita.completata:false,
     promemoria_il:toLocalDT(attivita?.promemoria_il),
   }));
   const [busy,setBusy]=useState(false),[err,setErr]=useState("");

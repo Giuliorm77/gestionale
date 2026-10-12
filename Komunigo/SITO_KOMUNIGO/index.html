@@ -1,0 +1,1579 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>KOMUNIGO — Stampa, insegne e allestimenti</title>
+<style>
+  :root{
+    --paper:#F7F4EE; --surface:#FFFFFF; --surface-2:#F0EBDF; --ink:#1C2A44; --ink-soft:#55607A;
+    --ink-faint:#99A0B0; --line:#E4DFD2; --line-strong:#CFC8B7;
+    --navy:#1C2A44; --blu:#2E6FB0; --blu-wash:#E4EDF6; --sand:#A9884B; --sand-wash:#EFE7D4;
+    --ok:#2C7A54; --warn:#9A6712;
+    --shadow:0 1px 2px rgba(20,22,26,.05), 0 10px 30px rgba(20,22,26,.07);
+    --disp:"Bahnschrift SemiBold","Bahnschrift","DIN Alternate","Oswald","Barlow Condensed","Arial Narrow",sans-serif;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    --mono:"Cascadia Code","Consolas",ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --paper:#131727; --surface:#1A2033; --surface-2:#212840; --ink:#ECEBE4; --ink-soft:#A7ACBA;
+    --ink-faint:#6E7488; --line:#2C3350; --line-strong:#3C4468;
+    --navy:#ECEBE4; --blu:#5B9BD8; --blu-wash:#16233B; --sand:#C79A57; --sand-wash:#2A2417;
+    --shadow:0 1px 2px rgba(0,0,0,.34), 0 12px 36px rgba(0,0,0,.42);}}
+  *{box-sizing:border-box;}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.5;margin:0;-webkit-font-smoothing:antialiased;}
+  button{font-family:inherit;cursor:pointer;}
+  .disp{font-family:var(--disp);text-transform:uppercase;letter-spacing:.01em;}
+  .btn{background:var(--blu);color:#fff;border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:14px;}
+  .btn:hover{filter:brightness(1.06);}
+  .btn.ghost{background:transparent;color:var(--navy);border:1.5px solid var(--navy);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .pill{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--blu);}
+  .in{max-width:1200px;margin:0 auto;padding:0 24px;}
+
+  /* header a banda nera */
+  header.top{position:sticky;top:0;z-index:20;background:#15171C;box-shadow:var(--shadow);}
+  .topline{height:3px;background:linear-gradient(90deg,var(--blu) 0%,var(--blu) 76%,var(--sand) 100%);}
+  .top-in{max-width:1200px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;gap:20px;}
+  .brand{font-family:var(--disp);font-weight:700;text-transform:uppercase;font-size:25px;letter-spacing:.01em;color:#F7F4EE;background:none;border:none;padding:0;}
+  .brand .go{color:var(--blu);}
+  .search{flex:1;max-width:460px;display:flex;align-items:center;gap:8px;background:#22252C;border:1px solid #2c3037;border-radius:9px;padding:9px 13px;color:#8b9098;font-size:13.5px;}
+  .search input{flex:1;background:none;border:none;outline:none;color:#e8eaed;font:inherit;}
+  .search input::placeholder{color:#8b9098;}
+  .search-x{background:none;border:none;color:#8b9098;cursor:pointer;font-size:18px;line-height:1;padding:0 2px;}
+  .cat-search{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:0 0 10px;max-width:520px;}
+  .cat-search input{flex:1;background:none;border:none;outline:none;font:inherit;color:var(--ink);}
+  .cat-search .search-x{color:var(--ink-soft);}
+  .cat-toprow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  .cat-toprow .cat-search{flex:1;margin:0 0 10px;}
+  .iva-toggle{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:10px;}
+  .iva-toggle button{background:var(--surface);border:none;padding:8px 12px;font:inherit;font-size:13px;color:var(--ink-soft);cursor:pointer;}
+  .iva-toggle button.on{background:var(--blu);color:#fff;font-weight:700;}
+  .iva-toggle.sm{margin:0 10px 0 auto;}
+  .iva-toggle.sm button{padding:5px 9px;font-size:12px;}
+  .iva-tag{font-size:11px;color:var(--ink-soft);font-weight:600;}
+  nav.main{display:flex;gap:6px;}
+  nav.main button{background:transparent;border:none;color:#C7CBD3;font-size:14.5px;font-weight:600;padding:8px 12px;border-radius:8px;}
+  nav.main button.on{color:#fff;background:rgba(255,255,255,.08);}
+  .cart-btn{margin-left:auto;position:relative;background:var(--blu);color:#fff;border:none;border-radius:9px;padding:9px 15px;font-weight:700;font-size:13px;}
+  .cart-badge{position:absolute;top:-6px;right:-6px;background:var(--sand);color:#1a1300;border-radius:20px;font-size:11px;font-weight:800;min-width:18px;height:18px;display:grid;place-items:center;padding:0 4px;}
+  .band-panna{height:10px;background:var(--paper);}
+  @media(max-width:820px){.search{display:none;}}
+
+  .wrap{max-width:1200px;margin:0 auto;padding:26px 24px 70px;}
+  h2.sec{font-family:var(--disp);text-transform:uppercase;letter-spacing:.02em;font-weight:600;font-size:23px;margin:0 0 3px;}
+  .sec-sub{font-size:14px;color:var(--ink-soft);margin:0 0 16px;}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:44px 0 16px;}
+  .head .lnk{color:var(--blu);font-weight:700;font-size:13.5px;background:none;border:none;white-space:nowrap;}
+
+  /* hero navy */
+  .hero{background:linear-gradient(120deg,#1C2A44,#132038);color:#fff;border-radius:0;}
+  .hero-in{max-width:1200px;margin:0 auto;padding:46px 24px;display:grid;grid-template-columns:1.2fr .8fr;gap:26px;align-items:center;}
+  @media(max-width:760px){.hero-in{grid-template-columns:1fr;}}
+  .hero .tag{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8FB8E0;font-weight:700;}
+  .hero h1{font-family:var(--disp);text-transform:uppercase;font-weight:700;line-height:1;font-size:clamp(30px,5vw,52px);margin:12px 0 14px;text-wrap:balance;}
+  .hero h1 em{font-style:normal;color:#6FA8E0;}
+  .hero p{font-size:15.5px;color:#C7D2E4;margin:0 0 22px;max-width:46ch;}
+  .promo{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:var(--shadow);text-align:center;color:var(--ink);}
+  .promo .k{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--sand);font-weight:700;}
+  .promo .big{font-family:var(--disp);text-transform:uppercase;font-size:38px;margin:6px 0 2px;}
+  .promo .big b{color:var(--blu);}
+  .promo p{font-size:13px;color:var(--ink-soft);margin:4px 0 0;}
+
+  /* categorie */
+  .cats{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;}
+  @media(max-width:980px){.cats{grid-template-columns:repeat(3,1fr);}}
+  @media(max-width:560px){.cats{grid-template-columns:1fr 1fr;}}
+  .cat{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:18px 14px;text-align:center;box-shadow:var(--shadow);transition:transform .12s,border-color .12s;}
+  .cat:hover{transform:translateY(-3px);border-color:var(--blu);}
+  .cat .ic{width:50px;height:50px;margin:0 auto 10px;border-radius:12px;display:grid;place-items:center;font-size:23px;background:var(--blu-wash);}
+  .cat h4{font-family:var(--disp);text-transform:uppercase;font-size:15px;margin:0 0 2px;letter-spacing:.01em;}
+  .cat p{font-size:11.5px;color:var(--ink-soft);margin:0;}
+
+  /* card prodotto */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:13px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;}
+  .card .ph{aspect-ratio:4/3;background:var(--surface-2);display:grid;place-items:center;color:var(--ink-faint);font-size:30px;overflow:hidden;}
+  .card .ph img{width:100%;height:100%;object-fit:cover;}
+  .card .bd{padding:13px 14px;display:flex;flex-direction:column;gap:7px;flex:1;}
+  .card .cat-l{font-size:10.5px;color:var(--blu);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+  .card h3{margin:0;font-size:15px;line-height:1.25;}
+  .card .desc{font-size:12.5px;color:var(--ink-soft);flex:1;}
+  .card .row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;}
+  .price{font-size:17px;font-weight:800;}
+  .avail{font-size:11.5px;font-weight:700;}
+  .avail.ok{color:var(--ok);} .avail.no{color:var(--warn);}
+  .tag-conf{align-self:flex-start;background:var(--sand-wash);color:var(--sand);font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:20px;}
+  .add{font-weight:700;font-size:13px;padding:9px;border-radius:8px;border:none;background:var(--blu);color:#fff;width:100%;}
+  .add.g{background:transparent;color:var(--blu);border:1.5px solid var(--blu);}
+  .add:disabled{opacity:.5;cursor:not-allowed;}
+
+  /* offerte / lavori */
+  .banners{display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;}
+  @media(max-width:760px){.banners{grid-template-columns:1fr;}}
+  .ban{border-radius:15px;position:relative;min-height:170px;display:flex;flex-direction:column;justify-content:flex-end;padding:20px;color:#fff;box-shadow:var(--shadow);}
+  .ban.big{background:linear-gradient(120deg,#2E6FB0,#1c4a78);} .ban.s1{background:linear-gradient(120deg,#26324f,#141d30);} .ban.s2{background:linear-gradient(120deg,#A9884B,#7d5f2f);}
+  .ban .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.85;}
+  .ban h3{font-family:var(--disp);text-transform:uppercase;font-size:24px;margin:6px 0 4px;line-height:1;}
+  .ban p{font-size:13px;margin:0;opacity:.94;max-width:34ch;}
+  .ban .imgtag{position:absolute;top:12px;right:14px;font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;opacity:.6;}
+  .works{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  @media(max-width:760px){.works{grid-template-columns:1fr 1fr;}}
+  .work{aspect-ratio:1/1;border-radius:13px;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;color:#fff;box-shadow:var(--shadow);}
+  .work.w1{background:linear-gradient(160deg,#2E6FB0,#16233b);} .work.w2{background:linear-gradient(160deg,#3a4a68,#151d30);} .work.w3{background:linear-gradient(160deg,#5a6f92,#1c2a44);} .work.w4{background:linear-gradient(160deg,#24507f,#101b2e);}
+  .work b{font-family:var(--disp);text-transform:uppercase;font-size:15px;} .work span{font-size:11.5px;opacity:.9;}
+  .work .imgtag{position:absolute;top:10px;left:12px;font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;opacity:.6;}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  @media(max-width:760px){.steps{grid-template-columns:1fr 1fr;}}
+  .step{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:18px;box-shadow:var(--shadow);}
+  .step .n{font-family:var(--mono);font-weight:700;color:var(--blu);border:1.5px solid var(--blu);border-radius:8px;width:30px;height:30px;display:grid;place-items:center;font-size:13px;margin-bottom:10px;}
+  .step h4{font-family:var(--disp);text-transform:uppercase;font-size:15px;margin:0 0 3px;} .step p{font-size:12.5px;color:var(--ink-soft);margin:0;}
+
+  /* modale / configuratore */
+  .overlay{position:fixed;inset:0;background:rgba(15,20,30,.55);z-index:40;display:grid;place-items:center;padding:20px;}
+  .modal{background:var(--surface);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow);width:min(560px,100%);max-height:90vh;overflow:auto;}
+  .modal .mh{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;}
+  .modal .mh h3{margin:0;font-size:18px;flex:1;font-family:var(--disp);text-transform:uppercase;letter-spacing:.01em;}
+  .modal .mb{padding:20px;} .modal .mf{padding:16px 20px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;}
+  .x{background:transparent;border:none;font-size:22px;color:var(--ink-faint);line-height:1;}
+  label.fld{display:block;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin:12px 0 4px;}
+  input,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);font-size:14px;font-family:inherit;}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .opts label{display:flex;align-items:center;gap:8px;font-size:14px;margin:6px 0;font-weight:500;color:var(--ink);} .opts input{width:auto;}
+
+  /* carrello */
+  .cart-line{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow);}
+  .cart-line .g{flex:1;} .cart-line h4{margin:0 0 2px;font-size:15px;} .cart-line p{margin:0;font-size:12.5px;color:var(--ink-soft);}
+  .wiz-steps{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px 0;}
+  .wiz-step{font-size:12.5px;font-weight:700;color:var(--ink-soft);background:var(--line);border-radius:20px;padding:4px 12px;}
+  .wiz-step.on{background:var(--blu);color:#fff;}
+  .wiz-step.done{background:#e6f4ea;color:#1e7d34;}
+  .scaglioni{display:flex;flex-direction:column;gap:6px;}
+  .tier{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:10px 14px;cursor:pointer;font:inherit;color:var(--ink);}
+  .tier:hover{border-color:var(--blu);}
+  .tier.on{border-color:var(--blu);background:#eef4fb;box-shadow:0 0 0 1px var(--blu) inset;}
+  .tier .tq{font-weight:700;min-width:70px;}
+  .tier .tu{color:var(--ink-soft);font-size:13.5px;flex:1;}
+  .tier .tt{font-weight:700;}
+  .tier .tr{background:#e6f4ea;color:#1e7d34;border-radius:20px;padding:2px 9px;font-size:12px;font-weight:700;}
+  .price-da{font-size:15px;color:var(--ink);} .price-da b{color:var(--blu);font-size:17px;}
+  .stampa-pos{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
+  .stampa-pos.on{border-color:var(--blu);background:#f6faff;}
+  .stampa-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer;}
+  .stampa-nome{font-weight:600;}
+  .tec-badge{background:#eef0f4;color:var(--ink-soft);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;}
+  .stampa-area{display:flex;align-items:center;gap:10px;margin:8px 0 2px;}
+  .area-rect{display:inline-flex;align-items:center;justify-content:center;width:62px;height:34px;border:2px dashed var(--blu);border-radius:6px;color:var(--blu);font-size:10px;letter-spacing:.5px;text-transform:uppercase;opacity:.75;background:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(46,111,176,.06) 5px,rgba(46,111,176,.06) 10px);}
+  .area-lbl{font-size:12.5px;color:var(--ink-soft);}
+  .stampa-col{margin-top:8px;font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .campione-lnk{display:inline-block;margin-top:12px;font-size:13.5px;color:var(--blu);text-decoration:none;border:1px dashed var(--blu);border-radius:8px;padding:8px 12px;}
+  .campione-lnk:hover{background:#eef4fb;}
+  .trust{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);}
+  .trust-i{display:flex;gap:10px;align-items:flex-start;}
+  .trust-ic{font-size:20px;line-height:1.2;}
+  .trust-tx{display:flex;flex-direction:column;}
+  .trust-tx b{font-size:13.5px;color:var(--ink);}
+  .trust-tx span{font-size:12px;color:var(--ink-soft);}
+  .trust-c{box-shadow:none;background:transparent;border:1px dashed var(--line);padding:12px;grid-template-columns:repeat(2,1fr);}
+  @media(max-width:720px){ .trust{grid-template-columns:repeat(2,1fr);} }
+  .b2b-note{background:#eef4fb;border:1px solid #cfe0f2;color:#1C2A44;border-radius:10px;padding:10px 14px;font-size:14px;}
+  .listino-old{text-decoration:line-through;color:var(--ink-soft,#8a8a8a);font-weight:600;font-size:.82em;margin-left:8px;}
+  .b2b-badge{display:inline-block;background:#e7f0fa;color:var(--blu,#2E6FB0);border:1px solid #cfe0f2;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:700;}
+  .btn.small{padding:6px 12px;font-size:13px;}
+  .ft-links{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0 6px;}
+  .ft-lnk{background:none;border:none;color:#C7D2E4;cursor:pointer;font:inherit;font-size:14px;padding:0;text-decoration:underline;text-underline-offset:3px;}
+  .ft-lnk:hover{color:#fff;}
+  /* --- Linee guida file di stampa --- */
+  .lg-hero{background:var(--navy);color:#fff;border-radius:16px;padding:32px 28px;margin-bottom:28px;}
+  .lg-hero h1{margin:0 0 8px;font-size:30px;letter-spacing:.5px;}
+  .lg-hero p{margin:0;color:#C7D2E4;max-width:720px;line-height:1.55;}
+  .lg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;}
+  .lg-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow);}
+  .lg-card .lg-ico{font-size:26px;}
+  .lg-card h3{margin:8px 0 8px;font-size:18px;color:var(--ink);}
+  .lg-card p, .lg-card li{color:var(--ink-soft);font-size:14px;line-height:1.5;}
+  .lg-card ul{margin:8px 0 0;padding-left:18px;}
+  .lg-card b{color:var(--ink);}
+  .lg-diagram{width:100%;height:auto;border-radius:10px;margin-top:6px;}
+  .lg-progress{display:flex;align-items:center;gap:14px;margin:0 0 20px;}
+  .lg-bar{flex:1;height:10px;background:var(--line);border-radius:6px;overflow:hidden;}
+  .lg-bar span{display:block;height:100%;background:#1e7d34;border-radius:6px;transition:width .25s;}
+  .lg-progress-lbl{font-size:13px;color:var(--ink-soft);white-space:nowrap;}
+  .lg-items{margin-top:12px;display:flex;flex-direction:column;gap:2px;}
+  .lg-item{display:flex;gap:10px;align-items:flex-start;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:13.5px;color:var(--ink);line-height:1.45;}
+  .lg-item:hover{background:rgba(46,111,176,.06);}
+  .lg-item input{margin-top:2px;width:17px;height:17px;flex:0 0 auto;accent-color:#1e7d34;cursor:pointer;}
+  .lg-item.on span{color:var(--ink-soft);text-decoration:line-through;}
+  .lg-done{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;background:#eef7ee;border:1px solid #cfe6cf;color:#1e5b2a;border-radius:12px;padding:16px 20px;margin-top:22px;font-size:15px;}
+  .lg-done > div{flex:1;min-width:240px;}
+  .lg-check{background:#f3f8f2;border:1px solid #cfe6cf;border-radius:14px;padding:22px 24px;margin-top:30px;}
+  .lg-check h2{margin:0 0 14px;font-size:20px;color:var(--ink);}
+  .lg-check li{list-style:none;margin:8px 0;padding-left:30px;position:relative;color:var(--ink);font-size:15px;}
+  .lg-check li::before{content:"✓";position:absolute;left:0;top:0;color:#1e7d34;font-weight:800;}
+  .lg-cta{display:flex;gap:20px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-top:24px;box-shadow:var(--shadow);}
+  .lg-cta h2{margin:0 0 6px;font-size:19px;color:var(--ink);}
+  .lg-cta p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.5;flex:1;min-width:260px;}
+  .lg-actions{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin:0 0 20px;}
+  .lg-actions .lg-progress{flex:1;margin:0;min-width:220px;}
+  .lg-print-note{display:none;}
+  @media print{
+    .top, .band-panna, footer.ft, .no-print, .lg-cta button{display:none !important;}
+    body{background:#fff !important;}
+    .wrap{max-width:100% !important;padding:0 !important;}
+    .lg-print-note{display:block !important;text-align:right;font-size:11px;color:#555;margin:0 0 6px;}
+    .lg-hero{background:#fff !important;color:#000 !important;padding:0 0 10px !important;border:0;border-bottom:2px solid #1C2A44;border-radius:0;margin-bottom:14px;}
+    .lg-hero h1{color:#1C2A44 !important;font-size:22px;}
+    .lg-hero p{color:#333 !important;font-size:12px;}
+    .lg-grid{display:block !important;}
+    .lg-card{break-inside:avoid;border:0 !important;box-shadow:none !important;padding:4px 0 8px !important;}
+    .lg-card h3{font-size:15px;border-bottom:1px solid #bbb;padding-bottom:3px;margin:10px 0 6px;}
+    .lg-ico{display:none;}
+    .lg-items{gap:0;}
+    .lg-item{color:#000 !important;font-size:11.5px;padding:2px 0 !important;break-inside:avoid;}
+    .lg-item:hover{background:none;}
+    .lg-item input{-webkit-appearance:none;appearance:none;width:11px;height:11px;border:1px solid #333;border-radius:2px;background:#fff !important;}
+    .lg-item.on span{text-decoration:none !important;color:#000 !important;}
+    .lg-diagram{max-width:230px;}
+    .lg-done{display:none !important;}
+    .lg-cta{border:0 !important;box-shadow:none !important;background:#fff !important;padding:10px 0 0 !important;margin-top:14px;border-top:1px solid #bbb;border-radius:0;}
+    .lg-cta h2{font-size:14px;color:#000 !important;} .lg-cta p{font-size:11.5px;color:#333 !important;}
+    a{color:#000 !important;text-decoration:none;}
+  }
+  .cart-tot{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow);}
+  .cart-tot .r{display:flex;justify-content:space-between;font-size:14px;margin:5px 0;color:var(--ink-soft);}
+  .cart-tot .r.big{font-size:19px;font-weight:800;color:var(--ink);margin-top:10px;padding-top:10px;border-top:1px solid var(--line);}
+
+  .note{background:var(--blu-wash);border:1px solid var(--blu);border-radius:11px;padding:13px 15px;font-size:13.5px;margin-top:16px;color:var(--ink);}
+  .warn{background:var(--sand-wash);border:1px solid var(--sand);border-radius:11px;padding:13px 15px;font-size:13.5px;} .warn b{color:var(--sand);}
+  .empty{text-align:center;color:var(--ink-soft);padding:50px 20px;}
+  .muted{color:var(--ink-faint);font-size:13px;}
+  footer.ft{background:var(--navy);color:#C7D2E4;margin-top:56px;}
+  :root[data-theme="dark"] footer.ft{background:#0E1424;}
+  .ft-in{max-width:1200px;margin:0 auto;padding:28px 24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12.5px;}
+  .ft-in .brand{color:#fff;font-size:22px;}
+  /* --- pagina dettaglio prodotto (PDP) --- */
+  .pdp-back{background:none;border:none;color:var(--blu);font-weight:700;font-size:13.5px;padding:4px 0;margin-bottom:14px;cursor:pointer;}
+  .pdp{display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:start;}
+  @media(max-width:820px){.pdp{grid-template-columns:1fr;gap:22px;}}
+  .pdp-main{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);aspect-ratio:4/3;display:grid;place-items:center;overflow:hidden;}
+  .pdp-main img{width:100%;height:100%;object-fit:cover;}
+  .pdp-thumbs{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .pdp-thumb{width:64px;height:64px;border-radius:9px;overflow:hidden;border:1.5px solid var(--line);background:var(--surface);padding:0;cursor:pointer;}
+  .pdp-thumb.on{border-color:var(--blu);}
+  .pdp-thumb img{width:100%;height:100%;object-fit:cover;}
+  .pdp-title{font-family:var(--display,var(--sans));font-size:30px;line-height:1.12;margin:8px 0 4px;color:var(--ink);}
+  .pdp-sub{color:var(--ink-soft);font-size:15px;margin:0 0 12px;}
+  .pdp-desc{white-space:pre-wrap;color:var(--ink);font-size:14.5px;margin:10px 0 18px;}
+  .pdp-buy{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:16px;box-shadow:var(--shadow);}
+  .pdp-buy .price{font-size:24px;font-weight:800;color:var(--ink);}
+  .pdp-buy .add{width:auto;padding:11px 22px;margin-left:auto;}
+  .pdp-template{margin-top:18px;background:var(--sand-wash);border:1px solid var(--sand);border-radius:13px;padding:16px;}
+  .pdp-tpl-h{font-weight:800;color:var(--ink);font-size:15px;}
+  .btn-tpl{display:inline-block;background:var(--sand);color:#1a1300;font-weight:800;font-size:13.5px;padding:10px 16px;border-radius:9px;text-decoration:none;}
+  .pdp-specs{margin-top:34px;}
+  table.spec{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);}
+  table.spec th{text-align:left;width:38%;padding:11px 15px;background:var(--surface-2);color:var(--ink-soft);font-weight:700;font-size:13.5px;border-bottom:1px solid var(--line);vertical-align:top;}
+  table.spec td{padding:11px 15px;color:var(--ink);font-size:14px;border-bottom:1px solid var(--line);}
+  table.spec tr:last-child th,table.spec tr:last-child td{border-bottom:none;}
+  /* --- scelta spedizione nel carrello --- */
+  .ship{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow);}
+  .ship-h{margin:0 0 10px;font-size:15px;color:var(--ink);}
+  .ship-opt{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;}
+  .ship-opt.on{border-color:var(--blu);background:var(--blu-wash);}
+  .ship-opt input{width:auto;flex:0 0 auto;}
+  .ship-txt{flex:1;font-size:14px;color:var(--ink);}
+  .ship-price{font-weight:800;color:var(--ink);white-space:nowrap;}
+  /* --- carosello homepage --- */
+  .carousel{position:relative;width:100%;aspect-ratio:1920/720;max-height:460px;overflow:hidden;background:var(--navy);}
+  @media(max-width:700px){.carousel{aspect-ratio:16/10;}}
+  .cslide{position:absolute;inset:0;margin:0;opacity:0;transition:opacity .8s ease;pointer-events:none;}
+  .cslide.on{opacity:1;pointer-events:auto;}
+  .cslide img{width:100%;height:100%;object-fit:cover;display:block;}
+  /* --- barra filtri categorie --- */
+  .catbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;}
+  .catbar button{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:7px 15px;font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:all .12s;}
+  .catbar button:hover{border-color:var(--blu);color:var(--blu);}
+  .catbar button.on{background:var(--blu);color:#fff;border-color:var(--blu);}
+  .cslide figcaption{position:absolute;left:0;right:0;bottom:0;padding:24px 26px;background:linear-gradient(to top,rgba(8,13,26,.74),rgba(8,13,26,0));color:#fff;}
+  .cslide figcaption b{font-family:var(--display,var(--sans));font-size:23px;display:block;line-height:1.1;}
+  .cslide figcaption span{font-size:14px;opacity:.92;}
+  .cdots{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:2;}
+  .cdots button{width:9px;height:9px;border-radius:50%;border:0;background:rgba(255,255,255,.5);cursor:pointer;padding:0;}
+  .cdots button.on{background:#fff;}
+  .carousel:focus-visible{outline:2px solid var(--blu);outline-offset:-2px;}
+  @media (prefers-reduced-motion: reduce){.cslide{transition:none;}}
+  /* --- checkout (dati cliente) --- */
+  .co-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:640px){.co-grid{grid-template-columns:1fr;}}
+  .co-f{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-soft);}
+  .co-f.co-full{grid-column:1 / -1;}
+  /* --- pagina "I miei ordini" --- */
+  .ord-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:14px;}
+  .ord-riga{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px;}
+  .ord-riga-h b{color:var(--ink);}
+  .ord-files{display:flex;flex-direction:column;gap:6px;}
+  .ord-file{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;}
+  .ord-file-n{flex:1;font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .ord-file-n a{color:var(--blu);}
+  .ord-file-x{background:none;border:none;color:var(--ink-faint);font-size:18px;cursor:pointer;line-height:1;padding:0 2px;}
+  .ord-up{margin-top:auto;background:var(--blu);color:#fff;font-weight:700;font-size:13px;padding:9px;border-radius:8px;text-align:center;cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="config.js"></script>
+<script src="lib/react.production.min.js"></script>
+<script src="lib/react-dom.production.min.js"></script>
+<script src="lib/supabase.js"></script>
+<script src="lib/babel.min.js"></script>
+
+<script type="text/babel">
+const {useState,useEffect,useMemo}=React;
+const CFG=window.GESTIONALE_CONFIG||{};
+const sb=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_ANON_KEY);
+const IVA=0.22;
+const eur=n=>(Number(n)||0).toLocaleString("it-IT",{style:"currency",currency:"EUR"});
+// data stimata = oggi + N giorni LAVORATIVI (salta sabato e domenica)
+const dataStimata=(giorni)=>{ let n=Math.max(0,Number(giorni)||0); const d=new Date(); while(n>0){ d.setDate(d.getDate()+1); const w=d.getDay(); if(w!==0&&w!==6) n--; } return d.toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"}); };
+
+const CART_KEY="komunigo_cart";
+const leggiCart=()=>{try{return JSON.parse(localStorage.getItem(CART_KEY))||[];}catch(e){return [];}};
+const scriviCart=c=>{try{localStorage.setItem(CART_KEY,JSON.stringify(c));}catch(e){}};
+
+// ---- sconto B2B (mirror lato client della logica server) ----
+const clampPct=n=>{ n=Number(n)||0; return n<0?0:n>100?100:n; };
+const eur2=x=>Math.round((Number(x)||0)*100)/100;
+// prezzi memorizzati = IVA esclusa (imponibile). Vista con/senza IVA per il cliente.
+const conIva=(net,mode)=> mode==="incl"? Math.round((Number(net)||0)*(1+IVA)*100)/100 : (Number(net)||0);
+const ivaLbl=mode=> mode==="incl"?"IVA incl.":"IVA escl.";
+function scontoPerCat(profilo, categoria){
+  if(!profilo || !profilo.b2b) return 0;
+  const cat=String(categoria||"").trim().toLowerCase();
+  if(cat){ const e=(profilo.sconti_cat||[]).find(x=>String(x.categoria||"").trim().toLowerCase()===cat);
+    if(e && e.sconto_pct!=null && e.sconto_pct!=="") return clampPct(e.sconto_pct); }
+  if(profilo.sconto_std!=null && profilo.sconto_std!=="") return clampPct(profilo.sconto_std);
+  if((profilo.cliente_categoria||"")==="Rivenditore") return clampPct(profilo.sconto_riv_std);
+  return 0;
+}
+const prezzoNet=(listino, profilo, categoria)=>eur2(Number(listino||0)*(1-scontoPerCat(profilo,categoria)/100));
+
+const ORD_KEY="komunigo_ordine_token";   // ultimo ordine del cliente (per "I miei ordini")
+const leggiOrdToken=()=>{try{return localStorage.getItem(ORD_KEY)||"";}catch(e){return "";}};
+const scriviOrdToken=t=>{try{ if(t) localStorage.setItem(ORD_KEY,t); }catch(e){}};
+
+function App(){
+  const urlToken=(()=>{ try{ return new URLSearchParams(window.location.search).get("ordine")||""; }catch(e){ return ""; } })();
+  const [vista,setVista]=useState(urlToken?"ordine":"home");
+  const [ordineToken,setOrdineToken]=useState(urlToken||"");
+  const [cart,setCart]=useState(leggiCart);
+  useEffect(()=>{scriviCart(cart);},[cart]);
+  const addCart=(riga)=>setCart(c=>[...c,{...riga,rid:Date.now()+"-"+Math.random().toString(36).slice(2,7)}]);
+  const delCart=(rid)=>setCart(c=>c.filter(r=>r.rid!==rid));
+  const nPezzi=cart.reduce((s,r)=>s+(Number(r.quantita)||1),0);
+  const apriOrdine=(tok)=>{ if(!tok) return; setOrdineToken(tok); setVista("ordine"); };
+  const onOrdineCreato=(tok)=>{ scriviOrdToken(tok); setCart([]); apriOrdine(tok); };
+  const ultimoOrd=leggiOrdToken();
+  const [catFiltro,setCatFiltro]=useState("");
+  const vaiCat=(cat)=>{ setCatFiltro(typeof cat==="string"?cat:""); setVista("catalogo"); };
+  const [ricerca,setRicerca]=useState("");
+  const cercaIn=(q)=>{ setRicerca(q); if(vista!=="catalogo") setVista("catalogo"); };
+  // vista prezzi IVA inclusa/esclusa (default: B2B → esclusa, altrimenti inclusa)
+  const [ivaMode,setIvaMode]=useState(()=>{ try{return localStorage.getItem("komunigo_iva")||"";}catch(e){return "";} });
+  useEffect(()=>{ try{ if(ivaMode) localStorage.setItem("komunigo_iva",ivaMode); }catch(e){} },[ivaMode]);
+  const [sess,setSess]=useState(null);
+  const [account,setAccount]=useState(null);
+  const [authOpen,setAuthOpen]=useState(false);
+  useEffect(()=>{
+    sb.auth.getSession().then(({data})=>setSess(data.session||null));
+    const {data:sub}=sb.auth.onAuthStateChange((_e,s)=>setSess(s||null));
+    return ()=>{ try{ sub.subscription.unsubscribe(); }catch(e){} };
+  },[]);
+  useEffect(()=>{ (async()=>{
+    if(!sess){ setAccount(null); return; }
+    try{ const {data}=await sb.from("komunigo_account").select("*").eq("id",sess.user.id).maybeSingle(); setAccount(data||null); }catch(e){ setAccount(null); }
+  })(); },[sess]);
+  const logout=async()=>{ await sb.auth.signOut(); setAccount(null); setProfiloB2b(null); setVista("home"); };
+  const nomeAcc = (account&&(account.ragione_sociale||account.nome||account.azienda)) || (sess&&sess.user.email) || "Account";
+  const iva = ivaMode || (account&&account.stato==="b2b"?"escl":"incl");   // vista prezzi effettiva
+
+  // profilo sconti B2B del cliente loggato (per prezzi riservati a magazzino)
+  const [profiloB2b,setProfiloB2b]=useState(null);
+  useEffect(()=>{ (async()=>{
+    if(!account || account.stato!=="b2b"){ setProfiloB2b(null); return; }
+    try{ const {data}=await sb.functions.invoke("komunigo-ordine",{body:{action:"profilo-prezzi"}}); setProfiloB2b(data&&data.b2b?data:null); }
+    catch(e){ setProfiloB2b(null); }
+  })(); },[account]);
+
+  // riordino rapido: ricarica le righe di un ordine passato nel carrello
+  const riordina=async(token)=>{
+    try{
+      const {data}=await sb.functions.invoke("komunigo-ordine",{body:{action:"dettaglio",token}});
+      const righe=(data&&data.righe)||[];
+      righe.forEach(r=>addCart(r.tipo==="configurabile"
+        ? {tipo:"configurabile",prodotto_config_id:r.prodotto_config_id,descrizione:r.descrizione,config:r.config||{},quantita:Number(r.quantita)||1,prezzo_unitario:Number(r.prezzo_unitario)||0,prezzo_totale:Number(r.prezzo_totale)||0}
+        : {tipo:"prodotto",articolo_id:r.articolo_id,descrizione:r.descrizione,quantita:Number(r.quantita)||1,prezzo_unitario:Number(r.prezzo_unitario)||0,prezzo_totale:Number(r.prezzo_totale)||0}));
+      if(righe.length) setVista("carrello");
+    }catch(e){}
+  };
+
+  return (
+    <div>
+      <header className="top">
+        <div className="topline"></div>
+        <div className="top-in">
+          <button className="brand" onClick={()=>setVista("home")}>Komuni<span className="go">go</span></button>
+          <form className="search" onSubmit={e=>{e.preventDefault(); setVista("catalogo");}}>
+            <span>🔍</span>
+            <input value={ricerca} onChange={e=>cercaIn(e.target.value)} placeholder="Cerca prodotti, lavorazioni…"/>
+            {ricerca && <button type="button" className="search-x" onClick={()=>setRicerca("")} aria-label="Pulisci">×</button>}
+          </form>
+          <nav className="main">
+            <button className={vista==="home"?"on":""} onClick={()=>setVista("home")}>Home</button>
+            <button className={vista==="catalogo"?"on":""} onClick={()=>vaiCat("")}>Catalogo</button>
+            {(!sess && (ultimoOrd||ordineToken)) && <button className={vista==="ordine"?"on":""} onClick={()=>apriOrdine(ordineToken||ultimoOrd)}>I miei ordini</button>}
+            {sess
+              ? <button className={vista==="account"?"on":""} onClick={()=>setVista("account")}>👤 {nomeAcc}</button>
+              : <button onClick={()=>setAuthOpen(true)}>Accedi</button>}
+          </nav>
+          <button className="cart-btn" onClick={()=>setVista("carrello")}>🛒 Carrello
+            {nPezzi>0 && <span className="cart-badge">{nPezzi}</span>}</button>
+        </div>
+      </header>
+      <div className="band-panna"></div>
+
+      {vista==="home"     && <Home vaiCatalogo={vaiCat}/>}
+      {vista!=="home" && <div className="wrap">
+        {vista==="catalogo" && <Catalogo addCart={addCart} catInit={catFiltro} profilo={profiloB2b} vaiGuida={()=>setVista("guida")} ricerca={ricerca} setRicerca={setRicerca} iva={iva} setIva={setIvaMode}/>}
+        {vista==="carrello" && <Carrello cart={cart} delCart={delCart} vaiCatalogo={()=>setVista("catalogo")} onOrdineCreato={onOrdineCreato} account={account} profilo={profiloB2b}/>}
+        {vista==="ordine" && <OrdinePagina token={ordineToken||ultimoOrd} vaiCatalogo={()=>setVista("catalogo")}/>}
+        {vista==="account" && <AccountPagina account={account} sess={sess} onLogout={logout} vaiCatalogo={()=>vaiCat("")} apriOrdine={apriOrdine} onAccountChange={setAccount} riordina={riordina}/>}
+        {vista==="guida" && <LineeGuida vaiCatalogo={()=>setVista("catalogo")}/>}
+      </div>}
+
+      {authOpen && <AuthModal onClose={()=>setAuthOpen(false)}/>}
+
+      <footer className="ft">
+        <div className="ft-in">
+          <div className="brand disp">Komuni<span style={{color:"var(--blu)"}}>go</span></div>
+          <div className="ft-links">
+            <button className="ft-lnk" onClick={()=>setVista("guida")}>📄 Linee guida file di stampa</button>
+            <button className="ft-lnk" onClick={()=>vaiCat("")}>Catalogo</button>
+          </div>
+          <div>Creatio Group · Stampa &amp; Allestimenti — komunigo.it · Catalogo e prezzi dal gestionale.</div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// =====================================================================
+//  HOME  (struttura a piani)
+// =====================================================================
+// carosello a scorrimento automatico (banda sotto l'hero)
+function Carosello({items}){
+  const [i,setI]=useState(0);
+  const [paused,setPaused]=useState(false);
+  const [touchX,setTouchX]=useState(null);
+  const n=items.length;
+  const reduce = typeof window!=="undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  useEffect(()=>{
+    if(n<2 || paused || reduce) return;
+    const t=setInterval(()=>setI(x=>(x+1)%n), 5000);
+    return ()=>clearInterval(t);
+  },[n,paused,reduce]);
+  useEffect(()=>{ if(i>=n) setI(0); },[n,i]);
+  if(!n) return null;
+  const vai=d=>setI(x=>((x+d)%n+n)%n);
+  const onTS=e=>setTouchX(e.touches[0].clientX);
+  const onTE=e=>{ if(touchX==null) return; const dx=e.changedTouches[0].clientX-touchX; if(Math.abs(dx)>40) vai(dx<0?1:-1); setTouchX(null); };
+  return (
+    <div className="carousel" tabIndex={0} onMouseEnter={()=>setPaused(true)} onMouseLeave={()=>setPaused(false)}
+      onTouchStart={onTS} onTouchEnd={onTE}
+      onKeyDown={e=>{ if(e.key==="ArrowRight") vai(1); if(e.key==="ArrowLeft") vai(-1); }}
+      aria-roledescription="carosello">
+      {items.map((it,idx)=>(
+        <figure className={"cslide "+(idx===i?"on":"")} key={it.id} aria-hidden={idx!==i}>
+          <img src={kPubShop(it.path)} alt={it.titolo||""}/>
+          {(it.titolo||it.sottotitolo) && <figcaption><b>{it.titolo}</b>{it.sottotitolo?<span>{it.sottotitolo}</span>:null}</figcaption>}
+        </figure>
+      ))}
+      {n>1 && <div className="cdots">{items.map((_,idx)=>
+        <button key={idx} className={idx===i?"on":""} onClick={()=>setI(idx)} aria-label={"Vai alla foto "+(idx+1)}/>)}</div>}
+    </div>
+  );
+}
+
+function BarraFiducia({compact}){
+  const items=[
+    ["✅","Produzione solo dopo approvazione","Stampiamo dopo la tua conferma"],
+    ["🎨","Bozza grafica gratuita","Simulazione di stampa prima di produrre"],
+    ["🚚","Spedizione o ritiro","In tutta Italia, o ritiro in sede"],
+    ["🧪","Campione neutro","Vuoi toccarlo prima? Chiedicelo"],
+  ];
+  return <div className={"trust"+(compact?" trust-c":"")}>{items.map(([ic,t,s])=>(
+    <div className="trust-i" key={t}><span className="trust-ic">{ic}</span><div className="trust-tx"><b>{t}</b><span>{s}</span></div></div>))}</div>;
+}
+function Home({vaiCatalogo}){
+  const [evid,setEvid]=useState(null);
+  const [lavori,setLavori]=useState([]);
+  const [carosello,setCarosello]=useState([]);
+  useEffect(()=>{ (async()=>{
+    try{ const {data}=await sb.from("komunigo_prodotti").select("*").order("nome").limit(4); setEvid(data||[]); }
+    catch(e){ setEvid([]); }
+  })(); },[]);
+  useEffect(()=>{ (async()=>{
+    try{ const {data}=await sb.from("komunigo_lavori_pub").select("*").order("ordine"); setLavori(data||[]); }catch(e){}
+  })(); },[]);
+  useEffect(()=>{ (async()=>{
+    try{ const {data}=await sb.from("komunigo_carosello_pub").select("*").order("ordine"); setCarosello(data||[]); }catch(e){}
+  })(); },[]);
+
+  return (
+    <div>
+      <section className="hero">
+        <div className="hero-in">
+          <div>
+            <span className="tag">Stampa · Insegne · Allestimenti</span>
+            <h1>La tua comunicazione, stampata e <em>installata</em> come si deve.</h1>
+            <p>Le lavorazioni che garantiamo ogni giorno e i prodotti in casa. E ciò che i giganti non fanno: montiamo noi, sul posto.</p>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              <button className="btn" onClick={vaiCatalogo}>Vai al catalogo →</button>
+              <button className="btn ghost" style={{color:"#fff",borderColor:"#6FA8E0"}} onClick={vaiCatalogo}>Configura su misura</button>
+            </div>
+          </div>
+          <div className="promo">
+            <div className="k">Sconti a quantità</div>
+            <div className="big">fino al <b>−40%</b></div>
+            <p>Più pezzi ordini, più risparmi. Il prezzo scende da solo nel configuratore.</p>
+          </div>
+        </div>
+      </section>
+
+      <div className="in"><BarraFiducia/></div>
+
+      {carosello.length>0 && <Carosello items={carosello}/>}
+
+      <div className="in">
+        <div className="head"><div><h2 className="sec">Cosa stampiamo</h2><p className="sec-sub">Scegli la categoria e parti.</p></div><button className="lnk" onClick={vaiCatalogo}>Tutto il catalogo →</button></div>
+        <div className="cats">
+          {[["🖨️","Stampa","Grande formato"],["💡","Insegne","Luminose, installate"],["🎁","Gadget","Personalizzati"],["🎪","Allestimenti","Eventi & stand"],["📦","Cartotecnica","Packaging"],["🎨","Su misura","Configuratore"]].map(([ic,t,s])=>(
+            <button className="cat" key={t} onClick={()=>vaiCatalogo(t==="Su misura"?"":t)}><div className="ic">{ic}</div><h4>{t}</h4><p>{s}</p></button>
+          ))}
+        </div>
+
+        <div className="head"><div><h2 className="sec">In evidenza</h2><p className="sec-sub">Pronti a magazzino, disponibilità reale.</p></div><button className="lnk" onClick={vaiCatalogo}>Vedi tutti →</button></div>
+        {evid===null ? <div className="empty">Carico…</div>
+          : evid.length===0
+            ? <p className="muted">Presto in vetrina: nel gestionale spunta “vendibile” su qualche articolo, con prezzo pubblico e foto.</p>
+            : <div className="grid">{evid.map(p=>{ const disp=Number(p.disponibile)||0; return (
+                <div className="card" key={p.id}>
+                  <div className="ph">{Array.isArray(p.foto_urls)&&p.foto_urls[0]?<img src={p.foto_urls[0]} alt={p.nome}/>:"📦"}</div>
+                  <div className="bd">{p.categoria && <span className="cat-l">{p.categoria}</span>}<h3>{p.nome}</h3>
+                    <div className="row"><span className="price">{eur(p.prezzo)}</span><span className={"avail "+(disp>0?"ok":"no")}>{disp>0?disp+" disp.":"Esaurito"}</span></div>
+                    <button className="add" onClick={vaiCatalogo}>Vai al catalogo</button></div>
+                </div>); })}</div>}
+
+        <div className="head"><div><h2 className="sec">Offerte &amp; convenienza</h2><p className="sec-sub">Prezzi onesti, e più risparmi sui volumi.</p></div><span></span></div>
+        <div className="banners">
+          <div className="ban big"><span className="imgtag">[ foto lavoro ]</span><span className="k">Sconti a scaglioni</span><h3>Più ne fai, meno costano</h3><p>Il configuratore applica lo sconto quantità in automatico — lo vedi prima di ordinare.</p></div>
+          <div className="ban s1"><span className="imgtag">[ foto ]</span><span className="k">Ogni settimana</span><h3>In offerta</h3><p>Una lavorazione a prezzo speciale.</p></div>
+          <div className="ban s2"><span className="imgtag">[ foto ]</span><span className="k">Consegna</span><h3>Ritiro gratis</h3><p>Ritira in sede o spedizione tracciata.</p></div>
+        </div>
+
+        <div className="head"><div><h2 className="sec">Fatti da noi, installati da noi</h2><p className="sec-sub">Il pezzo che i grandi portali non hanno: montaggio, sopralluogo, servizio locale.</p></div><span></span></div>
+        <div className="works">
+          {lavori.length>0
+            ? lavori.map(l=>(
+                <div className="work" key={l.id} style={l.path?{background:"#16233b"}:{background:"linear-gradient(160deg,#2E6FB0,#16233b)"}}>
+                  {l.path && <img src={kPubShop(l.path)} alt={l.titolo||""} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>}
+                  {l.path && <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(10,16,30,.78),rgba(10,16,30,0) 55%)"}}/>}
+                  <b style={{position:"relative"}}>{l.titolo}</b><span style={{position:"relative"}}>{l.sottotitolo}</span>
+                </div>))
+            : <>
+                <div className="work w1"><span className="imgtag">[ foto reale ]</span><b>Insegna luminosa</b><span>Negozio · centro città</span></div>
+                <div className="work w2"><span className="imgtag">[ foto reale ]</span><b>Allestimento fiera</b><span>Stand 6×4</span></div>
+                <div className="work w3"><span className="imgtag">[ foto reale ]</span><b>Vetrofania</b><span>Vetrina completa</span></div>
+                <div className="work w4"><span className="imgtag">[ foto reale ]</span><b>Totem &amp; grande formato</b><span>Evento sportivo</span></div>
+              </>}
+        </div>
+
+        <div className="head"><div><h2 className="sec">Come funziona</h2><p className="sec-sub">Semplice, dall'ordine alla posa.</p></div><span></span></div>
+        <div className="steps">
+          {[["1","Configura","Misure, materiale, file. Prezzo subito."],["2","Paga sicuro","Carta gestita da Nexi. I dati non passano dal sito."],["3","Produciamo","L'ordine entra in produzione da noi."],["4","Consegna o posa","Spedizione, ritiro, o installazione sul posto."]].map(([n,t,p])=>(
+            <div className="step" key={n}><div className="n">{n}</div><h4>{t}</h4><p>{p}</p></div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =====================================================================
+//  CATALOGO
+// =====================================================================
+function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva, setIva}){
+  const [prodotti,setProdotti]=useState(null);
+  const [conf,setConf]=useState(null);
+  const [errore,setErrore]=useState("");
+  const [dettaglio,setDettaglio]=useState(null);
+  const [cat,setCat]=useState(catInit||"");
+  const [prezziDa,setPrezziDa]=useState({});   // {confId: prezzo unitario base} per i gadget
+  useEffect(()=>{ setCat(catInit||""); },[catInit]);
+
+  useEffect(()=>{ (async()=>{
+    try{
+      const [p,c]=await Promise.all([
+        sb.from("komunigo_prodotti").select("*").order("nome"),
+        sb.from("komunigo_configuratori").select("*").order("nome"),
+      ]);
+      if(p.error) throw p.error;
+      if(c.error) throw c.error;
+      setProdotti(p.data||[]); setConf(c.data||[]);
+    }catch(e){ setErrore(e.message||String(e)); setProdotti([]); setConf([]); }
+  })(); },[]);
+
+  // prezzo "da €X/pz" per i gadget (minimo pezzi, senza stampa) — come fanno i competitor
+  useEffect(()=>{ (async()=>{
+    const gz=(conf||[]).filter(c=>c.tipo==="gadget");
+    if(!gz.length) return;
+    try{
+      const res=await Promise.all(gz.map(c=>sb.functions.invoke("hyper-endpoint",{body:{prodotto_id:c.id, quantita:Number(c.minimo)||1}})
+        .then(r=>({id:c.id, unit:(r.data && !r.data.sotto_costo)? Number(r.data.prezzo_unitario)||0 : 0})).catch(()=>({id:c.id,unit:0}))));
+      const m={}; res.forEach(x=>{ if(x.unit>0) m[x.id]=x.unit; }); setPrezziDa(m);
+    }catch(e){}
+  })(); },[conf]);
+
+  if(errore) return (
+    <div className="warn"><b>Vetrina non ancora disponibile.</b> Esegui prima la migrazione
+      <code> komunigo-v1.sql </code> in Supabase (crea le viste pubbliche). Dettaglio: {errore}</div>
+  );
+  if(prodotti===null || conf===null) return <div className="empty">Carico il catalogo…</div>;
+  if(dettaglio) return <ProdottoDettaglio tipo={dettaglio.tipo} prod={dettaglio.prod} addCart={addCart} onBack={()=>setDettaglio(null)} profilo={profilo} vaiGuida={vaiGuida} iva={iva} setIva={setIva}/>;
+
+  const catList=[...new Set([...conf,...prodotti].map(x=>x.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const matchCat = x => !cat || String(x.categoria||"").toLowerCase()===cat.toLowerCase();
+  const q=(ricerca||"").trim().toLowerCase();
+  const matchQ = x => !q || [x.nome,x.descrizione,x.note,x.categoria,x.codice].filter(Boolean).join(" ").toLowerCase().includes(q);
+  const gadget = conf.filter(c=>c.tipo==="gadget" && matchCat(c) && matchQ(c));
+  const misura = conf.filter(c=>c.tipo!=="gadget" && matchCat(c) && matchQ(c));
+  const stock  = prodotti.filter(x=>matchCat(x) && matchQ(x));
+  const nTot = gadget.length+misura.length+stock.length;
+  const vuoto = nTot===0;
+
+  const cardConf = (c,isGadget) => (
+    <div className="card" key={c.id} style={{cursor:"pointer"}} onClick={()=>setDettaglio({tipo:"configuratore",prod:c})}>
+      <div className="ph">{isGadget?"🎁":"🎨"}</div>
+      <div className="bd"><span className="tag-conf">{isGadget?"Personalizzabile":"Su misura"}</span><h3>{c.nome}</h3>
+        <div className="desc">{c.note||"Prodotto personalizzabile."}</div>
+        <div className="row">{isGadget && prezziDa[c.id]
+          ? <span className="price-da">da <b>{eur(conIva(prezziDa[c.id],iva))}</b>/pz <span className="iva-tag">{ivaLbl(iva)}</span></span>
+          : <span className="muted">{Number(c.giorni_lavorazione)>0?`pronto in ~${c.giorni_lavorazione} gg lav.`:"prezzo su configurazione"}</span>}</div>
+        <button className="add" onClick={e=>{e.stopPropagation();setDettaglio({tipo:"configuratore",prod:c});}}>{isGadget?"Personalizza":"Vedi e configura"}</button></div>
+    </div>);
+
+  return (
+    <div>
+      {profilo && profilo.b2b && <div className="b2b-note">🤝 <b>Prezzi riservati B2B{profilo.cliente_nome?" · "+profilo.cliente_nome:""}</b> — lo sconto del tuo listino è già applicato ai prezzi qui sotto.</div>}
+      <div className="cat-toprow">
+        <div className="cat-search">
+          <span>🔍</span>
+          <input value={ricerca||""} onChange={e=>setRicerca(e.target.value)} placeholder="Cerca per nome, categoria, codice…"/>
+          {q && <button className="search-x" onClick={()=>setRicerca("")} aria-label="Pulisci">×</button>}
+        </div>
+        {setIva && <div className="iva-toggle" title="Mostra i prezzi con o senza IVA">
+          <button className={iva==="escl"?"on":""} onClick={()=>setIva("escl")}>IVA escl.</button>
+          <button className={iva==="incl"?"on":""} onClick={()=>setIva("incl")}>IVA incl.</button>
+        </div>}
+      </div>
+      {q && <p className="muted" style={{margin:"2px 0 10px"}}><b>{nTot}</b> {nTot===1?"risultato":"risultati"} per «{ricerca}» {(cat)?`in ${cat} `:""}<button className="lnk" onClick={()=>{setRicerca("");setCat("");}}>azzera</button></p>}
+      {catList.length>0 && <div className="catbar">
+        <button className={!cat?"on":""} onClick={()=>setCat("")}>Tutti</button>
+        {catList.map(cc=><button key={cc} className={cat.toLowerCase()===cc.toLowerCase()?"on":""} onClick={()=>setCat(cc)}>{cc}</button>)}
+      </div>}
+
+      {gadget.length>0 && <>
+        <h2 className="sec">🎁 Gadget personalizzati</h2>
+        <p className="sec-sub">Scegli colore, quantità e dove stampare: il prezzo lo calcola il sistema.</p>
+        <div className="grid">{gadget.map(c=>cardConf(c,true))}</div>
+      </>}
+
+      {misura.length>0 && <>
+        <h2 className="sec" style={{marginTop:gadget.length?40:0}}>Lavorazioni su misura</h2>
+        <p className="sec-sub">Scegli materiale e misure: il prezzo lo calcola il nostro sistema.</p>
+        <div className="grid">{misura.map(c=>cardConf(c,false))}</div>
+      </>}
+
+      {stock.length>0 && <>
+        <h2 className="sec" style={{marginTop:(gadget.length||misura.length)?40:0}}>Pronti a magazzino</h2>
+        <p className="sec-sub">Disponibilità reale dal nostro magazzino.</p>
+        <div className="grid">{stock.map(p=>{ const disp=Number(p.disponibile)||0; const sc=scontoPerCat(profilo,p.categoria); const net=prezzoNet(p.prezzo,profilo,p.categoria); return (
+          <div className="card" key={p.id} style={{cursor:"pointer"}} onClick={()=>setDettaglio({tipo:"articolo",prod:p})}>
+            <div className="ph">{Array.isArray(p.foto_urls)&&p.foto_urls[0]?<img src={p.foto_urls[0]} alt={p.nome}/>:"📦"}</div>
+            <div className="bd">{p.categoria && <span className="cat-l">{p.categoria}</span>}<h3>{p.nome}</h3>
+              <div className="desc">{p.descrizione||""}</div>
+              <div className="row"><span className="price">{eur(conIva(net,iva))}{sc>0 && <span className="listino-old">{eur(conIva(p.prezzo,iva))}</span>}</span>
+                <span className={"avail "+(disp>0?"ok":"no")}>{disp>0?disp+" disp.":"Esaurito"}</span></div>
+              <button className="add" onClick={e=>{e.stopPropagation();setDettaglio({tipo:"articolo",prod:p});}}>Vedi prodotto</button></div>
+          </div>); })}</div>
+      </>}
+
+      {vuoto && (q||cat) && <p className="muted">Nessun prodotto{q?` per «${ricerca}»`:""}{cat?` nella categoria «${cat}»`:""}. <button className="lnk" onClick={()=>{setRicerca&&setRicerca("");setCat("");}}>Vedi tutto il catalogo</button></p>}
+      {vuoto && !q && !cat && <p className="muted">Catalogo in allestimento. (Nel gestionale: attiva i configuratori o rendi "vendibile" gli articoli.)</p>}
+    </div>
+  );
+}
+
+// =====================================================================
+//  DETTAGLIO PRODOTTO (scheda: descrizione, caratteristiche, galleria, template)
+// =====================================================================
+const kPubShop = path => path ? sb.storage.from("komunigo-public").getPublicUrl(path).data.publicUrl : "";
+
+function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida, iva, setIva}){
+  const [scheda,setScheda]=useState(null);   // null = sto caricando
+  const [cfgOpen,setCfgOpen]=useState(false);
+  const [imgSel,setImgSel]=useState(0);
+  useEffect(()=>{ (async()=>{
+    try{
+      const {data}=await sb.from("komunigo_schede_pub").select("*").eq("tipo",tipo).eq("ref_id",prod.id).maybeSingle();
+      setScheda(data||{});
+    }catch(e){ setScheda({}); }
+  })(); },[tipo,prod.id]);
+
+  if(scheda===null) return <div className="empty">Carico la scheda…</div>;
+
+  const imgs = Array.isArray(scheda.immagini)? scheda.immagini : [];
+  const galleria = imgs.map(x=>kPubShop(x.path)).filter(Boolean);
+  if(!galleria.length && tipo==="articolo" && Array.isArray(prod.foto_urls)) galleria.push(...prod.foto_urls.filter(Boolean));
+  const carat = Array.isArray(scheda.caratteristiche)? scheda.caratteristiche.filter(c=>c && (c.label||c.valore)) : [];
+  const disp = tipo==="articolo" ? (Number(prod.disponibile)||0) : null;
+  const fotoMain = galleria[imgSel] || galleria[0] || null;
+
+  return (
+    <div>
+      <button className="pdp-back" onClick={onBack}>← Torna al catalogo</button>
+      <div className="pdp">
+        <div className="pdp-media">
+          <div className="pdp-main">{fotoMain? <img src={fotoMain} alt={prod.nome}/> : <span style={{fontSize:64}}>{tipo==="configuratore"?"🎨":"📦"}</span>}</div>
+          {galleria.length>1 && <div className="pdp-thumbs">{galleria.map((u,i)=>
+            <button key={i} className={"pdp-thumb "+(i===imgSel?"on":"")} onClick={()=>setImgSel(i)}><img src={u} alt=""/></button>)}</div>}
+        </div>
+        <div className="pdp-info">
+          {tipo==="configuratore"? <span className="tag-conf">Su misura</span> : (prod.categoria && <span className="cat-l">{prod.categoria}</span>)}
+          <h1 className="pdp-title">{prod.nome}</h1>
+          {scheda.sottotitolo && <p className="pdp-sub">{scheda.sottotitolo}</p>}
+          {scheda.descrizione && <div className="pdp-desc">{scheda.descrizione}</div>}
+
+          {tipo==="articolo" && (()=>{ const sc=scontoPerCat(profilo,prod.categoria); const net=prezzoNet(prod.prezzo,profilo,prod.categoria); return <div className="pdp-buy">
+            <span className="price">{eur(conIva(net,iva))} <span className="iva-tag">{ivaLbl(iva)}</span>{sc>0 && <span className="listino-old">{eur(conIva(prod.prezzo,iva))}</span>}</span>
+            {sc>0 && <span className="b2b-badge">−{sc}% riservato</span>}
+            <span className={"avail "+(disp>0?"ok":"no")}>{disp>0?disp+" disp.":"Esaurito"}</span>
+            <button className="add" disabled={disp<=0}
+              onClick={()=>addCart({tipo:"prodotto",articolo_id:prod.id,descrizione:prod.nome,quantita:1,prezzo_unitario:net,prezzo_totale:net})}>
+              {disp>0?"Aggiungi al carrello":"Non disponibile"}</button>
+          </div>; })()}
+          {tipo==="configuratore" && <div className="pdp-buy">
+            <span className="muted">Prezzo calcolato sulla tua configurazione</span>
+            <button className="add" onClick={()=>setCfgOpen(true)}>Configura e ordina</button>
+          </div>}
+
+          {Number(prod.giorni_lavorazione)>0
+            ? <div className="muted" style={{fontSize:13,marginTop:10}}>📦 Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {prod.giorni_lavorazione} gg lavorativi + spedizione)</span></div>
+            : (tipo==="articolo" && disp>0 && <div className="muted" style={{fontSize:13,marginTop:10}}>📦 <b>Pronto</b> per la spedizione</div>)}
+
+          <div style={{marginTop:14}}><BarraFiducia compact/></div>
+
+          {scheda.template_path && <div className="pdp-template">
+            <div className="pdp-tpl-h">📄 Template / layout di stampa</div>
+            <p className="muted" style={{margin:"4px 0 10px",fontSize:13}}>{scheda.template_note||"Scarica il file, posiziona la tua grafica nell'area indicata ed esporta in PDF."}</p>
+            <a className="btn-tpl" href={kPubShop(scheda.template_path)} target="_blank" rel="noopener noreferrer" download>⬇ Scarica il template ({scheda.template_nome||"PDF"})</a>
+          </div>}
+
+          {vaiGuida && <p className="muted" style={{fontSize:13,marginTop:12}}>📄 Come preparare il file? <button className="lnk" onClick={vaiGuida}>Leggi le linee guida di stampa →</button></p>}
+
+          {tipo==="configuratore" && <a className="campione-lnk" href={`mailto:info@komunigo.it?subject=${encodeURIComponent("Richiesta campione neutro — "+prod.nome)}&body=${encodeURIComponent("Vorrei ricevere un campione NEUTRO (senza stampa) di: "+prod.nome+"\n\nNome/azienda:\nIndirizzo di spedizione:\nTelefono:\n\nGrazie!")}`}>🧪 Vuoi provarlo prima? <b>Ordina un campione neutro</b></a>}
+        </div>
+      </div>
+
+      {carat.length>0 && <div className="pdp-specs">
+        <h2 className="sec">Caratteristiche</h2>
+        <table className="spec"><tbody>{carat.map((c,i)=>
+          <tr key={i}><th>{c.label}</th><td>{c.valore}</td></tr>)}</tbody></table>
+      </div>}
+
+      {cfgOpen && <Configuratore prod={prod} chiudi={()=>setCfgOpen(false)} addCart={addCart} iva={iva} setIva={setIva}/>}
+    </div>
+  );
+}
+
+// =====================================================================
+//  CONFIGURATORE
+// =====================================================================
+const FORMATI_STAMPA_SHOP=[{nome:"32×44"},{nome:"33×48,8"}];
+function Configuratore({prod,chiudi,addCart,iva,setIva}){
+  const gadget = prod.tipo==="gadget";
+  const isStampa = prod.tipo==="stampa";
+  const shopQta = (Array.isArray(prod.shop_quantita)? prod.shop_quantita.map(n=>Number(n)).filter(n=>n>0) : [])
+    .filter(n=> !gadget || n>=(Number(prod.minimo)||0));   // sui gadget mai sotto il minimo ordinabile
+  const misMin = Number(prod.shop_mis_min)||0, misMax = Number(prod.shop_mis_max)||0;   // cm (dal DB)
+  const misMinMm = misMin*10, misMaxMm = misMax*10;                                     // mm (per l'utente)
+  const [varianti,setVarianti]=useState([]);
+  const [voci,setVoci]=useState([]);
+  const [stampe,setStampe]=useState([]);
+  const [stSel,setStSel]=useState({});   // {stampa_id: n_colori}
+  const [variante,setVariante]=useState("");
+  const [larg,setLarg]=useState(isStampa?85:1000), [alt,setAlt]=useState(isStampa?55:700), [qta,setQta]=useState(shopQta.length?shopQta[0]:(gadget?(Number(prod.minimo)||1):isStampa?100:1));
+  const [opzioni,setOpzioni]=useState({});
+  const [stMacchina,setStMacchina]=useState("piccolo"), [stFmt,setStFmt]=useState("auto"), [stColore,setStColore]=useState(true), [stFr,setStFr]=useState(false);
+  const [prezzo,setPrezzo]=useState(null);
+  const [stato,setStato]=useState("");
+  const [tiers,setTiers]=useState(null);   // scaglioni calcolati [{qta,res,unit,tot,risparmio}]
+
+  useEffect(()=>{ (async()=>{
+    const [v,c,s]=await Promise.all([
+      sb.from("komunigo_configuratori_varianti").select("*").eq("prodotto_id",prod.id).order("ordine"),
+      sb.from("komunigo_configuratori_voci").select("*").eq("prodotto_id",prod.id).order("ordine"),
+      gadget? sb.from("komunigo_configuratori_stampe").select("*").eq("prodotto_id",prod.id).order("ordine") : Promise.resolve({data:[]}),
+    ]);
+    setVarianti(v.data||[]); setVoci((c.data||[]).filter(x=>x.opzionale)); setStampe(s.data||[]);
+    if((v.data||[]).length) setVariante(v.data[0].id);
+  })(); },[prod.id]);
+
+  const stArr = ()=>Object.keys(stSel).filter(id=>stSel[id]>0).map(id=>({stampa_id:id, colori:stSel[id]}));
+
+  const bodyFor=(q)=> gadget
+    ? { prodotto_id:prod.id, variante_id:variante, quantita:Number(q), stampe:stArr() }
+    : { prodotto_id:prod.id, variante_id:variante, larghezza_cm:Number(larg)/10, altezza_cm:Number(alt)/10, quantita:Number(q), opzioni:Object.keys(opzioni).filter(k=>opzioni[k]),
+        ...(isStampa?{st_macchina:stMacchina, st_fmt:stFmt, st_colore:stColore, st_fr:stFr}:{}) };
+
+  const calcola=async()=>{
+    setStato("calcolo"); setPrezzo(null); setTiers(null);
+    try{
+      if(shopQta.length){
+        // calcola il prezzo per ogni scaglione e mostra la tabella (più ne ordini, meno costa)
+        const res=await Promise.all(shopQta.map(q=>sb.functions.invoke("hyper-endpoint",{body:bodyFor(q)}).then(r=>({q,data:r.data,error:r.error})).catch(e=>({q,error:e}))));
+        const rows=res.filter(x=>!x.error && x.data && Number(x.data.prezzo_totale)>0 && !x.data.sotto_costo)
+          .map(x=>({qta:x.q, res:x.data, unit:Number(x.data.prezzo_unitario)||0, tot:Number(x.data.prezzo_totale)||0}));
+        if(!rows.length){ setStato("errore"); return; }
+        const unitBase=Math.max(...rows.map(r=>r.unit));
+        rows.forEach(r=>r.risparmio = unitBase>0? Math.round((1-r.unit/unitBase)*100):0);
+        setTiers(rows);
+        const sel=rows.find(r=>r.qta===Number(qta))||rows[0];
+        setQta(sel.qta); setPrezzo(sel.res); setStato("");
+      }else{
+        const {data,error}=await sb.functions.invoke("hyper-endpoint",{body:bodyFor(qta)});
+        if(error) throw error;
+        setPrezzo(data); setStato("");
+      }
+    }catch(e){ setStato("errore"); }
+  };
+  const selTier=(t)=>{ setQta(t.qta); setPrezzo(t.res); };
+  const invalida=()=>{ setPrezzo(null); setTiers(null); };
+  // wizard a step (solo gadget): 1 Colore · 2 Stampa · 3 Quantità
+  const [step,setStep]=useState(1);
+  const hasStampe = gadget && stampe.length>0;
+  const nextStep=()=>setStep(s=> s===1? (hasStampe?2:3) : 3);
+  const prevStep=()=>setStep(s=> s===3? (hasStampe?2:1) : 1);
+
+  const prezzoOk = prezzo && Number(prezzo.prezzo_totale) > 0 && !prezzo.sotto_costo
+    && !(isStampa && prezzo.impaginazione && !prezzo.impaginazione.valido);
+
+  const aggiungi=()=>{
+    if(!prezzoOk) return;
+    const va=varianti.find(x=>x.id===variante);
+    const config = gadget
+      ? {variante_id:variante, quantita:Number(qta), stampe:stArr()}
+      : {variante_id:variante, larghezza_cm:Number(larg)/10, altezza_cm:Number(alt)/10, opzioni:Object.keys(opzioni).filter(k=>opzioni[k]),
+         ...(isStampa?{st_macchina:stMacchina, st_fmt:stFmt, st_colore:stColore, st_fr:stFr}:{})};
+    const descr = gadget
+      ? prod.nome+(va?" · "+va.nome:"")+` · ${qta} pz`
+      : isStampa
+        ? prod.nome+(va?" · "+va.nome:"")+` · ${larg}×${alt}mm · ${qta} pz`
+        : prod.nome+(va?" · "+va.nome:"")+` · ${larg}×${alt}mm`;
+    addCart({ tipo:"configurabile", prodotto_config_id:prod.id, descrizione:descr, config,
+      quantita:Number(qta), prezzo_unitario:Number(prezzo.prezzo_unitario)||0, prezzo_totale:Number(prezzo.prezzo_totale)||0});
+    chiudi();
+  };
+
+  return (
+    <div className="overlay">
+      <div className="modal">
+        <div className="mh"><h3>{prod.nome}</h3>
+          {setIva && <div className="iva-toggle sm">
+            <button className={iva==="escl"?"on":""} onClick={()=>setIva("escl")}>IVA escl.</button>
+            <button className={iva==="incl"?"on":""} onClick={()=>setIva("incl")}>IVA incl.</button>
+          </div>}
+          <button className="x" onClick={chiudi}>×</button></div>
+        {gadget && <div className="wiz-steps">
+          {[[1,"Colore"],...(hasStampe?[[2,"Stampa"]]:[]),[3,"Quantità"]].map(([n,l])=>
+            <span key={n} className={"wiz-step"+(step===n?" on":"")+(step>n?" done":"")}>{n}. {l}</span>)}
+        </div>}
+        <div className="mb">
+          {varianti.length>0 && (!gadget||step===1) && <>
+            <label className="fld">{gadget?"Colore":isStampa?"Carta":"Materiale / variante"}</label>
+            <select value={variante} onChange={e=>{setVariante(e.target.value);invalida();}}>
+              {varianti.map(v=><option key={v.id} value={v.id}>{v.nome}{(!gadget&&!isStampa&&v.spessore)?` (${v.spessore}mm)`:""}</option>)}
+            </select></>}
+          {!gadget && <><div className="two">
+            <div><label className="fld">{isStampa?"Larghezza pezzo (mm)":"Larghezza (mm)"}</label>
+              <input type="number" step="1" value={larg} min={misMinMm||1} max={misMaxMm||undefined} onChange={e=>{setLarg(e.target.value);setPrezzo(null);}}/></div>
+            <div><label className="fld">{isStampa?"Altezza pezzo (mm)":"Altezza (mm)"}</label>
+              <input type="number" step="1" value={alt} min={misMinMm||1} max={misMaxMm||undefined} onChange={e=>{setAlt(e.target.value);setPrezzo(null);}}/></div>
+          </div>
+          {(misMin>0||misMax>0) && <div className="muted" style={{fontSize:12}}>Misura {misMinMm>0?`da ${misMinMm}`:""}{misMaxMm>0?` fino a ${misMaxMm}`:""} mm per lato.</div>}</>}
+          {(!gadget||step===3) && <><label className="fld">Quantità{gadget&&prod.minimo?` · minimo ${prod.minimo}`:""}</label>
+          {shopQta.length
+            ? (()=>{ const showP=!!(tiers&&prezzo); const tmap={}; (tiers||[]).forEach(t=>tmap[t.qta]=t); return (
+                <div className="scaglioni">
+                  {shopQta.map(q=>{ const t=tmap[q]; const on=Number(qta)===q; return (
+                    <button type="button" key={q} className={"tier"+(on?" on":"")}
+                      onClick={()=>{ if(showP&&t){ selTier(t); } else { setQta(q); } }}>
+                      <span className="tq">{q} pz</span>
+                      {showP&&t
+                        ? <><span className="tu">{eur(conIva(t.unit,iva))}/pz</span><span className="tt">{eur(conIva(t.tot,iva))}</span>{t.risparmio>0 && <span className="tr">−{t.risparmio}%</span>}</>
+                        : <span className="tu muted">da calcolare</span>}
+                    </button>); })}
+                  <div className="muted" style={{fontSize:12,marginTop:4}}>Più pezzi ordini, meno costano. {showP?"Tocca la quantità che preferisci.":"Premi “Calcola prezzi”."}</div>
+                </div>); })()
+            : <input type="number" value={qta} min={gadget?(prod.minimo||1):1} onChange={e=>{setQta(e.target.value);invalida();}}/>}</>}
+          {isStampa && <div className="opts" style={{marginTop:12}}>
+            <label className="fld">Stampa</label>
+            <div className="two">
+              <div><label className="fld" style={{fontWeight:400}}>Colori</label>
+                <select value={stColore?"col":"bn"} onChange={e=>{setStColore(e.target.value==="col");setPrezzo(null);}}>
+                  <option value="col">A colori</option><option value="bn">Bianco e nero</option>
+                </select></div>
+            </div>
+            <label style={{display:"flex",gap:8,alignItems:"center",marginTop:8}}>
+              <input type="checkbox" checked={stFr} onChange={e=>{setStFr(e.target.checked);setPrezzo(null);}}/> Fronte/retro</label>
+          </div>}
+          {gadget && step===2 && stampe.length>0 && <div className="opts"><label className="fld">Dove stampare</label>
+            {stampe.map(s=>{ const col=stSel[s.id]||0; return (
+              <div key={s.id} className={"stampa-pos"+(col>0?" on":"")}>
+                <label className="stampa-head"><input type="checkbox" checked={col>0}
+                  onChange={e=>{ setStSel(o=>({...o,[s.id]:e.target.checked?1:0})); setPrezzo(null); }}/>
+                  <span className="stampa-nome">{s.nome}</span>
+                  {s.tecnica?<span className="tec-badge">{s.tecnica}</span>:null}</label>
+                <div className="stampa-area">
+                  <span className="area-rect">area</span>
+                  <span className="area-lbl">Area di stampa{s.area_cm?` · ${s.area_cm} cm`:""}</span>
+                </div>
+                {col>0 && <div className="stampa-col">N° colori <input type="number" min="1" max={s.max_colori||4} value={col} style={{width:56,padding:"4px 6px"}}
+                  onChange={e=>{ const n=Math.max(1,Math.min(Number(e.target.value)||1, s.max_colori||4)); setStSel(o=>({...o,[s.id]:n})); setPrezzo(null); }}/> <span className="muted" style={{fontSize:12}}>(dal n° colori del tuo logo)</span></div>}
+              </div>); })}
+          </div>}
+          {!gadget && voci.length>0 && <div className="opts"><label className="fld">Opzioni</label>
+            {voci.map(v=>(<label key={v.id}><input type="checkbox" checked={!!opzioni[v.id]}
+              onChange={e=>{setOpzioni(o=>({...o,[v.id]:e.target.checked}));setPrezzo(null);}}/>{v.descrizione}</label>))}
+          </div>}
+          {(!gadget||step===3) && Number(prod.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}>📦 Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {prod.giorni_lavorazione} gg lavorativi + spedizione)</span></div>}
+          {(!gadget||step===3) && <div className="note" style={{marginTop:12}}>📎 Dopo l'ordine carichi il file grafico e ricevi la <b>bozza di stampa da approvare</b> prima della produzione.</div>}
+          {stato==="errore" && <div className="warn" style={{marginTop:14}}>
+            <b>Motore prezzi non ancora collegato.</b> Serve la Edge Function <code>prezzo-configuratore</code>. Fino ad allora il preventivo si fa dal gestionale.</div>}
+          {(!gadget||step===3) && prezzoOk && <div className="cart-tot" style={{marginTop:14}}>
+            {Number(prezzo.sconto_pct)>0 && <>
+              <div className="r"><span>Prezzo di listino</span><span className="listino-old" style={{marginLeft:0}}>{eur(conIva(prezzo.prezzo_listino_totale,iva))}</span></div>
+              <div className="r" style={{color:"var(--blu)",fontWeight:700}}><span>Sconto riservato B2B</span><span>−{prezzo.sconto_pct}%</span></div>
+            </>}
+            <div className="r"><span>Prezzo unitario</span><span>{eur(conIva(prezzo.prezzo_unitario,iva))}</span></div>
+            <div className="r big"><span>Totale ({qta} pz) <span className="iva-tag">{ivaLbl(iva)}</span></span><span>{eur(conIva(prezzo.prezzo_totale,iva))}</span></div></div>}
+          {(!gadget||step===3) && prezzo && !prezzoOk && <div className="warn" style={{marginTop:14}}>
+            <b>Prezzo su richiesta.</b> Per questa configurazione contattaci a <a href="mailto:info@komunigo.it">info@komunigo.it</a> e ti facciamo un preventivo su misura.</div>}
+        </div>
+        <div className="mf">
+          {gadget ? <>
+            {step>1 && <button className="btn ghost" onClick={prevStep}>← Indietro</button>}
+            {step<3 && <button className="btn" onClick={nextStep}>Avanti →</button>}
+            {step===3 && (prezzoOk
+              ? <button className="btn" onClick={aggiungi}>Aggiungi al carrello</button>
+              : <button className="btn" onClick={calcola} disabled={stato==="calcolo"}>{stato==="calcolo"?"Calcolo…":"Calcola prezzi"}</button>)}
+          </> : <>
+            {prezzoOk
+              ? <button className="btn" onClick={aggiungi}>Aggiungi al carrello</button>
+              : <button className="btn" onClick={calcola} disabled={stato==="calcolo"}>{stato==="calcolo"?"Calcolo…":(shopQta.length?"Calcola prezzi":"Calcola prezzo")}</button>}
+          </>}
+          <button className="btn ghost" onClick={chiudi}>Annulla</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =====================================================================
+//  CARRELLO
+// =====================================================================
+function Carrello({cart,delCart,vaiCatalogo,onOrdineCreato,account,profilo}){
+  const [invio,setInvio]=useState("");
+  const [err,setErr]=useState("");
+  const [spedOpts,setSpedOpts]=useState(null);
+  const [spedSel,setSpedSel]=useState("");
+  const [pagOpts,setPagOpts]=useState(null);
+  const [pagSel,setPagSel]=useState("");
+  const [espos,setEspos]=useState(0);   // esposizione differita già in corso del cliente
+  const [cli,setCli]=useState(()=>{
+    const a=account;
+    const addr = a ? (a.consegna_uguale===false
+      ? [a.consegna_indirizzo,a.consegna_cap,a.consegna_citta,a.consegna_provincia].filter(Boolean).join(", ")
+      : [a.indirizzo,a.cap,a.citta,a.provincia].filter(Boolean).join(", ")) : "";
+    return {nome:(a&&(a.ragione_sociale||a.nome||a.azienda))||"", email:(a&&a.email)||"", tel:(a&&a.telefono)||"", indirizzo:addr};
+  });
+  useEffect(()=>{ (async()=>{
+    try{
+      const [s,p]=await Promise.all([
+        sb.from("komunigo_spedizioni_pub").select("*").order("ordine"),
+        sb.from("komunigo_pagamenti_pub").select("*").order("ordine"),
+      ]);
+      const so=s.data||[]; setSpedOpts(so); if(so.length) setSpedSel(so[0].id);
+      const po=p.data||[]; setPagOpts(po); if(po.length) setPagSel(po[0].metodo);
+    }catch(e){ setSpedOpts([]); setPagOpts([]); }
+  })(); },[]);
+  // esposizione differita già in corso (ordini a conto aperto non ancora saldati)
+  useEffect(()=>{ (async()=>{
+    if(!(account && account.pagamento_differito)){ setEspos(0); return; }
+    try{ const {data}=await sb.from("komunigo_ordini").select("totale,pagamento_metodo,pagamento_stato").eq("account_id",account.id);
+      setEspos((data||[]).filter(o=>o.pagamento_metodo==="differito" && !["pagato","annullato"].includes(o.pagamento_stato)).reduce((s,o)=>s+(Number(o.totale)||0),0));
+    }catch(e){ setEspos(0); }
+  })(); },[account]);
+
+  const imponibileMerce=cart.reduce((s,r)=>s+(Number(r.prezzo_totale)||0),0);
+  const sped=(spedOpts||[]).find(o=>o.id===spedSel)||null;
+  const spedCosto=sped? (Number(sped.prezzo)||0) : 0;
+  const imponibile=imponibileMerce+spedCosto;
+  const iva=imponibile*IVA;
+  const totale=imponibile+iva;
+  const setC=(k,v)=>setCli(p=>({...p,[k]:v}));
+  const emailOk=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cli.email.trim());
+  const serveIndirizzo = sped && !sped.ritiro;
+  // il "pagamento al ritiro" si offre solo se la consegna è il ritiro in sede
+  const pagDisponibili=(pagOpts||[]).filter(p=> p.metodo!=="ritiro" || (sped&&sped.ritiro));
+  // conto aperto (pagamento differito): solo per clienti B2B con differito attivo
+  const dif = !!(account && account.pagamento_differito);
+  const fido = Number(account && account.fido_massimo)||0;
+  const ggPag = (account && account.giorni_pagamento)||30;
+  const metodoDifferito = dif ? {metodo:"differito", nome:`Conto aperto — pagamento a ${ggPag} giorni`, descrizione:"Paghi a fattura, senza anticipo"} : null;
+  const metodiMostrati = [...pagDisponibili, ...(metodoDifferito?[metodoDifferito]:[])];
+  const sforaFido = pagSel==="differito" && fido>0 && (espos+totale)>fido;
+  const pagOk = pagSel && metodiMostrati.some(p=>p.metodo===pagSel);
+  const puoConfermare = cli.nome.trim() && emailOk && (!serveIndirizzo || cli.indirizzo.trim()) && pagOk;
+
+  const conferma=async()=>{
+    setInvio("attesa"); setErr("");
+    try{
+      const {data,error}=await sb.functions.invoke("komunigo-ordine",{body:{
+        action:"crea",
+        cliente:{nome:cli.nome.trim(), email:cli.email.trim(), tel:cli.tel.trim()},
+        spedizione_id: sped? sped.id : null,
+        indirizzo: serveIndirizzo? cli.indirizzo.trim() : null,
+        pagamento_metodo: pagSel,
+        righe: cart.map(r=>({ tipo:r.tipo, articolo_id:r.articolo_id, prodotto_config_id:r.prodotto_config_id,
+          descrizione:r.descrizione, config:{...(r.config||{}), quantita:r.quantita}, quantita:r.quantita })),
+      }});
+      if(error) throw error;
+      if(data && data.error) throw new Error(data.error);
+      if(data && data.token){ onOrdineCreato(data.token); return; }
+      throw new Error("Risposta inattesa dal server");
+    }catch(e){ setInvio(""); setErr(e.message||String(e)); }
+  };
+
+  if(cart.length===0) return (
+    <div className="empty"><p style={{fontSize:18,fontWeight:700}}>Il carrello è vuoto</p>
+      <button className="btn" onClick={vaiCatalogo}>Vai al catalogo</button></div>
+  );
+
+  return (
+    <div>
+      <h2 className="sec">Il tuo carrello</h2>
+      <div style={{marginTop:14}}>
+        {cart.map(r=>(
+          <div className="cart-line" key={r.rid}>
+            <div className="g"><h4>{r.descrizione}</h4>
+              <p>{r.quantita} × {eur(r.prezzo_unitario)}{r.tipo==="configurabile"?" · su misura":""}</p></div>
+            <div className="price">{eur(r.prezzo_totale)}</div>
+            <button className="x" title="Rimuovi" onClick={()=>delCart(r.rid)}>×</button>
+          </div>
+        ))}
+      </div>
+
+      <div className="ship">
+        <h3 className="ship-h">Consegna</h3>
+        {spedOpts===null? <p className="muted">Carico le opzioni di consegna…</p>
+         : spedOpts.length===0? <p className="muted">Nessuna opzione di consegna configurata. (Nel gestionale: Impostazioni → Spedizioni Komunigo.)</p>
+         : spedOpts.map(o=>{ const gratis=o.ritiro||Number(o.prezzo)===0; return (
+            <label className={"ship-opt "+(o.id===spedSel?"on":"")} key={o.id}>
+              <input type="radio" name="sped" checked={o.id===spedSel} onChange={()=>setSpedSel(o.id)}/>
+              <span className="ship-txt"><b>{o.nome}</b>{o.descrizione?<span className="muted"> — {o.descrizione}</span>:null}</span>
+              <span className="ship-price">{gratis?"Gratis":eur(o.prezzo)}</span>
+            </label>); })}
+      </div>
+
+      <div className="ship" style={{marginTop:16}}>
+        <h3 className="ship-h">Pagamento</h3>
+        {pagOpts===null? <p className="muted">Carico i metodi di pagamento…</p>
+         : metodiMostrati.length===0? <p className="muted">Nessun metodo di pagamento attivo. (Nel gestionale: Impostazioni → Metodi di pagamento.)</p>
+         : metodiMostrati.map(p=>(
+            <label className={"ship-opt "+(p.metodo===pagSel?"on":"")+(p.metodo==="differito"?" ship-b2b":"")} key={p.metodo}>
+              <input type="radio" name="pag" checked={p.metodo===pagSel} onChange={()=>setPagSel(p.metodo)}/>
+              <span className="ship-txt"><b>{p.nome}</b>{p.metodo==="differito"?<span className="b2b-badge" style={{marginLeft:8}}>B2B</span>:null}{p.descrizione?<span className="muted"> — {p.descrizione}</span>:null}</span>
+            </label>))}
+        {sforaFido && <div className="warn" style={{marginTop:10}}>⚠️ Con questo ordine superi il <b>fido concordato</b> ({eur(espos+totale)} su {eur(fido)}). Puoi comunque procedere: ti contatteremo per l'importo eccedente.</div>}
+      </div>
+
+      {profilo && profilo.b2b && <div className="b2b-note" style={{marginTop:12}}>🤝 <b>Prezzi riservati B2B applicati.</b> Gli importi vengono ricalcolati con il tuo sconto alla conferma dell'ordine.</div>}
+      <div className="cart-tot" style={{marginTop:16}}>
+        <div className="r"><span>Imponibile merce</span><span>{eur(imponibileMerce)}</span></div>
+        {sped && <div className="r"><span>Trasporto — {sped.nome}</span><span>{spedCosto===0?"Gratis":eur(spedCosto)}</span></div>}
+        <div className="r"><span>IVA 22%</span><span>{eur(iva)}</span></div>
+        <div className="r big"><span>Totale</span><span>{eur(totale)}</span></div>
+      </div>
+
+      <div className="ship" style={{marginTop:16}}>
+        <h3 className="ship-h">I tuoi dati</h3>
+        <div className="co-grid">
+          <label className="co-f"><span>Nome e cognome / azienda *</span>
+            <input value={cli.nome} onChange={e=>setC("nome",e.target.value)} placeholder="Es. Mario Rossi"/></label>
+          <label className="co-f"><span>Email *</span>
+            <input type="email" value={cli.email} onChange={e=>setC("email",e.target.value)} placeholder="nome@email.it"/></label>
+          <label className="co-f"><span>Telefono</span>
+            <input value={cli.tel} onChange={e=>setC("tel",e.target.value)} placeholder="(facoltativo)"/></label>
+          {serveIndirizzo && <label className="co-f co-full"><span>Indirizzo di spedizione *</span>
+            <input value={cli.indirizzo} onChange={e=>setC("indirizzo",e.target.value)} placeholder="Via, numero, CAP, città"/></label>}
+        </div>
+        {err && <div className="warn" style={{marginTop:12}}><b>Ordine non inviato.</b> {err}</div>}
+        <button className="btn" style={{width:"100%",marginTop:14}} onClick={conferma}
+          disabled={invio==="attesa"||!puoConfermare}>
+          {invio==="attesa"?"Invio ordine…":"Conferma ordine"}</button>
+        {!puoConfermare && <div className="muted" style={{fontSize:12,marginTop:8}}>Compila nome ed email{serveIndirizzo?", l'indirizzo di spedizione":""} e scegli il metodo di pagamento per continuare.</div>}
+      </div>
+
+      <div className="note">Dopo la conferma vedrai le <b>istruzioni di pagamento</b> e potrai <b>caricare i file grafici</b> per ogni prodotto dalla pagina "I miei ordini".</div>
+    </div>
+  );
+}
+
+// =====================================================================
+//  I MIEI ORDINI — dettaglio + upload file grafici (dopo l'ordine)
+// =====================================================================
+function OrdinePagina({token, vaiCatalogo}){
+  const [dati,setDati]=useState(null);   // null = carico
+  const [err,setErr]=useState("");
+  const [busy,setBusy]=useState("");     // id riga in upload
+  const [pagList,setPagList]=useState([]);
+  const [bozBusy,setBozBusy]=useState("");
+  const [bozNote,setBozNote]=useState("");
+  const [modApri,setModApri]=useState(false);
+  useEffect(()=>{ (async()=>{ try{ const {data}=await sb.from("komunigo_pagamenti_pub").select("*"); setPagList(data||[]); }catch(e){} })(); },[]);
+
+  const carica=async()=>{
+    setErr("");
+    try{
+      const {data,error}=await sb.functions.invoke("komunigo-ordine",{body:{action:"dettaglio", token}});
+      if(error) throw error;
+      if(data && data.error) throw new Error(data.error);
+      setDati(data);
+    }catch(e){ setErr(e.message||String(e)); setDati({}); }
+  };
+  useEffect(()=>{ if(token) carica(); },[token]);
+
+  async function carica_file(riga, file){
+    if(!file) return;
+    setBusy(riga?riga.id:"gen"); setErr("");
+    try{
+      const {data:u,error:e1}=await sb.functions.invoke("komunigo-ordine",{body:{action:"file-url", token, riga_id:riga?riga.id:null, nome_file:file.name}});
+      if(e1) throw e1; if(u&&u.error) throw new Error(u.error);
+      const {error:e2}=await sb.storage.from(u.bucket).uploadToSignedUrl(u.path, u.token, file);
+      if(e2) throw e2;
+      const {data:r,error:e3}=await sb.functions.invoke("komunigo-ordine",{body:{action:"file-registra", token, riga_id:riga?riga.id:null, path:u.path, nome_file:file.name, dimensione:file.size, mime:file.type}});
+      if(e3) throw e3; if(r&&r.error) throw new Error(r.error);
+      await carica();
+    }catch(e){ setErr("Caricamento non riuscito: "+(e.message||e)); }
+    setBusy("");
+  }
+  async function elimina_file(f){
+    if(!window.confirm("Rimuovere il file \""+f.nome_file+"\"?")) return;
+    try{ const {data,error}=await sb.functions.invoke("komunigo-ordine",{body:{action:"file-elimina", token, file_id:f.id}});
+      if(error) throw error; if(data&&data.error) throw new Error(data.error); await carica();
+    }catch(e){ setErr(e.message||String(e)); }
+  }
+  async function approvaBozza(){
+    setBozBusy("ok"); setErr("");
+    try{ const {data,error}=await sb.functions.invoke("komunigo-ordine",{body:{action:"bozza-approva", token}});
+      if(error) throw error; if(data&&data.error) throw new Error(data.error); await carica();
+    }catch(e){ setErr(e.message||String(e)); }
+    setBozBusy("");
+  }
+  async function chiediModifiche(){
+    if(!bozNote.trim()){ setErr("Scrivi cosa vuoi modificare."); return; }
+    setBozBusy("mod"); setErr("");
+    try{ const {data,error}=await sb.functions.invoke("komunigo-ordine",{body:{action:"bozza-modifica", token, note:bozNote.trim()}});
+      if(error) throw error; if(data&&data.error) throw new Error(data.error); setModApri(false); setBozNote(""); await carica();
+    }catch(e){ setErr(e.message||String(e)); }
+    setBozBusy("");
+  }
+
+  if(!token) return <div className="empty"><p>Nessun ordine da mostrare.</p><button className="btn" onClick={vaiCatalogo}>Vai al catalogo</button></div>;
+  if(dati===null) return <div className="empty">Carico l'ordine…</div>;
+  if(!dati.ordine) return <div className="warn"><b>Ordine non trovato.</b> {err||"Il link potrebbe non essere valido."}</div>;
+
+  const o=dati.ordine;
+  const fileDiRiga = rid => (dati.file||[]).filter(f=>f.ordine_riga_id===rid && f.tipo!=="bozza");
+  const bozzaFiles = (dati.file||[]).filter(f=>f.tipo==="bozza");
+  const kb = n => n? (n>1048576? (n/1048576).toFixed(1)+" MB" : Math.max(1,Math.round(n/1024))+" KB") : "";
+  const pag = (pagList||[]).find(p=>p.metodo===o.pagamento_metodo) || null;
+  const pagato = o.pagamento_stato==="pagato";
+
+  return (
+    <div>
+      <h2 className="sec">Ordine {o.numero}</h2>
+      <p className="sec-sub">Grazie{o.cliente_nome?(", "+o.cliente_nome):""}! Carica qui sotto i file grafici per ogni prodotto. Puoi tornare a questa pagina in qualsiasi momento da <b>“I miei ordini”</b>.</p>
+      {err && <div className="warn" style={{marginBottom:12}}>{err}</div>}
+
+      {o.pagamento_metodo && <div className="warn" style={{marginBottom:16, background:pagato?"var(--blu-wash)":"var(--sand-wash)", border:"1px solid "+(pagato?"var(--blu)":"var(--sand)")}}>
+        {o.pagamento_metodo==="differito"
+         ? <><b>Pagamento — Conto aperto:</b> {pagato? "✅ saldato, grazie!" : `a ${o.pagamento_giorni||30} giorni dalla fattura.`}
+             {!pagato && <div style={{marginTop:6,fontSize:13.5}}>Importo: <b>{eur(o.totale)}</b> · nessun anticipo richiesto, riceverai fattura. L'ordine è già preso in carico.</div>}</>
+         : <><b>Pagamento — {pag?pag.nome:o.pagamento_metodo}:</b> {pagato? "✅ ricevuto, grazie!" : "in attesa."}
+             {!pagato && pag && pag.istruzioni && <div style={{whiteSpace:"pre-wrap",marginTop:6,fontSize:13}}>{pag.istruzioni}</div>}
+             {!pagato && (o.pagamento_metodo==="bonifico"||o.pagamento_metodo==="ritiro") &&
+               <div style={{marginTop:6,fontSize:13.5}}>Importo: <b>{eur(o.totale)}</b>{o.pagamento_metodo==="bonifico"?<> · Causale: <b>{o.numero}</b></>:null}</div>}</>}
+      </div>}
+
+      {o.bozza_stato && <div className="warn" style={{marginBottom:16, background:o.bozza_stato==="approvata"?"var(--blu-wash)":"var(--sand-wash)", border:"1px solid "+(o.bozza_stato==="approvata"?"var(--blu)":"var(--sand)")}}>
+        <b>🎨 Bozza grafica (simulazione di stampa)</b>
+        {o.bozza_stato==="da_approvare" && <>
+          <p style={{margin:"6px 0",fontSize:13.5}}>Abbiamo preparato l'anteprima di come verrà stampato. Controllala e <b>approvala</b> per mandare l'ordine in produzione.</p>
+          {bozzaFiles.map(f=><div key={f.id} style={{marginBottom:6,fontSize:13.5}}>🖼️ {f.url? <a href={f.url} target="_blank" rel="noopener noreferrer">{f.nome_file}</a> : f.nome_file}</div>)}
+          {!modApri
+            ? <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:6}}>
+                <button className="btn" onClick={approvaBozza} disabled={bozBusy==="ok"}>{bozBusy==="ok"?"…":"✓ Approva la bozza"}</button>
+                <button className="btn ghost" onClick={()=>setModApri(true)}>Chiedi una modifica</button>
+              </div>
+            : <div style={{marginTop:8}}>
+                <textarea rows={2} value={bozNote} onChange={e=>setBozNote(e.target.value)} placeholder="Scrivi cosa vorresti modificare…" style={{width:"100%"}}/>
+                <div style={{display:"flex",gap:10,marginTop:6}}>
+                  <button className="btn" onClick={chiediModifiche} disabled={bozBusy==="mod"}>{bozBusy==="mod"?"…":"Invia richiesta"}</button>
+                  <button className="btn ghost" onClick={()=>{setModApri(false);setBozNote("");}}>Annulla</button>
+                </div>
+              </div>}
+        </>}
+        {o.bozza_stato==="approvata" && <p style={{margin:"6px 0 0",fontSize:13.5}}>✅ Hai approvato la bozza — l'ordine può andare in produzione. Grazie!</p>}
+        {o.bozza_stato==="modifiche_richieste" && <p style={{margin:"6px 0 0",fontSize:13.5}}>Abbiamo ricevuto la tua richiesta di modifica: ti invieremo una nuova bozza a breve.</p>}
+      </div>}
+
+      <div className="ord-grid">
+        {(dati.righe||[]).map(r=>{ const files=fileDiRiga(r.id); return (
+          <div className="ord-riga" key={r.id}>
+            <div className="ord-riga-h">
+              <div><b>{r.descrizione}</b><div className="muted" style={{fontSize:12.5}}>{r.quantita} pz · {eur(r.prezzo_totale)}</div></div>
+            </div>
+            <div className="ord-files">
+              {files.map(f=>(
+                <div className="ord-file" key={f.id}>
+                  <span className="ord-file-n">📎 {f.url? <a href={f.url} target="_blank" rel="noopener noreferrer">{f.nome_file}</a> : f.nome_file}</span>
+                  <span className="muted" style={{fontSize:12}}>{kb(f.dimensione)}</span>
+                  <button className="ord-file-x" title="Rimuovi" onClick={()=>elimina_file(f)}>×</button>
+                </div>
+              ))}
+              {files.length===0 && <div className="muted" style={{fontSize:13}}>Nessun file caricato per questo prodotto.</div>}
+            </div>
+            <label className="ord-up">
+              {busy===r.id? "Carico…" : "⬆ Carica file grafico"}
+              <input type="file" onChange={e=>{const f=e.target.files[0]; e.target.value=""; carica_file(r,f);}} disabled={busy===r.id} style={{display:"none"}}/>
+            </label>
+          </div>
+        ); })}
+      </div>
+
+      <div className="cart-tot" style={{marginTop:20,maxWidth:420,marginLeft:"auto"}}>
+        <div className="r"><span>Imponibile</span><span>{eur(o.imponibile)}</span></div>
+        <div className="r"><span>IVA 22%</span><span>{eur(o.iva)}</span></div>
+        <div className="r big"><span>Totale</span><span>{eur(o.totale)}</span></div>
+      </div>
+      <div className="note">Stato ordine: <b>{o.stato}</b>. Formati consigliati: <b>PDF</b> (o JPG/PNG ad alta risoluzione). Se hai il nostro template, posiziona la grafica nell'area indicata prima di esportare.</div>
+    </div>
+  );
+}
+
+// dati di fatturazione — valori vuoti, mappatura da/verso komunigo_account
+const DATI_VUOTI={tipo:"azienda",ragione_sociale:"",nome:"",partita_iva:"",codice_fiscale:"",pec:"",codice_sdi:"",telefono:"",indirizzo:"",cap:"",citta:"",provincia:"",consegna_uguale:true,consegna_indirizzo:"",consegna_cap:"",consegna_citta:"",consegna_provincia:""};
+const accToForm=a=>({...DATI_VUOTI, tipo:a&&a.tipo_cliente||"azienda", ragione_sociale:a&&a.ragione_sociale||"", nome:a&&a.nome||"",
+  partita_iva:a&&a.partita_iva||"", codice_fiscale:a&&a.codice_fiscale||"", pec:a&&a.pec||"", codice_sdi:a&&a.codice_sdi||"",
+  telefono:a&&a.telefono||"", indirizzo:a&&a.indirizzo||"", cap:a&&a.cap||"", citta:a&&a.citta||"", provincia:a&&a.provincia||"",
+  consegna_uguale:a?a.consegna_uguale!==false:true, consegna_indirizzo:a&&a.consegna_indirizzo||"", consegna_cap:a&&a.consegna_cap||"", consegna_citta:a&&a.consegna_citta||"", consegna_provincia:a&&a.consegna_provincia||""});
+const formToAcc=f=>({tipo_cliente:f.tipo, ragione_sociale:(f.ragione_sociale||"").trim(), nome:(f.nome||"").trim(),
+  azienda:(f.ragione_sociale||"").trim(), partita_iva:(f.partita_iva||"").trim(), codice_fiscale:(f.codice_fiscale||"").trim().toUpperCase(),
+  pec:(f.pec||"").trim(), codice_sdi:(f.codice_sdi||"").trim().toUpperCase(), telefono:(f.telefono||"").trim(),
+  indirizzo:(f.indirizzo||"").trim(), cap:(f.cap||"").trim(), citta:(f.citta||"").trim(), provincia:(f.provincia||"").trim().toUpperCase(),
+  consegna_uguale:f.consegna_uguale!==false, consegna_indirizzo:(f.consegna_indirizzo||"").trim(), consegna_cap:(f.consegna_cap||"").trim(), consegna_citta:(f.consegna_citta||"").trim(), consegna_provincia:(f.consegna_provincia||"").trim().toUpperCase()});
+function fatturazioneValida(f){
+  if(f.tipo==="azienda") return !!((f.ragione_sociale||"").trim() && (f.partita_iva||"").trim());
+  return !!((f.nome||"").trim() && (f.codice_fiscale||"").trim());
+}
+function CampiFatturazione({f,set}){
+  const azienda=f.tipo==="azienda";
+  return (<>
+    <div className="co-grid">
+      <label className="co-f co-full"><span>Tipo cliente</span>
+        <select value={f.tipo} onChange={e=>set("tipo",e.target.value)}>
+          <option value="azienda">Azienda / Partita IVA</option><option value="privato">Privato</option>
+        </select></label>
+      {azienda ? <>
+        <label className="co-f"><span>Ragione sociale *</span><input value={f.ragione_sociale} onChange={e=>set("ragione_sociale",e.target.value)}/></label>
+        <label className="co-f"><span>Partita IVA *</span><input value={f.partita_iva} onChange={e=>set("partita_iva",e.target.value)}/></label>
+        <label className="co-f"><span>Codice Fiscale</span><input value={f.codice_fiscale} onChange={e=>set("codice_fiscale",e.target.value)}/></label>
+        <label className="co-f"><span>Referente</span><input value={f.nome} onChange={e=>set("nome",e.target.value)} placeholder="persona di riferimento"/></label>
+        <label className="co-f"><span>Codice Destinatario (SDI)</span><input value={f.codice_sdi} onChange={e=>set("codice_sdi",e.target.value)} maxLength={7} placeholder="7 caratteri (o 0000000)"/></label>
+        <label className="co-f"><span>PEC</span><input value={f.pec} onChange={e=>set("pec",e.target.value)} placeholder="per la fattura elettronica"/></label>
+      </> : <>
+        <label className="co-f"><span>Nome e cognome *</span><input value={f.nome} onChange={e=>set("nome",e.target.value)}/></label>
+        <label className="co-f"><span>Codice Fiscale *</span><input value={f.codice_fiscale} onChange={e=>set("codice_fiscale",e.target.value)}/></label>
+      </>}
+      <label className="co-f"><span>Telefono</span><input value={f.telefono} onChange={e=>set("telefono",e.target.value)}/></label>
+    </div>
+    <div className="fld" style={{marginTop:14,fontWeight:700}}>Sede legale / indirizzo</div>
+    <div className="co-grid">
+      <label className="co-f co-full"><span>Indirizzo</span><input value={f.indirizzo} onChange={e=>set("indirizzo",e.target.value)} placeholder="Via e numero"/></label>
+      <label className="co-f"><span>CAP</span><input value={f.cap} onChange={e=>set("cap",e.target.value)}/></label>
+      <label className="co-f"><span>Città</span><input value={f.citta} onChange={e=>set("citta",e.target.value)}/></label>
+      <label className="co-f"><span>Provincia</span><input value={f.provincia} onChange={e=>set("provincia",e.target.value)} maxLength={2} placeholder="es. MI"/></label>
+    </div>
+    <label style={{display:"flex",gap:8,alignItems:"center",margin:"12px 0 2px",fontSize:14}}>
+      <input type="checkbox" checked={f.consegna_uguale!==false} onChange={e=>set("consegna_uguale",e.target.checked)} style={{width:"auto"}}/>
+      Consegna allo stesso indirizzo
+    </label>
+    {f.consegna_uguale===false && <div className="co-grid">
+      <label className="co-f co-full"><span>Indirizzo di consegna</span><input value={f.consegna_indirizzo} onChange={e=>set("consegna_indirizzo",e.target.value)}/></label>
+      <label className="co-f"><span>CAP</span><input value={f.consegna_cap} onChange={e=>set("consegna_cap",e.target.value)}/></label>
+      <label className="co-f"><span>Città</span><input value={f.consegna_citta} onChange={e=>set("consegna_citta",e.target.value)}/></label>
+      <label className="co-f"><span>Provincia</span><input value={f.consegna_provincia} onChange={e=>set("consegna_provincia",e.target.value)} maxLength={2}/></label>
+    </div>}
+  </>);
+}
+
+// =====================================================================
+//  AUTENTICAZIONE CLIENTI (registrazione / login)
+// =====================================================================
+function AuthModal({onClose}){
+  const [modo,setModo]=useState("login");
+  const [f,setF]=useState({email:"",password:"",...DATI_VUOTI});
+  const [busy,setBusy]=useState(false);
+  const [err,setErr]=useState(""); const [msg,setMsg]=useState("");
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  async function submit(){
+    setBusy(true); setErr(""); setMsg("");
+    try{
+      if(modo==="login"){
+        const {error}=await sb.auth.signInWithPassword({email:f.email.trim(),password:f.password});
+        if(error) throw error; onClose();
+      }else{
+        if(f.password.length<6){ setErr("La password deve avere almeno 6 caratteri."); setBusy(false); return; }
+        if(!fatturazioneValida(f)){ setErr(f.tipo==="azienda"?"Per le aziende servono ragione sociale e P.IVA.":"Servono nome e codice fiscale."); setBusy(false); return; }
+        const {data,error}=await sb.auth.signUp({email:f.email.trim(),password:f.password,
+          options:{ data:{ komunigo:"true", nome:(f.nome||f.ragione_sociale||"").trim() } }});
+        if(error) throw error;
+        if(data.session){
+          try{ await sb.from("komunigo_account").update(formToAcc(f)).eq("id",data.session.user.id); }catch(e){}
+          onClose();
+        } else setMsg("Ti abbiamo inviato una email per confermare la registrazione. Confermala, poi accedi (i dati di fatturazione li completi nell'area account).");
+      }
+    }catch(e){ setErr(e.message||String(e)); }
+    setBusy(false);
+  }
+  return (
+    <div className="overlay">
+      <div className="modal" style={{width:modo==="registra"?"min(620px,100%)":"min(440px,100%)"}}>
+        <div className="mh"><h3>{modo==="login"?"Accedi":"Crea un account"}</h3><button className="x" onClick={onClose}>×</button></div>
+        <div className="mb">
+          {err && <div className="warn" style={{marginBottom:12}}>{err}</div>}
+          {msg && <div className="note" style={{marginBottom:12}}>{msg}</div>}
+          {modo==="registra" && <>
+            <div className="fld" style={{fontWeight:700,marginTop:0}}>Dati di fatturazione</div>
+            <p className="muted" style={{fontSize:12,marginTop:0,marginBottom:8}}>Servono per emettere la fattura. Puoi comunque completarli/modificarli dopo, nell'area account.</p>
+            <CampiFatturazione f={f} set={set}/>
+            <div className="fld" style={{fontWeight:700,marginTop:16}}>Credenziali di accesso</div>
+          </>}
+          <label className="fld">Email</label>
+          <input type="email" value={f.email} onChange={e=>set("email",e.target.value)} placeholder="nome@email.it"/>
+          <label className="fld">Password</label>
+          <input type="password" value={f.password} onChange={e=>set("password",e.target.value)} placeholder={modo==="registra"?"almeno 6 caratteri":""}/>
+        </div>
+        <div className="mf">
+          <button className="btn" onClick={submit} disabled={busy||!f.email||!f.password}>{busy?"…":(modo==="login"?"Accedi":"Registrati")}</button>
+          <button className="btn ghost" onClick={()=>{setModo(modo==="login"?"registra":"login");setErr("");setMsg("");}}>
+            {modo==="login"?"Registrati":"Ho già un account"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =====================================================================
+//  AREA ACCOUNT (dati cliente + storico ordini)
+// =====================================================================
+function AccountPagina({account,sess,onLogout,vaiCatalogo,apriOrdine,onAccountChange,riordina}){
+  const [ordini,setOrdini]=useState(null);
+  const [f,setF]=useState(()=>accToForm(account));
+  const [salvato,setSalvato]=useState(false);
+  useEffect(()=>{ setF(accToForm(account)); },[account]);
+  useEffect(()=>{ (async()=>{
+    if(!sess){ setOrdini([]); return; }
+    try{ const {data}=await sb.from("komunigo_ordini").select("numero,token,stato,totale,creato_il,pagamento_stato").eq("account_id",sess.user.id).order("creato_il",{ascending:false}); setOrdini(data||[]); }
+    catch(e){ setOrdini([]); }
+  })(); },[sess]);
+  const set=(k,v)=>{ setF(p=>({...p,[k]:v})); setSalvato(false); };
+  const [errS,setErrS]=useState("");
+  async function salvaProfilo(){
+    setErrS("");
+    if(!fatturazioneValida(f)){ setErrS(f.tipo==="azienda"?"Per le aziende servono ragione sociale e P.IVA.":"Servono nome e codice fiscale."); return; }
+    const payload=formToAcc(f);
+    const {error}=await sb.from("komunigo_account").update(payload).eq("id",sess.user.id);
+    if(error){ setErrS(error.message); return; }
+    setSalvato(true); if(onAccountChange) onAccountChange({...(account||{}),...payload});
+  }
+  if(!sess) return <div className="empty"><p>Accedi per vedere il tuo account.</p></div>;
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+        <h2 className="sec" style={{margin:0}}>Il mio account</h2>
+        <button className="btn ghost" onClick={onLogout}>Esci</button>
+      </div>
+      <p className="sec-sub">{sess.user.email}{account&&account.stato==="b2b"?" · Cliente B2B":""}</p>
+
+      <div className="ship" style={{marginTop:8}}>
+        <h3 className="ship-h">Dati di fatturazione</h3>
+        {errS && <div className="warn" style={{marginBottom:10}}>{errS}</div>}
+        <CampiFatturazione f={f} set={set}/>
+        <button className="btn" style={{marginTop:14}} onClick={salvaProfilo}>{salvato?"Salvato ✓":"Salva dati"}</button>
+      </div>
+
+      <h3 className="ship-h" style={{marginTop:24}}>I tuoi ordini</h3>
+      {ordini===null? <p className="muted">Carico…</p>
+       : ordini.length===0? <p className="muted">Non hai ancora ordini. <button className="lnk" onClick={vaiCatalogo}>Vai al catalogo →</button></p>
+       : <div style={{marginTop:8}}>{ordini.map(o=>(
+          <div className="cart-line" key={o.numero} style={{cursor:"pointer"}} onClick={()=>apriOrdine(o.token)}>
+            <div className="g"><h4>Ordine {o.numero}</h4><p>{o.creato_il?new Date(o.creato_il).toLocaleDateString("it-IT"):""} · {o.pagamento_stato==="pagato"?"pagato ✅":"pagamento in attesa"}</p></div>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <span className="price">{eur(o.totale)}</span>
+              {riordina && <button className="btn ghost small" onClick={e=>{e.stopPropagation();riordina(o.token);}}>🔁 Riordina</button>}
+            </div>
+          </div>))}</div>}
+    </div>
+  );
+}
+
+// =====================================================================
+//  LINEE GUIDA FILE DI STAMPA  (pagina informativa, stile FlyerAlarm)
+// =====================================================================
+function DiagrammaRifilo(){
+  return (
+    <svg className="lg-diagram" viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Abbondanza, linea di taglio e margine di sicurezza">
+      <rect x="10" y="10" width="300" height="180" fill="#e9eef5"/>
+      <rect x="28" y="28" width="264" height="144" fill="#ffffff" stroke="#2E6FB0" strokeWidth="2" strokeDasharray="6 4"/>
+      <rect x="46" y="46" width="228" height="108" fill="none" stroke="#1e7d34" strokeWidth="1.5" strokeDasharray="4 4"/>
+      <text x="160" y="22" textAnchor="middle" fontSize="11" fill="#8a4b00">Abbondanza +3 mm (sfondo fin qui)</text>
+      <text x="160" y="41" textAnchor="middle" fontSize="11" fill="#2E6FB0">Linea di taglio (formato finito)</text>
+      <text x="160" y="104" textAnchor="middle" fontSize="11" fill="#1e7d34">Area sicura</text>
+      <text x="160" y="120" textAnchor="middle" fontSize="10" fill="#1e7d34">testi e loghi qui dentro</text>
+    </svg>
+  );
+}
+const LG_SEZIONI=[
+  {ico:"📐", t:"Formato e taglio", extra:"diagramma", voci:[
+    "Imposta il file nel formato del prodotto, inclusi i 3 mm di abbondanza per lato (es. biglietto 8,5×5,5 cm → file da 8,7×5,7 cm).",
+    "Tieni testi, loghi ed elementi importanti entro l'area sicura, ad almeno 3 mm dal taglio.",
+    "Estendi sfondi e immagini a vivo fino al bordo del file, coprendo tutta l'abbondanza.",
+    "Nessun crocino di taglio, piega o registro nel file: li generiamo noi.",
+    "Usa il template della scheda prodotto: ha già taglio, abbondanza e area sicura.",
+  ]},
+  {ico:"🎨", t:"Colore", voci:[
+    "Lavora in CMYK (stampa 4/4 o 4/0). In RGB i colori vengono convertiti e possono cambiare tonalità.",
+    "Per colori esatti usa Pantone / tinte piatte (HKS/PANTONE) coi nomi canale corretti; indicali nelle note dell'ordine.",
+    "Nero dei testi: C0 M0 Y0 K100. Nero profondo per grandi fondi: C40 M0 Y0 K100.",
+    "Grigi: K50 (grigio caldo +C10, grigio freddo +M10).",
+    "Apporto totale di colore tra il 10% e il 300%.",
+    "Elementi bianchi mai in sovrastampa (sparirebbero).",
+    "Profilo colore consigliato: ISO Coated V2 300% (ECI), impostato come output intent.",
+  ]},
+  {ico:"🔍", t:"Immagini e risoluzione", voci:[
+    "Risoluzione 300 dpi (fino a 356) alla dimensione reale di stampa.",
+    "Grande formato (da A2 in su): 100–150 dpi sono sufficienti.",
+    "Immagini in CMYK; evita immagini piccole ingrandite dal web (vengono sgranate).",
+    "Se impagini, i collegamenti alle immagini devono essere presenti e aggiornati.",
+  ]},
+  {ico:"🔤", t:"Scritte e linee", voci:[
+    "Corpo del testo minimo 6 pt.",
+    "Font incorporati nel PDF oppure testi convertiti in tracciati / curve.",
+    "Spessore minimo linee: 0,25 pt in positivo, 0,5 pt in negativo (chiaro su scuro).",
+    "Niente cornici/outline a filo: se le usi, tienile ad almeno 4 mm dal bordo.",
+  ]},
+  {ico:"📄", t:"Formato file", voci:[
+    "Invia in PDF (ideale PDF/X-3 o PDF/X-4), oppure TIFF / JPG ad alta risoluzione.",
+    "Niente password o cifratura sul file.",
+    "Testi neri piccoli e linee sottili nere meglio in sovrastampa: evitano bordi bianchi.",
+    "Evita grafiche vettoriali troppo complesse: in caso, esporta in raster (JPG).",
+  ]},
+  {ico:"🧩", t:"Pagine e livelli (multipagina)", voci:[
+    "Sequenza e orientamento delle pagine corretti; numero facciate giusto.",
+    "Riduci tutti i livelli a un unico livello di fondo (PDF/TIF da Photoshop/GIMP).",
+  ]},
+];
+function LineeGuida({vaiCatalogo}){
+  const [ok,setOk]=useState(()=>{ try{return new Set(JSON.parse(localStorage.getItem("komunigo_lg")||"[]"));}catch(e){return new Set();} });
+  const totale=LG_SEZIONI.reduce((s,z)=>s+z.voci.length,0);
+  const fatti=ok.size;
+  const toggle=(k)=>setOk(p=>{ const n=new Set(p); n.has(k)?n.delete(k):n.add(k); try{localStorage.setItem("komunigo_lg",JSON.stringify([...n]));}catch(e){} return n; });
+  const reset=()=>{ setOk(new Set()); try{localStorage.removeItem("komunigo_lg");}catch(e){} };
+  const completo=fatti===totale;
+  return (
+    <div>
+      <div className="lg-hero">
+        <h1>Linee guida per i file di stampa</h1>
+        <p>Prepara correttamente il tuo file e ottieni una stampa fedele, senza brutte sorprese. Spunta le caselle mentre controlli il file. Dopo l'ordine lo carichi e ti inviamo una <b>bozza di stampa da approvare</b> prima di andare in produzione. Ogni prodotto ha il suo <b>template</b> scaricabile dalla scheda.</p>
+      </div>
+
+      <div className="lg-actions no-print">
+        <div className="lg-progress">
+          <div className="lg-bar"><span style={{width:(totale?Math.round(fatti/totale*100):0)+"%"}}/></div>
+          <div className="lg-progress-lbl">{fatti}/{totale} controlli {fatti>0 && <button className="lnk" onClick={reset}>azzera</button>}</div>
+        </div>
+        <button className="btn ghost" onClick={()=>window.print()}>⬇ Scarica la checklist (PDF)</button>
+      </div>
+      <div className="lg-print-note">Checklist file di stampa — komunigo.it · info@komunigo.it</div>
+
+      <div className="lg-grid">
+        {LG_SEZIONI.map((z,i)=>(
+          <div className="lg-card" key={i}>
+            <div className="lg-ico">{z.ico}</div>
+            <h3>{z.t}</h3>
+            {z.extra==="diagramma" && <DiagrammaRifilo/>}
+            <div className="lg-items">
+              {z.voci.map((v,j)=>{ const k=i+"-"+j; return (
+                <label key={j} className={"lg-item"+(ok.has(k)?" on":"")}>
+                  <input type="checkbox" checked={ok.has(k)} onChange={()=>toggle(k)}/>
+                  <span>{v}</span>
+                </label>); })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {completo && <div className="lg-done">
+        <div><span style={{fontSize:20}}>🎉</span> <b>Hai spuntato tutto!</b> Il tuo file è pronto. Scegli il prodotto, completa l'ordine e poi carica il file dalla pagina «I tuoi ordini».</div>
+        <button className="btn no-print" onClick={vaiCatalogo}>Vai al catalogo e ordina →</button>
+      </div>}
+
+      <div className="lg-cta">
+        <div>
+          <h2>Controllo file &amp; assistenza grafica</h2>
+          <p>Verifichiamo il tuo file prima della stampa e ti mandiamo la bozza da approvare. Hai bisogno di aiuto con la grafica o non hai un file pronto? Scrivici a <a href="mailto:info@komunigo.it">info@komunigo.it</a> e ti diamo una mano.</p>
+        </div>
+        <button className="btn" onClick={vaiCatalogo}>Vai al catalogo</button>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<App/>, document.getElementById("root"));
+</script>
+</body>
+</html>

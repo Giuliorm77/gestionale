@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
 <title>KOMUNIGO — Stampa, insegne e allestimenti</title>
 <style>
   :root{
@@ -38,6 +39,20 @@
   .brand{font-family:var(--disp);font-weight:700;text-transform:uppercase;font-size:25px;letter-spacing:.01em;color:#F7F4EE;background:none;border:none;padding:0;}
   .brand .go{color:var(--blu);}
   .search{flex:1;max-width:460px;display:flex;align-items:center;gap:8px;background:#22252C;border:1px solid #2c3037;border-radius:9px;padding:9px 13px;color:#8b9098;font-size:13.5px;}
+  .search input{flex:1;background:none;border:none;outline:none;color:#e8eaed;font:inherit;}
+  .search input::placeholder{color:#8b9098;}
+  .search-x{background:none;border:none;color:#8b9098;cursor:pointer;font-size:18px;line-height:1;padding:0 2px;}
+  .cat-search{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:0 0 10px;max-width:520px;}
+  .cat-search input{flex:1;background:none;border:none;outline:none;font:inherit;color:var(--ink);}
+  .cat-search .search-x{color:var(--ink-soft);}
+  .cat-toprow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  .cat-toprow .cat-search{flex:1;margin:0 0 10px;}
+  .iva-toggle{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:10px;}
+  .iva-toggle button{background:var(--surface);border:none;padding:8px 12px;font:inherit;font-size:13px;color:var(--ink-soft);cursor:pointer;}
+  .iva-toggle button.on{background:var(--blu);color:#fff;font-weight:700;}
+  .iva-toggle.sm{margin:0 10px 0 auto;}
+  .iva-toggle.sm button{padding:5px 9px;font-size:12px;}
+  .iva-tag{font-size:11px;color:var(--ink-soft);font-weight:600;}
   nav.main{display:flex;gap:6px;}
   nav.main button{background:transparent;border:none;color:#C7CBD3;font-size:14.5px;font-weight:600;padding:8px 12px;border-radius:8px;}
   nav.main button.on{color:#fff;background:rgba(255,255,255,.08);}
@@ -130,6 +145,38 @@
   /* carrello */
   .cart-line{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow);}
   .cart-line .g{flex:1;} .cart-line h4{margin:0 0 2px;font-size:15px;} .cart-line p{margin:0;font-size:12.5px;color:var(--ink-soft);}
+  .wiz-steps{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px 0;}
+  .wiz-step{font-size:12.5px;font-weight:700;color:var(--ink-soft);background:var(--line);border-radius:20px;padding:4px 12px;}
+  .wiz-step.on{background:var(--blu);color:#fff;}
+  .wiz-step.done{background:#e6f4ea;color:#1e7d34;}
+  .scaglioni{display:flex;flex-direction:column;gap:6px;}
+  .tier{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:10px 14px;cursor:pointer;font:inherit;color:var(--ink);}
+  .tier:hover{border-color:var(--blu);}
+  .tier.on{border-color:var(--blu);background:#eef4fb;box-shadow:0 0 0 1px var(--blu) inset;}
+  .tier .tq{font-weight:700;min-width:70px;}
+  .tier .tu{color:var(--ink-soft);font-size:13.5px;flex:1;}
+  .tier .tt{font-weight:700;}
+  .tier .tr{background:#e6f4ea;color:#1e7d34;border-radius:20px;padding:2px 9px;font-size:12px;font-weight:700;}
+  .price-da{font-size:15px;color:var(--ink);} .price-da b{color:var(--blu);font-size:17px;}
+  .stampa-pos{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
+  .stampa-pos.on{border-color:var(--blu);background:#f6faff;}
+  .stampa-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer;}
+  .stampa-nome{font-weight:600;}
+  .tec-badge{background:#eef0f4;color:var(--ink-soft);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;}
+  .stampa-area{display:flex;align-items:center;gap:10px;margin:8px 0 2px;}
+  .area-rect{display:inline-flex;align-items:center;justify-content:center;width:62px;height:34px;border:2px dashed var(--blu);border-radius:6px;color:var(--blu);font-size:10px;letter-spacing:.5px;text-transform:uppercase;opacity:.75;background:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(46,111,176,.06) 5px,rgba(46,111,176,.06) 10px);}
+  .area-lbl{font-size:12.5px;color:var(--ink-soft);}
+  .stampa-col{margin-top:8px;font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .campione-lnk{display:inline-block;margin-top:12px;font-size:13.5px;color:var(--blu);text-decoration:none;border:1px dashed var(--blu);border-radius:8px;padding:8px 12px;}
+  .campione-lnk:hover{background:#eef4fb;}
+  .trust{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);}
+  .trust-i{display:flex;gap:10px;align-items:flex-start;}
+  .trust-ic{font-size:20px;line-height:1.2;}
+  .trust-tx{display:flex;flex-direction:column;}
+  .trust-tx b{font-size:13.5px;color:var(--ink);}
+  .trust-tx span{font-size:12px;color:var(--ink-soft);}
+  .trust-c{box-shadow:none;background:transparent;border:1px dashed var(--line);padding:12px;grid-template-columns:repeat(2,1fr);}
+  @media(max-width:720px){ .trust{grid-template-columns:repeat(2,1fr);} }
   .b2b-note{background:#eef4fb;border:1px solid #cfe0f2;color:#1C2A44;border-radius:10px;padding:10px 14px;font-size:14px;}
   .listino-old{text-decoration:line-through;color:var(--ink-soft,#8a8a8a);font-weight:600;font-size:.82em;margin-left:8px;}
   .b2b-badge{display:inline-block;background:#e7f0fa;color:var(--blu,#2E6FB0);border:1px solid #cfe0f2;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:700;}
@@ -298,6 +345,9 @@ const scriviCart=c=>{try{localStorage.setItem(CART_KEY,JSON.stringify(c));}catch
 // ---- sconto B2B (mirror lato client della logica server) ----
 const clampPct=n=>{ n=Number(n)||0; return n<0?0:n>100?100:n; };
 const eur2=x=>Math.round((Number(x)||0)*100)/100;
+// prezzi memorizzati = IVA esclusa (imponibile). Vista con/senza IVA per il cliente.
+const conIva=(net,mode)=> mode==="incl"? Math.round((Number(net)||0)*(1+IVA)*100)/100 : (Number(net)||0);
+const ivaLbl=mode=> mode==="incl"?"IVA incl.":"IVA escl.";
 function scontoPerCat(profilo, categoria){
   if(!profilo || !profilo.b2b) return 0;
   const cat=String(categoria||"").trim().toLowerCase();
@@ -327,6 +377,11 @@ function App(){
   const ultimoOrd=leggiOrdToken();
   const [catFiltro,setCatFiltro]=useState("");
   const vaiCat=(cat)=>{ setCatFiltro(typeof cat==="string"?cat:""); setVista("catalogo"); };
+  const [ricerca,setRicerca]=useState("");
+  const cercaIn=(q)=>{ setRicerca(q); if(vista!=="catalogo") setVista("catalogo"); };
+  // vista prezzi IVA inclusa/esclusa (default: B2B → esclusa, altrimenti inclusa)
+  const [ivaMode,setIvaMode]=useState(()=>{ try{return localStorage.getItem("komunigo_iva")||"";}catch(e){return "";} });
+  useEffect(()=>{ try{ if(ivaMode) localStorage.setItem("komunigo_iva",ivaMode); }catch(e){} },[ivaMode]);
   const [sess,setSess]=useState(null);
   const [account,setAccount]=useState(null);
   const [authOpen,setAuthOpen]=useState(false);
@@ -341,6 +396,7 @@ function App(){
   })(); },[sess]);
   const logout=async()=>{ await sb.auth.signOut(); setAccount(null); setProfiloB2b(null); setVista("home"); };
   const nomeAcc = (account&&(account.ragione_sociale||account.nome||account.azienda)) || (sess&&sess.user.email) || "Account";
+  const iva = ivaMode || (account&&account.stato==="b2b"?"escl":"incl");   // vista prezzi effettiva
 
   // profilo sconti B2B del cliente loggato (per prezzi riservati a magazzino)
   const [profiloB2b,setProfiloB2b]=useState(null);
@@ -368,7 +424,11 @@ function App(){
         <div className="topline"></div>
         <div className="top-in">
           <button className="brand" onClick={()=>setVista("home")}>Komuni<span className="go">go</span></button>
-          <div className="search">🔍 Cerca prodotti, lavorazioni…</div>
+          <form className="search" onSubmit={e=>{e.preventDefault(); setVista("catalogo");}}>
+            <span>🔍</span>
+            <input value={ricerca} onChange={e=>cercaIn(e.target.value)} placeholder="Cerca prodotti, lavorazioni…"/>
+            {ricerca && <button type="button" className="search-x" onClick={()=>setRicerca("")} aria-label="Pulisci">×</button>}
+          </form>
           <nav className="main">
             <button className={vista==="home"?"on":""} onClick={()=>setVista("home")}>Home</button>
             <button className={vista==="catalogo"?"on":""} onClick={()=>vaiCat("")}>Catalogo</button>
@@ -385,7 +445,7 @@ function App(){
 
       {vista==="home"     && <Home vaiCatalogo={vaiCat}/>}
       {vista!=="home" && <div className="wrap">
-        {vista==="catalogo" && <Catalogo addCart={addCart} catInit={catFiltro} profilo={profiloB2b} vaiGuida={()=>setVista("guida")}/>}
+        {vista==="catalogo" && <Catalogo addCart={addCart} catInit={catFiltro} profilo={profiloB2b} vaiGuida={()=>setVista("guida")} ricerca={ricerca} setRicerca={setRicerca} iva={iva} setIva={setIvaMode}/>}
         {vista==="carrello" && <Carrello cart={cart} delCart={delCart} vaiCatalogo={()=>setVista("catalogo")} onOrdineCreato={onOrdineCreato} account={account} profilo={profiloB2b}/>}
         {vista==="ordine" && <OrdinePagina token={ordineToken||ultimoOrd} vaiCatalogo={()=>setVista("catalogo")}/>}
         {vista==="account" && <AccountPagina account={account} sess={sess} onLogout={logout} vaiCatalogo={()=>vaiCat("")} apriOrdine={apriOrdine} onAccountChange={setAccount} riordina={riordina}/>}
@@ -445,6 +505,16 @@ function Carosello({items}){
   );
 }
 
+function BarraFiducia({compact}){
+  const items=[
+    ["✅","Produzione solo dopo approvazione","Stampiamo dopo la tua conferma"],
+    ["🎨","Bozza grafica gratuita","Simulazione di stampa prima di produrre"],
+    ["🚚","Spedizione o ritiro","In tutta Italia, o ritiro in sede"],
+    ["🧪","Campione neutro","Vuoi toccarlo prima? Chiedicelo"],
+  ];
+  return <div className={"trust"+(compact?" trust-c":"")}>{items.map(([ic,t,s])=>(
+    <div className="trust-i" key={t}><span className="trust-ic">{ic}</span><div className="trust-tx"><b>{t}</b><span>{s}</span></div></div>))}</div>;
+}
 function Home({vaiCatalogo}){
   const [evid,setEvid]=useState(null);
   const [lavori,setLavori]=useState([]);
@@ -480,6 +550,8 @@ function Home({vaiCatalogo}){
           </div>
         </div>
       </section>
+
+      <div className="in"><BarraFiducia/></div>
 
       {carosello.length>0 && <Carosello items={carosello}/>}
 
@@ -541,12 +613,13 @@ function Home({vaiCatalogo}){
 // =====================================================================
 //  CATALOGO
 // =====================================================================
-function Catalogo({addCart, catInit, profilo, vaiGuida}){
+function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva, setIva}){
   const [prodotti,setProdotti]=useState(null);
   const [conf,setConf]=useState(null);
   const [errore,setErrore]=useState("");
   const [dettaglio,setDettaglio]=useState(null);
   const [cat,setCat]=useState(catInit||"");
+  const [prezziDa,setPrezziDa]=useState({});   // {confId: prezzo unitario base} per i gadget
   useEffect(()=>{ setCat(catInit||""); },[catInit]);
 
   useEffect(()=>{ (async()=>{
@@ -561,32 +634,60 @@ function Catalogo({addCart, catInit, profilo, vaiGuida}){
     }catch(e){ setErrore(e.message||String(e)); setProdotti([]); setConf([]); }
   })(); },[]);
 
+  // prezzo "da €X/pz" per i gadget (minimo pezzi, senza stampa) — come fanno i competitor
+  useEffect(()=>{ (async()=>{
+    const gz=(conf||[]).filter(c=>c.tipo==="gadget");
+    if(!gz.length) return;
+    try{
+      const res=await Promise.all(gz.map(c=>sb.functions.invoke("hyper-endpoint",{body:{prodotto_id:c.id, quantita:Number(c.minimo)||1}})
+        .then(r=>({id:c.id, unit:(r.data && !r.data.sotto_costo)? Number(r.data.prezzo_unitario)||0 : 0})).catch(()=>({id:c.id,unit:0}))));
+      const m={}; res.forEach(x=>{ if(x.unit>0) m[x.id]=x.unit; }); setPrezziDa(m);
+    }catch(e){}
+  })(); },[conf]);
+
   if(errore) return (
     <div className="warn"><b>Vetrina non ancora disponibile.</b> Esegui prima la migrazione
       <code> komunigo-v1.sql </code> in Supabase (crea le viste pubbliche). Dettaglio: {errore}</div>
   );
   if(prodotti===null || conf===null) return <div className="empty">Carico il catalogo…</div>;
-  if(dettaglio) return <ProdottoDettaglio tipo={dettaglio.tipo} prod={dettaglio.prod} addCart={addCart} onBack={()=>setDettaglio(null)} profilo={profilo} vaiGuida={vaiGuida}/>;
+  if(dettaglio) return <ProdottoDettaglio tipo={dettaglio.tipo} prod={dettaglio.prod} addCart={addCart} onBack={()=>setDettaglio(null)} profilo={profilo} vaiGuida={vaiGuida} iva={iva} setIva={setIva}/>;
 
   const catList=[...new Set([...conf,...prodotti].map(x=>x.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   const matchCat = x => !cat || String(x.categoria||"").toLowerCase()===cat.toLowerCase();
-  const gadget = conf.filter(c=>c.tipo==="gadget" && matchCat(c));
-  const misura = conf.filter(c=>c.tipo!=="gadget" && matchCat(c));
-  const stock  = prodotti.filter(matchCat);
-  const vuoto = gadget.length===0 && misura.length===0 && stock.length===0;
+  const q=(ricerca||"").trim().toLowerCase();
+  const matchQ = x => !q || [x.nome,x.descrizione,x.note,x.categoria,x.codice].filter(Boolean).join(" ").toLowerCase().includes(q);
+  const gadget = conf.filter(c=>c.tipo==="gadget" && matchCat(c) && matchQ(c));
+  const misura = conf.filter(c=>c.tipo!=="gadget" && matchCat(c) && matchQ(c));
+  const stock  = prodotti.filter(x=>matchCat(x) && matchQ(x));
+  const nTot = gadget.length+misura.length+stock.length;
+  const vuoto = nTot===0;
 
   const cardConf = (c,isGadget) => (
     <div className="card" key={c.id} style={{cursor:"pointer"}} onClick={()=>setDettaglio({tipo:"configuratore",prod:c})}>
       <div className="ph">{isGadget?"🎁":"🎨"}</div>
       <div className="bd"><span className="tag-conf">{isGadget?"Personalizzabile":"Su misura"}</span><h3>{c.nome}</h3>
         <div className="desc">{c.note||"Prodotto personalizzabile."}</div>
-        <div className="row"><span className="muted">{Number(c.giorni_lavorazione)>0?`pronto in ~${c.giorni_lavorazione} gg lav.`:"prezzo su configurazione"}</span></div>
+        <div className="row">{isGadget && prezziDa[c.id]
+          ? <span className="price-da">da <b>{eur(conIva(prezziDa[c.id],iva))}</b>/pz <span className="iva-tag">{ivaLbl(iva)}</span></span>
+          : <span className="muted">{Number(c.giorni_lavorazione)>0?`pronto in ~${c.giorni_lavorazione} gg lav.`:"prezzo su configurazione"}</span>}</div>
         <button className="add" onClick={e=>{e.stopPropagation();setDettaglio({tipo:"configuratore",prod:c});}}>{isGadget?"Personalizza":"Vedi e configura"}</button></div>
     </div>);
 
   return (
     <div>
       {profilo && profilo.b2b && <div className="b2b-note">🤝 <b>Prezzi riservati B2B{profilo.cliente_nome?" · "+profilo.cliente_nome:""}</b> — lo sconto del tuo listino è già applicato ai prezzi qui sotto.</div>}
+      <div className="cat-toprow">
+        <div className="cat-search">
+          <span>🔍</span>
+          <input value={ricerca||""} onChange={e=>setRicerca(e.target.value)} placeholder="Cerca per nome, categoria, codice…"/>
+          {q && <button className="search-x" onClick={()=>setRicerca("")} aria-label="Pulisci">×</button>}
+        </div>
+        {setIva && <div className="iva-toggle" title="Mostra i prezzi con o senza IVA">
+          <button className={iva==="escl"?"on":""} onClick={()=>setIva("escl")}>IVA escl.</button>
+          <button className={iva==="incl"?"on":""} onClick={()=>setIva("incl")}>IVA incl.</button>
+        </div>}
+      </div>
+      {q && <p className="muted" style={{margin:"2px 0 10px"}}><b>{nTot}</b> {nTot===1?"risultato":"risultati"} per «{ricerca}» {(cat)?`in ${cat} `:""}<button className="lnk" onClick={()=>{setRicerca("");setCat("");}}>azzera</button></p>}
       {catList.length>0 && <div className="catbar">
         <button className={!cat?"on":""} onClick={()=>setCat("")}>Tutti</button>
         {catList.map(cc=><button key={cc} className={cat.toLowerCase()===cc.toLowerCase()?"on":""} onClick={()=>setCat(cc)}>{cc}</button>)}
@@ -612,14 +713,14 @@ function Catalogo({addCart, catInit, profilo, vaiGuida}){
             <div className="ph">{Array.isArray(p.foto_urls)&&p.foto_urls[0]?<img src={p.foto_urls[0]} alt={p.nome}/>:"📦"}</div>
             <div className="bd">{p.categoria && <span className="cat-l">{p.categoria}</span>}<h3>{p.nome}</h3>
               <div className="desc">{p.descrizione||""}</div>
-              <div className="row"><span className="price">{eur(net)}{sc>0 && <span className="listino-old">{eur(p.prezzo)}</span>}</span>
+              <div className="row"><span className="price">{eur(conIva(net,iva))}{sc>0 && <span className="listino-old">{eur(conIva(p.prezzo,iva))}</span>}</span>
                 <span className={"avail "+(disp>0?"ok":"no")}>{disp>0?disp+" disp.":"Esaurito"}</span></div>
               <button className="add" onClick={e=>{e.stopPropagation();setDettaglio({tipo:"articolo",prod:p});}}>Vedi prodotto</button></div>
           </div>); })}</div>
       </>}
 
-      {vuoto && cat && <p className="muted">Nessun prodotto nella categoria «{cat}». <button className="lnk" onClick={()=>setCat("")}>Vedi tutti</button></p>}
-      {vuoto && !cat && <p className="muted">Catalogo in allestimento. (Nel gestionale: attiva i configuratori o rendi "vendibile" gli articoli.)</p>}
+      {vuoto && (q||cat) && <p className="muted">Nessun prodotto{q?` per «${ricerca}»`:""}{cat?` nella categoria «${cat}»`:""}. <button className="lnk" onClick={()=>{setRicerca&&setRicerca("");setCat("");}}>Vedi tutto il catalogo</button></p>}
+      {vuoto && !q && !cat && <p className="muted">Catalogo in allestimento. (Nel gestionale: attiva i configuratori o rendi "vendibile" gli articoli.)</p>}
     </div>
   );
 }
@@ -629,7 +730,7 @@ function Catalogo({addCart, catInit, profilo, vaiGuida}){
 // =====================================================================
 const kPubShop = path => path ? sb.storage.from("komunigo-public").getPublicUrl(path).data.publicUrl : "";
 
-function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida}){
+function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida, iva, setIva}){
   const [scheda,setScheda]=useState(null);   // null = sto caricando
   const [cfgOpen,setCfgOpen]=useState(false);
   const [imgSel,setImgSel]=useState(0);
@@ -665,7 +766,7 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida}){
           {scheda.descrizione && <div className="pdp-desc">{scheda.descrizione}</div>}
 
           {tipo==="articolo" && (()=>{ const sc=scontoPerCat(profilo,prod.categoria); const net=prezzoNet(prod.prezzo,profilo,prod.categoria); return <div className="pdp-buy">
-            <span className="price">{eur(net)}{sc>0 && <span className="listino-old">{eur(prod.prezzo)}</span>}</span>
+            <span className="price">{eur(conIva(net,iva))} <span className="iva-tag">{ivaLbl(iva)}</span>{sc>0 && <span className="listino-old">{eur(conIva(prod.prezzo,iva))}</span>}</span>
             {sc>0 && <span className="b2b-badge">−{sc}% riservato</span>}
             <span className={"avail "+(disp>0?"ok":"no")}>{disp>0?disp+" disp.":"Esaurito"}</span>
             <button className="add" disabled={disp<=0}
@@ -681,6 +782,8 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida}){
             ? <div className="muted" style={{fontSize:13,marginTop:10}}>📦 Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {prod.giorni_lavorazione} gg lavorativi + spedizione)</span></div>
             : (tipo==="articolo" && disp>0 && <div className="muted" style={{fontSize:13,marginTop:10}}>📦 <b>Pronto</b> per la spedizione</div>)}
 
+          <div style={{marginTop:14}}><BarraFiducia compact/></div>
+
           {scheda.template_path && <div className="pdp-template">
             <div className="pdp-tpl-h">📄 Template / layout di stampa</div>
             <p className="muted" style={{margin:"4px 0 10px",fontSize:13}}>{scheda.template_note||"Scarica il file, posiziona la tua grafica nell'area indicata ed esporta in PDF."}</p>
@@ -688,6 +791,8 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida}){
           </div>}
 
           {vaiGuida && <p className="muted" style={{fontSize:13,marginTop:12}}>📄 Come preparare il file? <button className="lnk" onClick={vaiGuida}>Leggi le linee guida di stampa →</button></p>}
+
+          {tipo==="configuratore" && <a className="campione-lnk" href={`mailto:info@komunigo.it?subject=${encodeURIComponent("Richiesta campione neutro — "+prod.nome)}&body=${encodeURIComponent("Vorrei ricevere un campione NEUTRO (senza stampa) di: "+prod.nome+"\n\nNome/azienda:\nIndirizzo di spedizione:\nTelefono:\n\nGrazie!")}`}>🧪 Vuoi provarlo prima? <b>Ordina un campione neutro</b></a>}
         </div>
       </div>
 
@@ -697,7 +802,7 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida}){
           <tr key={i}><th>{c.label}</th><td>{c.valore}</td></tr>)}</tbody></table>
       </div>}
 
-      {cfgOpen && <Configuratore prod={prod} chiudi={()=>setCfgOpen(false)} addCart={addCart}/>}
+      {cfgOpen && <Configuratore prod={prod} chiudi={()=>setCfgOpen(false)} addCart={addCart} iva={iva} setIva={setIva}/>}
     </div>
   );
 }
@@ -706,10 +811,11 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida}){
 //  CONFIGURATORE
 // =====================================================================
 const FORMATI_STAMPA_SHOP=[{nome:"32×44"},{nome:"33×48,8"}];
-function Configuratore({prod,chiudi,addCart}){
+function Configuratore({prod,chiudi,addCart,iva,setIva}){
   const gadget = prod.tipo==="gadget";
   const isStampa = prod.tipo==="stampa";
-  const shopQta = Array.isArray(prod.shop_quantita)? prod.shop_quantita.map(n=>Number(n)).filter(n=>n>0) : [];
+  const shopQta = (Array.isArray(prod.shop_quantita)? prod.shop_quantita.map(n=>Number(n)).filter(n=>n>0) : [])
+    .filter(n=> !gadget || n>=(Number(prod.minimo)||0));   // sui gadget mai sotto il minimo ordinabile
   const misMin = Number(prod.shop_mis_min)||0, misMax = Number(prod.shop_mis_max)||0;   // cm (dal DB)
   const misMinMm = misMin*10, misMaxMm = misMax*10;                                     // mm (per l'utente)
   const [varianti,setVarianti]=useState([]);
@@ -722,6 +828,7 @@ function Configuratore({prod,chiudi,addCart}){
   const [stMacchina,setStMacchina]=useState("piccolo"), [stFmt,setStFmt]=useState("auto"), [stColore,setStColore]=useState(true), [stFr,setStFr]=useState(false);
   const [prezzo,setPrezzo]=useState(null);
   const [stato,setStato]=useState("");
+  const [tiers,setTiers]=useState(null);   // scaglioni calcolati [{qta,res,unit,tot,risparmio}]
 
   useEffect(()=>{ (async()=>{
     const [v,c,s]=await Promise.all([
@@ -735,18 +842,39 @@ function Configuratore({prod,chiudi,addCart}){
 
   const stArr = ()=>Object.keys(stSel).filter(id=>stSel[id]>0).map(id=>({stampa_id:id, colori:stSel[id]}));
 
+  const bodyFor=(q)=> gadget
+    ? { prodotto_id:prod.id, variante_id:variante, quantita:Number(q), stampe:stArr() }
+    : { prodotto_id:prod.id, variante_id:variante, larghezza_cm:Number(larg)/10, altezza_cm:Number(alt)/10, quantita:Number(q), opzioni:Object.keys(opzioni).filter(k=>opzioni[k]),
+        ...(isStampa?{st_macchina:stMacchina, st_fmt:stFmt, st_colore:stColore, st_fr:stFr}:{}) };
+
   const calcola=async()=>{
-    setStato("calcolo"); setPrezzo(null);
+    setStato("calcolo"); setPrezzo(null); setTiers(null);
     try{
-      const body = gadget
-        ? { prodotto_id:prod.id, variante_id:variante, quantita:Number(qta), stampe:stArr() }
-        : { prodotto_id:prod.id, variante_id:variante, larghezza_cm:Number(larg)/10, altezza_cm:Number(alt)/10, quantita:Number(qta), opzioni:Object.keys(opzioni).filter(k=>opzioni[k]),
-            ...(isStampa?{st_macchina:stMacchina, st_fmt:stFmt, st_colore:stColore, st_fr:stFr}:{}) };
-      const {data,error}=await sb.functions.invoke("hyper-endpoint",{body});
-      if(error) throw error;
-      setPrezzo(data); setStato("");
+      if(shopQta.length){
+        // calcola il prezzo per ogni scaglione e mostra la tabella (più ne ordini, meno costa)
+        const res=await Promise.all(shopQta.map(q=>sb.functions.invoke("hyper-endpoint",{body:bodyFor(q)}).then(r=>({q,data:r.data,error:r.error})).catch(e=>({q,error:e}))));
+        const rows=res.filter(x=>!x.error && x.data && Number(x.data.prezzo_totale)>0 && !x.data.sotto_costo)
+          .map(x=>({qta:x.q, res:x.data, unit:Number(x.data.prezzo_unitario)||0, tot:Number(x.data.prezzo_totale)||0}));
+        if(!rows.length){ setStato("errore"); return; }
+        const unitBase=Math.max(...rows.map(r=>r.unit));
+        rows.forEach(r=>r.risparmio = unitBase>0? Math.round((1-r.unit/unitBase)*100):0);
+        setTiers(rows);
+        const sel=rows.find(r=>r.qta===Number(qta))||rows[0];
+        setQta(sel.qta); setPrezzo(sel.res); setStato("");
+      }else{
+        const {data,error}=await sb.functions.invoke("hyper-endpoint",{body:bodyFor(qta)});
+        if(error) throw error;
+        setPrezzo(data); setStato("");
+      }
     }catch(e){ setStato("errore"); }
   };
+  const selTier=(t)=>{ setQta(t.qta); setPrezzo(t.res); };
+  const invalida=()=>{ setPrezzo(null); setTiers(null); };
+  // wizard a step (solo gadget): 1 Colore · 2 Stampa · 3 Quantità
+  const [step,setStep]=useState(1);
+  const hasStampe = gadget && stampe.length>0;
+  const nextStep=()=>setStep(s=> s===1? (hasStampe?2:3) : 3);
+  const prevStep=()=>setStep(s=> s===3? (hasStampe?2:1) : 1);
 
   const prezzoOk = prezzo && Number(prezzo.prezzo_totale) > 0 && !prezzo.sotto_costo
     && !(isStampa && prezzo.impaginazione && !prezzo.impaginazione.valido);
@@ -771,11 +899,20 @@ function Configuratore({prod,chiudi,addCart}){
   return (
     <div className="overlay">
       <div className="modal">
-        <div className="mh"><h3>{prod.nome}</h3><button className="x" onClick={chiudi}>×</button></div>
+        <div className="mh"><h3>{prod.nome}</h3>
+          {setIva && <div className="iva-toggle sm">
+            <button className={iva==="escl"?"on":""} onClick={()=>setIva("escl")}>IVA escl.</button>
+            <button className={iva==="incl"?"on":""} onClick={()=>setIva("incl")}>IVA incl.</button>
+          </div>}
+          <button className="x" onClick={chiudi}>×</button></div>
+        {gadget && <div className="wiz-steps">
+          {[[1,"Colore"],...(hasStampe?[[2,"Stampa"]]:[]),[3,"Quantità"]].map(([n,l])=>
+            <span key={n} className={"wiz-step"+(step===n?" on":"")+(step>n?" done":"")}>{n}. {l}</span>)}
+        </div>}
         <div className="mb">
-          {varianti.length>0 && <>
+          {varianti.length>0 && (!gadget||step===1) && <>
             <label className="fld">{gadget?"Colore":isStampa?"Carta":"Materiale / variante"}</label>
-            <select value={variante} onChange={e=>{setVariante(e.target.value);setPrezzo(null);}}>
+            <select value={variante} onChange={e=>{setVariante(e.target.value);invalida();}}>
               {varianti.map(v=><option key={v.id} value={v.id}>{v.nome}{(!gadget&&!isStampa&&v.spessore)?` (${v.spessore}mm)`:""}</option>)}
             </select></>}
           {!gadget && <><div className="two">
@@ -785,12 +922,21 @@ function Configuratore({prod,chiudi,addCart}){
               <input type="number" step="1" value={alt} min={misMinMm||1} max={misMaxMm||undefined} onChange={e=>{setAlt(e.target.value);setPrezzo(null);}}/></div>
           </div>
           {(misMin>0||misMax>0) && <div className="muted" style={{fontSize:12}}>Misura {misMinMm>0?`da ${misMinMm}`:""}{misMaxMm>0?` fino a ${misMaxMm}`:""} mm per lato.</div>}</>}
-          <label className="fld">Quantità{gadget&&prod.minimo?` · minimo ${prod.minimo}`:""}</label>
+          {(!gadget||step===3) && <><label className="fld">Quantità{gadget&&prod.minimo?` · minimo ${prod.minimo}`:""}</label>
           {shopQta.length
-            ? <select value={qta} onChange={e=>{setQta(e.target.value);setPrezzo(null);}}>
-                {shopQta.map(n=><option key={n} value={n}>{n} pz</option>)}
-              </select>
-            : <input type="number" value={qta} min={gadget?(prod.minimo||1):1} onChange={e=>{setQta(e.target.value);setPrezzo(null);}}/>}
+            ? (()=>{ const showP=!!(tiers&&prezzo); const tmap={}; (tiers||[]).forEach(t=>tmap[t.qta]=t); return (
+                <div className="scaglioni">
+                  {shopQta.map(q=>{ const t=tmap[q]; const on=Number(qta)===q; return (
+                    <button type="button" key={q} className={"tier"+(on?" on":"")}
+                      onClick={()=>{ if(showP&&t){ selTier(t); } else { setQta(q); } }}>
+                      <span className="tq">{q} pz</span>
+                      {showP&&t
+                        ? <><span className="tu">{eur(conIva(t.unit,iva))}/pz</span><span className="tt">{eur(conIva(t.tot,iva))}</span>{t.risparmio>0 && <span className="tr">−{t.risparmio}%</span>}</>
+                        : <span className="tu muted">da calcolare</span>}
+                    </button>); })}
+                  <div className="muted" style={{fontSize:12,marginTop:4}}>Più pezzi ordini, meno costano. {showP?"Tocca la quantità che preferisci.":"Premi “Calcola prezzi”."}</div>
+                </div>); })()
+            : <input type="number" value={qta} min={gadget?(prod.minimo||1):1} onChange={e=>{setQta(e.target.value);invalida();}}/>}</>}
           {isStampa && <div className="opts" style={{marginTop:12}}>
             <label className="fld">Stampa</label>
             <div className="two">
@@ -802,37 +948,51 @@ function Configuratore({prod,chiudi,addCart}){
             <label style={{display:"flex",gap:8,alignItems:"center",marginTop:8}}>
               <input type="checkbox" checked={stFr} onChange={e=>{setStFr(e.target.checked);setPrezzo(null);}}/> Fronte/retro</label>
           </div>}
-          {gadget && stampe.length>0 && <div className="opts"><label className="fld">Dove stampare</label>
+          {gadget && step===2 && stampe.length>0 && <div className="opts"><label className="fld">Dove stampare</label>
             {stampe.map(s=>{ const col=stSel[s.id]||0; return (
-              <div key={s.id} style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:4}}>
-                <label style={{flex:1,minWidth:150,display:"flex",gap:6,alignItems:"center"}}><input type="checkbox" checked={col>0}
-                  onChange={e=>{ setStSel(o=>({...o,[s.id]:e.target.checked?1:0})); setPrezzo(null); }}/> {s.nome}{s.area_cm?<span className="muted"> · {s.area_cm} cm</span>:null}</label>
-                {col>0 && <span style={{fontSize:13}}>colori <input type="number" min="1" max={s.max_colori||4} value={col} style={{width:56,padding:"4px 6px"}}
-                  onChange={e=>{ const n=Math.max(1,Math.min(Number(e.target.value)||1, s.max_colori||4)); setStSel(o=>({...o,[s.id]:n})); setPrezzo(null); }}/></span>}
+              <div key={s.id} className={"stampa-pos"+(col>0?" on":"")}>
+                <label className="stampa-head"><input type="checkbox" checked={col>0}
+                  onChange={e=>{ setStSel(o=>({...o,[s.id]:e.target.checked?1:0})); setPrezzo(null); }}/>
+                  <span className="stampa-nome">{s.nome}</span>
+                  {s.tecnica?<span className="tec-badge">{s.tecnica}</span>:null}</label>
+                <div className="stampa-area">
+                  <span className="area-rect">area</span>
+                  <span className="area-lbl">Area di stampa{s.area_cm?` · ${s.area_cm} cm`:""}</span>
+                </div>
+                {col>0 && <div className="stampa-col">N° colori <input type="number" min="1" max={s.max_colori||4} value={col} style={{width:56,padding:"4px 6px"}}
+                  onChange={e=>{ const n=Math.max(1,Math.min(Number(e.target.value)||1, s.max_colori||4)); setStSel(o=>({...o,[s.id]:n})); setPrezzo(null); }}/> <span className="muted" style={{fontSize:12}}>(dal n° colori del tuo logo)</span></div>}
               </div>); })}
           </div>}
           {!gadget && voci.length>0 && <div className="opts"><label className="fld">Opzioni</label>
             {voci.map(v=>(<label key={v.id}><input type="checkbox" checked={!!opzioni[v.id]}
               onChange={e=>{setOpzioni(o=>({...o,[v.id]:e.target.checked}));setPrezzo(null);}}/>{v.descrizione}</label>))}
           </div>}
-          {Number(prod.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}>📦 Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {prod.giorni_lavorazione} gg lavorativi + spedizione)</span></div>}
-          <div className="note" style={{marginTop:12}}>📎 Dopo l'ordine carichi il file grafico e ricevi la <b>bozza di stampa da approvare</b> prima della produzione.</div>
+          {(!gadget||step===3) && Number(prod.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}>📦 Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {prod.giorni_lavorazione} gg lavorativi + spedizione)</span></div>}
+          {(!gadget||step===3) && <div className="note" style={{marginTop:12}}>📎 Dopo l'ordine carichi il file grafico e ricevi la <b>bozza di stampa da approvare</b> prima della produzione.</div>}
           {stato==="errore" && <div className="warn" style={{marginTop:14}}>
             <b>Motore prezzi non ancora collegato.</b> Serve la Edge Function <code>prezzo-configuratore</code>. Fino ad allora il preventivo si fa dal gestionale.</div>}
-          {prezzoOk && <div className="cart-tot" style={{marginTop:14}}>
+          {(!gadget||step===3) && prezzoOk && <div className="cart-tot" style={{marginTop:14}}>
             {Number(prezzo.sconto_pct)>0 && <>
-              <div className="r"><span>Prezzo di listino</span><span className="listino-old" style={{marginLeft:0}}>{eur(prezzo.prezzo_listino_totale)}</span></div>
+              <div className="r"><span>Prezzo di listino</span><span className="listino-old" style={{marginLeft:0}}>{eur(conIva(prezzo.prezzo_listino_totale,iva))}</span></div>
               <div className="r" style={{color:"var(--blu)",fontWeight:700}}><span>Sconto riservato B2B</span><span>−{prezzo.sconto_pct}%</span></div>
             </>}
-            <div className="r"><span>Prezzo unitario</span><span>{eur(prezzo.prezzo_unitario)}</span></div>
-            <div className="r big"><span>Totale ({qta} pz)</span><span>{eur(prezzo.prezzo_totale)}</span></div></div>}
-          {prezzo && !prezzoOk && <div className="warn" style={{marginTop:14}}>
+            <div className="r"><span>Prezzo unitario</span><span>{eur(conIva(prezzo.prezzo_unitario,iva))}</span></div>
+            <div className="r big"><span>Totale ({qta} pz) <span className="iva-tag">{ivaLbl(iva)}</span></span><span>{eur(conIva(prezzo.prezzo_totale,iva))}</span></div></div>}
+          {(!gadget||step===3) && prezzo && !prezzoOk && <div className="warn" style={{marginTop:14}}>
             <b>Prezzo su richiesta.</b> Per questa configurazione contattaci a <a href="mailto:info@komunigo.it">info@komunigo.it</a> e ti facciamo un preventivo su misura.</div>}
         </div>
         <div className="mf">
-          {prezzoOk
-            ? <button className="btn" onClick={aggiungi}>Aggiungi al carrello</button>
-            : <button className="btn" onClick={calcola} disabled={stato==="calcolo"}>{stato==="calcolo"?"Calcolo…":"Calcola prezzo"}</button>}
+          {gadget ? <>
+            {step>1 && <button className="btn ghost" onClick={prevStep}>← Indietro</button>}
+            {step<3 && <button className="btn" onClick={nextStep}>Avanti →</button>}
+            {step===3 && (prezzoOk
+              ? <button className="btn" onClick={aggiungi}>Aggiungi al carrello</button>
+              : <button className="btn" onClick={calcola} disabled={stato==="calcolo"}>{stato==="calcolo"?"Calcolo…":"Calcola prezzi"}</button>)}
+          </> : <>
+            {prezzoOk
+              ? <button className="btn" onClick={aggiungi}>Aggiungi al carrello</button>
+              : <button className="btn" onClick={calcola} disabled={stato==="calcolo"}>{stato==="calcolo"?"Calcolo…":(shopQta.length?"Calcola prezzi":"Calcola prezzo")}</button>}
+          </>}
           <button className="btn ghost" onClick={chiudi}>Annulla</button>
         </div>
       </div>

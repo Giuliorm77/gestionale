@@ -852,11 +852,28 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida, iva,
 //  colore → quantità per taglia → posizioni di stampa. Il prezzo lo calcola
 //  SOLO il server (hyper-endpoint con {abbigliamento}); qui niente costi.
 // =====================================================================
+// istruzioni di lavaggio: il fornitore le manda in inglese (frasi fisse) → italiano
+const LAVAGGIO_IT={
+  "bleach not allowed":"Non candeggiare","do not tumble":"Non asciugare in asciugatrice","do not dry clean":"Non lavare a secco",
+  "machine wash 30 degrees":"Lavaggio in lavatrice a 30°","machine wash 40 degrees":"Lavaggio in lavatrice a 40°","machine wash 60 degrees":"Lavaggio in lavatrice a 60°",
+  "gentle machine wash 30 degrees":"Lavaggio delicato a 30°","gentle machine wash 40 degrees":"Lavaggio delicato a 40°",
+  "ironing. highest temperature allowed110 degrees":"Stiratura max 110°","ironing. highest temperature allowed 110 degrees":"Stiratura max 110°",
+  "ironing. highest temperature allowed 150 degrees":"Stiratura max 150°","ironing. highest temperature allowed 200 degrees":"Stiratura max 200°",
+  "do not iron":"Non stirare","withstands no liquids stronger than perchlorethylene.":"Lavaggio a secco solo con percloroetilene",
+  "hand wash":"Lavaggio a mano","tumble at low temperature":"Asciugatrice a bassa temperatura","tumble allowed":"Asciugatrice consentita",
+  "do not use softener":"Non usare ammorbidente","wash inside out":"Lavare al rovescio","wash separately":"Lavare separatamente",
+  "close all zippers before wash":"Chiudere le zip prima del lavaggio","dry clean":"Lavaggio a secco consentito","dry on flat surface":"Asciugare in piano",
+  "wash with similar colors":"Lavare con colori simili","bleach without chlorine can be used":"Candeggio senza cloro consentito",
+  "machine wash in half-filled machine with short centrifugation time at 30 degrees":"Lavatrice a 30°, carico ridotto e centrifuga breve",
+};
+const lavaggioIt=t=>String(t||"").split(";").map(x=>x.trim()).filter(Boolean).map(x=>LAVAGGIO_IT[x.toLowerCase()]||x).join(" · ");
+
 function AbbigliamentoDettaglio({capo, addCart, onBack, profilo, vaiGuida, iva, setIva}){
   const [colori,setColori]=useState(null);
   const [colSel,setColSel]=useState(null);
   const [imgSel,setImgSel]=useState(0);
   const [cfgOpen,setCfgOpen]=useState(false);
+  useEffect(()=>{ try{ window.scrollTo(0,0); }catch(e){} },[capo.codice]);
   useEffect(()=>{ (async()=>{
     const {data}=await sb.from("komunigo_abbigliamento_colori").select("*")
       .eq("fornitore",capo.fornitore).eq("codice_prodotto",capo.codice).order("ordine");
@@ -867,7 +884,7 @@ function AbbigliamentoDettaglio({capo, addCart, onBack, profilo, vaiGuida, iva, 
   const fotoMain=imgs[imgSel]||imgs[0]||null;
   const carat=[["Marchio",capo.brand],["Tipo",capo.sottocategoria],["Genere",capo.genere],["Vestibilità",capo.vestibilita],
     ["Taglie",capo.taglie],["Grammatura",capo.grammatura],["Tessuto",capo.tessuto],
-    ["Lavaggio",String(capo.lavaggio||"").split(";").map(x=>x.trim()).filter(Boolean).join(" · ")],["Codice",capo.codice]]
+    ["Lavaggio",lavaggioIt(capo.lavaggio)],["Codice",capo.codice]]
     .filter(x=>String(x[1]||"").trim());
   return (
     <div>

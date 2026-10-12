@@ -10207,7 +10207,7 @@ function ModuloCatalogoFornitori({profilo,perm}){
                   <td className="muted">{p.n_colori} / {p.n_sku}</td>
                   <td>{fasciaEur(p.netto_min,p.netto_max)}</td>
                   <td className="muted">{fasciaEur(p.listino_min,p.listino_max)}</td>
-                  <td onClick={e=>e.stopPropagation()}>
+                  <td onClick={e=>e.stopPropagation()} style={{whiteSpace:"nowrap"}}>
                     <input type="number" min="0" step="5" style={{width:64}} placeholder={String(ricDefault)} disabled={!perm.scrivi}
                       defaultValue={p.ricarico_pct??""} key={p.id+":"+(p.ricarico_pct??"")}
                       onBlur={e=>{ const t=e.target.value.trim(); const v=t===""? null : Number(t.replace(",","."));

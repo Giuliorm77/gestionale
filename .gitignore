@@ -30,3 +30,6 @@ FILE JSX CHAT CLAUDE/
 Thumbs.db
 .DS_Store
 desktop.ini
+
+# feed fornitori (link con chiave)
+Komunigo/.env.fornitore

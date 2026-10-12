@@ -504,7 +504,7 @@ const MODULO_REQ = {
   fornitori:"economici", agenti:"economici", impostazioni:"economici", preventivi:"economici", prodotticfg:"economici",
   imballi:"economici", commesse:"commesse", postazione:"commesse", ordinifor:"economici", trasporti:"economici",
   report:"economici", utenti:"utenti", crm:"crm", agenda:"crm", mezzi:"commesse", ddt:"magazzino", scadenzario:"economici", consuntivi:"economici",
-  vetrina:"economici", ordinishop:"commesse", clientikomunigo:"economici", qualita:"economici",
+  vetrina:"economici", ordinishop:"commesse", clientikomunigo:"economici", qualita:"economici", catalogofor:"economici",
   inarrivo:"magazzino",
 };
 const PERM_FLAGS = ["scrivi","elimina","economici","fiscali","utenti","commesse","magazzino","crm"];
@@ -556,6 +556,7 @@ const NAV_ITEMS = [
   {g:"E-commerce", m:"vetrina", ico:"🖼️", label:"Vetrina e-commerce"},
   {g:"E-commerce", m:"ordinishop", ico:"🌐", label:"Ordini Komunigo"},
   {g:"E-commerce", m:"clientikomunigo", ico:"🤝", label:"Account Komunigo"},
+  {g:"E-commerce", m:"catalogofor", ico:"🧵", label:"Catalogo fornitori"},
   // ⚙️ Sistema
   {g:"Sistema", m:"impostazioni", ico:"⚙️", label:"Impostazioni"},
   {g:"Sistema", m:"utenti", ico:"🔑", label:"Utenti & Ruoli"},
@@ -1000,6 +1001,7 @@ function Gestionale({profilo}){
         {modulo==="vetrina" && <ModuloVetrina profilo={profilo} perm={perm}/>}
         {modulo==="ordinishop" && <ModuloOrdiniShop profilo={profilo} perm={perm}/>}
         {modulo==="clientikomunigo" && <ModuloAccountKomunigo profilo={profilo} perm={perm}/>}
+        {modulo==="catalogofor" && <ModuloCatalogoFornitori profilo={profilo} perm={perm}/>}
         {modulo==="imballi" && <ModuloImballi profilo={profilo} perm={perm}/>}
         {modulo==="commesse" && <ModuloCommesse profilo={profilo} perm={perm}/>}
         {modulo==="ddt" && <ModuloDDT profilo={profilo} perm={perm}/>}
@@ -10082,6 +10084,228 @@ const KOMUNIGO_BUCKET="komunigo-public";
 const kPub = path => path ? sb.storage.from(KOMUNIGO_BUCKET).getPublicUrl(path).data.publicUrl : "";
 const kSafeExt = name => (String(name).split(".").pop()||"").toLowerCase().replace(/[^a-z0-9]/g,"");
 const kNewPath = (pref,ext) => pref+"/"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+(ext?"."+ext:"");
+
+/* ---- CATALOGO FORNITORI (New Wave / Clique): tabelle di appoggio komunigo-v16,
+   scaricate dalla edge "catalogo-fornitore". Qui lo staff sceglie cosa proporre
+   su Komunigo e con quale RICARICO sul netto. Non tocca negozio né listino. ---- */
+const CATFOR_ID="newwave";
+function catforCategoria(c){ const s=String(c||"").split(";").map(x=>x.trim()).filter(Boolean); return s.length? s : ["(senza categoria)"]; }
+function ModuloCatalogoFornitori({profilo,perm}){
+  const [righe,setRighe]=useState(null);
+  const [sync,setSync]=useState(null);
+  const [err,setErr]=useState(""); const [msg,setMsg]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [cerca,setCerca]=useState("");
+  const [cat,setCat]=useState("");
+  const [soloSel,setSoloSel]=useState(false);
+  const [soloAnom,setSoloAnom]=useState(false);
+  const [aperto,setAperto]=useState(null);   // codice prodotto aperto in scheda
+  const [ricDef,setRicDef]=useState("");
+
+  const carica=useCallback(async()=>{
+    setErr("");
+    const [r,s]=await Promise.all([
+      sb.from("catalogo_fornitore_riepilogo").select("*").eq("fornitore",CATFOR_ID).order("nome"),
+      sb.from("catalogo_fornitore_sync").select("*").eq("fornitore",CATFOR_ID).maybeSingle(),
+    ]);
+    if(r.error){ setErr(r.error.message.includes("does not exist")||r.error.code==="42P01"
+      ? "Tabelle non trovate: va eseguita la migrazione Komunigo/migrazioni/komunigo-v16.sql in Supabase." : r.error.message); setRighe([]); return; }
+    setRighe(r.data||[]); setSync(s.data||null);
+    setRicDef(s.data? String(s.data.ricarico_default??"") : "");
+  },[]);
+  useEffect(()=>{ carica(); },[carica]);
+
+  async function aggiorna(){
+    setBusy(true); setErr(""); setMsg("");
+    try{
+      const {data,error}=await sb.functions.invoke("catalogo-fornitore");
+      if(error) throw error;
+      if(data && data.ok===false) throw new Error(data.errore||"Aggiornamento fallito");
+      setMsg("Catalogo aggiornato: "+(data?.prodotti||0)+" prodotti, "+(data?.varianti||0)+" colori, "+(data?.sku||0)+" taglie.");
+      await carica();
+    }catch(ex){ setErr("Aggiornamento: "+(ex.message||ex)); }
+    setBusy(false);
+  }
+  async function salvaRicDef(){
+    const v=Number(String(ricDef).replace(",","."));
+    if(!Number.isFinite(v)||v<0){ setErr("Ricarico predefinito non valido."); return; }
+    const {error}=await sb.from("catalogo_fornitore_sync").update({ricarico_default:v}).eq("fornitore",CATFOR_ID);
+    if(error){ setErr(error.message); return; }
+    await carica();
+  }
+  async function patchProd(p,patch){
+    setErr("");
+    setRighe(prev=>prev.map(x=>x.id===p.id?{...x,...patch}:x));   // ottimistico
+    const {error}=await sb.from("catalogo_fornitore_prodotti").update(patch).eq("id",p.id);
+    if(error){ setErr(error.message); await carica(); }
+  }
+
+  const ricDefault=Number(sync?.ricarico_default ?? 100);
+  const ricOf=p=> p.ricarico_pct!=null && p.ricarico_pct!=="" ? Number(p.ricarico_pct) : ricDefault;
+  const anomalo=p=> Number(p.n_listino_zero)>0 || Number(p.n_netto_sopra_listino)>0;
+  const categorie=useMemo(()=>{ const m={}; (righe||[]).forEach(p=>{ const c=catforCategoria(p.categoria)[0]; m[c]=(m[c]||0)+1; });
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]); },[righe]);
+  const q=cerca.trim().toLowerCase();
+  const lista=(righe||[]).filter(p=>
+    (!q || [p.nome,p.codice,p.categoria,p.linea,p.genere].join(" ").toLowerCase().includes(q)) &&
+    (!cat || catforCategoria(p.categoria)[0]===cat) &&
+    (!soloSel || p.selezionato) && (!soloAnom || anomalo(p)) );
+  const nSel=(righe||[]).filter(p=>p.selezionato).length;
+  const fasciaEur=(a,b)=> a==null? "—" : (Number(a)===Number(b)||b==null? eur(a) : eur(a)+" – "+eur(b));
+
+  const pAperto=(righe||[]).find(p=>p.codice===aperto)||null;
+  if(pAperto) return <SchedaCatalogoFornitore p={pAperto} ric={ricOf(pAperto)} ricDefault={ricDefault} perm={perm}
+    onBack={()=>setAperto(null)} onPatch={patch=>patchProd(pAperto,patch)}/>;
+
+  return (
+    <>
+      <div className="topbar"><h1>🧵 Catalogo fornitori</h1></div>
+      <div className="content">
+        {err && <div className="banner err">{err}</div>}
+        {msg && <div className="banner info">{msg}</div>}
+        <div className="banner info">Catalogo <b>New Wave (Clique)</b> scaricato dal portale del fornitore. Scegli i prodotti da <b>proporre su Komunigo</b> e il <b>ricarico</b> sul nostro prezzo netto. Per ora resta tutto interno: <b>non</b> pubblica nulla sul negozio.</div>
+        <div className="card" style={{display:"flex",gap:16,flexWrap:"wrap",alignItems:"center",marginBottom:12}}>
+          <div style={{flex:"1 1 260px"}}>
+            <div><b>Ultimo aggiornamento:</b> {sync?.ultimo_sync? new Date(sync.ultimo_sync).toLocaleString("it-IT") : <span className="muted">mai</span>}</div>
+            <div className="muted" style={{fontSize:12}}>{sync?.esito||""}{sync?.n_prodotti? ` · ${sync.n_prodotti} prodotti, ${sync.n_varianti} colori, ${sync.n_sku} taglie`:""}</div>
+          </div>
+          <label style={{display:"flex",alignItems:"center",gap:6}}>Ricarico predefinito
+            <input type="number" min="0" step="5" style={{width:80}} value={ricDef} disabled={!perm.scrivi}
+              onChange={e=>setRicDef(e.target.value)} onBlur={salvaRicDef}/> %
+            <span className="muted" style={{fontSize:12}}>(margine {ricDefault>0? Math.round(ricDefault/(100+ricDefault)*100):0}%)</span>
+          </label>
+          {perm.scrivi && <button className="btn primary" disabled={busy} onClick={aggiorna}>{busy?"Scarico…":"🔄 Aggiorna dal fornitore"}</button>}
+        </div>
+        <div className="toolbar" style={{flexWrap:"wrap"}}>
+          <div className="search"><span className="mag">🔍</span><input placeholder="Cerca nome, codice, categoria…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
+          <select value={cat} onChange={e=>setCat(e.target.value)}>
+            <option value="">Tutte le categorie</option>
+            {categorie.map(([c,n])=><option key={c} value={c}>{c} ({n})</option>)}
+          </select>
+          <label style={{display:"flex",alignItems:"center",gap:4}}><input type="checkbox" checked={soloSel} onChange={e=>setSoloSel(e.target.checked)}/> solo proposti ({nSel})</label>
+          <label style={{display:"flex",alignItems:"center",gap:4}}><input type="checkbox" checked={soloAnom} onChange={e=>setSoloAnom(e.target.checked)}/> solo prezzi da verificare</label>
+          <span className="muted">{lista.length} prodotti</span>
+        </div>
+        {righe===null? <div className="empty">Caricamento…</div>
+         : (righe.length===0 && !err)? <div className="card empty">Catalogo vuoto: premi <b>🔄 Aggiorna dal fornitore</b> per scaricarlo.</div>
+         : <div className="card" style={{overflow:"auto"}}>
+            <table>
+              <thead><tr><th></th><th>Prodotto</th><th>Categoria</th><th>Colori / taglie</th><th>Netto</th><th>Listino fornitore</th><th>Ricarico</th><th>Prezzo Komunigo</th><th>Proponi</th></tr></thead>
+              <tbody>{lista.map(p=>{
+                const r=ricOf(p); const k=1+r/100;
+                const img=(p.immagini||[])[0];
+                const pMax=p.netto_max!=null? Number(p.netto_max)*k : null;
+                const sopraListino=p.listino_max>0 && pMax!=null && pMax>Number(p.listino_max);
+                return (
+                <tr key={p.id} style={{cursor:"pointer",opacity:p.attivo?1:.5}} onClick={()=>setAperto(p.codice)}>
+                  <td style={{width:56}}>{img? <img src={img.anteprima} alt="" loading="lazy" style={{width:48,height:48,objectFit:"contain",background:"#fff",borderRadius:6}}/> : null}</td>
+                  <td className="rs">{p.nome}
+                    <div className="muted" style={{fontSize:11}}>{p.codice}{p.linea?" · "+p.linea:""}{p.genere?" · "+p.genere:""}{p.grammatura?" · "+p.grammatura:""}</div>
+                    {!p.attivo && <span className="tag" style={{background:"#f0f0f0",color:"#888"}}>fuori catalogo</span>}
+                    {anomalo(p) && <span className="tag" style={{background:"#fdf0e3",color:"#c47a1e"}} title="Listino a zero o netto più alto del listino: da verificare col fornitore">⚠ prezzi da verificare</span>}</td>
+                  <td className="muted" style={{fontSize:12}}>{catforCategoria(p.categoria).join(" › ")}</td>
+                  <td className="muted">{p.n_colori} / {p.n_sku}</td>
+                  <td>{fasciaEur(p.netto_min,p.netto_max)}</td>
+                  <td className="muted">{fasciaEur(p.listino_min,p.listino_max)}</td>
+                  <td onClick={e=>e.stopPropagation()}>
+                    <input type="number" min="0" step="5" style={{width:64}} placeholder={String(ricDefault)} disabled={!perm.scrivi}
+                      defaultValue={p.ricarico_pct??""} key={p.id+":"+(p.ricarico_pct??"")}
+                      onBlur={e=>{ const t=e.target.value.trim(); const v=t===""? null : Number(t.replace(",","."));
+                        if(v!==null && (!Number.isFinite(v)||v<0)) return;
+                        if((v??null)!==(p.ricarico_pct==null?null:Number(p.ricarico_pct))) patchProd(p,{ricarico_pct:v}); }}/> %</td>
+                  <td><b>{fasciaEur(p.netto_min!=null?Number(p.netto_min)*k:null, pMax)}</b>
+                    {sopraListino && <div style={{fontSize:11,color:"#c0392b"}}>sopra il listino fornitore</div>}</td>
+                  <td onClick={e=>e.stopPropagation()}><input type="checkbox" checked={!!p.selezionato} disabled={!perm.scrivi}
+                    onChange={e=>patchProd(p,{selezionato:e.target.checked})}/></td>
+                </tr>); })}</tbody>
+            </table>
+          </div>}
+        <div className="muted" style={{fontSize:12,marginTop:10}}>Prezzi IVA esclusa. <b>Prezzo Komunigo</b> = netto × (1 + ricarico) del solo capo neutro, senza stampa. Campo ricarico vuoto = usa il predefinito. Clicca una riga per vedere colori, taglie e foto.</div>
+      </div>
+    </>
+  );
+}
+
+function SchedaCatalogoFornitore({p,ric,ricDefault,perm,onBack,onPatch}){
+  const [varianti,setVarianti]=useState(null);
+  const [sku,setSku]=useState([]);
+  const [err,setErr]=useState("");
+  const [colSel,setColSel]=useState(null);
+  const [note,setNote]=useState(p.note||"");
+  useEffect(()=>{ (async()=>{
+    const [v,s]=await Promise.all([
+      sb.from("catalogo_fornitore_varianti").select("*").eq("fornitore",p.fornitore).eq("codice_prodotto",p.codice).order("ordine"),
+      sb.from("catalogo_fornitore_sku").select("*").eq("fornitore",p.fornitore).eq("codice_prodotto",p.codice).order("ordine"),
+    ]);
+    if(v.error||s.error){ setErr((v.error||s.error).message); setVarianti([]); return; }
+    setVarianti(v.data||[]); setSku(s.data||[]);
+    if((v.data||[]).length) setColSel(v.data[0].codice_colore);
+  })(); },[p.fornitore,p.codice]);
+  const k=1+ric/100;
+  const vSel=(varianti||[]).find(v=>v.codice_colore===colSel);
+  const imgs=(vSel&&vSel.immagini&&vSel.immagini.length? vSel.immagini : p.immagini)||[];
+  const skuSel=sku.filter(s=>s.codice_colore===colSel);
+  const info=[["Brand",p.brand],["Linea",p.linea],["Genere",p.genere],["Vestibilità",p.vestibilita],["Taglie",p.taglie],
+    ["Grammatura",p.grammatura],["Tessuto",p.tessuto],["Tecnica / note",[p.tecnica,p.note_tecnica].filter(Boolean).join(" · ")],
+    ["Disponibile dal",p.disponibile_dal],["Lavaggio",String(p.lavaggio||"").split(";").join(" · ")]].filter(x=>String(x[1]||"").trim());
+  return (
+    <>
+      <div className="topbar"><button className="btn small" onClick={onBack}>‹ Catalogo fornitori</button><h1 style={{marginLeft:10}}>{p.nome} <span className="muted" style={{fontSize:14}}>{p.codice}</span></h1></div>
+      <div className="content">
+        {err && <div className="banner err">{err}</div>}
+        <div style={{display:"grid",gridTemplateColumns:"minmax(260px,1fr) minmax(300px,1.3fr)",gap:16}}>
+          <div className="card">
+            {imgs[0]? <a href={imgs[0].alta||imgs[0].anteprima} target="_blank" rel="noopener noreferrer"><img src={imgs[0].anteprima} alt="" style={{width:"100%",maxHeight:420,objectFit:"contain",background:"#fff"}}/></a> : <div className="empty">Nessuna foto</div>}
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
+              {imgs.slice(1).map((i,n)=><a key={n} href={i.alta||i.anteprima} target="_blank" rel="noopener noreferrer" title={i.angolo}><img src={i.anteprima} alt="" loading="lazy" style={{width:64,height:64,objectFit:"contain",background:"#fff",border:"1px solid #eee",borderRadius:6}}/></a>)}
+            </div>
+            <div className="muted" style={{fontSize:11,marginTop:6}}>Clic su una foto = alta risoluzione (4000px).</div>
+          </div>
+          <div className="card">
+            <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+              <label style={{display:"flex",gap:6,alignItems:"center"}}><input type="checkbox" checked={!!p.selezionato} disabled={!perm.scrivi} onChange={e=>onPatch({selezionato:e.target.checked})}/> <b>Proponi su Komunigo</b></label>
+              <span className="muted">Ricarico {ric}%{p.ricarico_pct==null?" (predefinito)":""} · margine {Math.round(ric/(100+ric)*100)}%</span>
+            </div>
+            {p.descrizione && <p style={{marginTop:0}}>{p.descrizione}</p>}
+            <table><tbody>{info.map(([a,b])=><tr key={a}><td className="muted" style={{width:130}}>{a}</td><td>{b}</td></tr>)}</tbody></table>
+            <div style={{marginTop:10}}><div className="muted" style={{fontSize:12}}>Note interne</div>
+              <textarea rows={2} style={{width:"100%"}} value={note} disabled={!perm.scrivi} onChange={e=>setNote(e.target.value)}
+                onBlur={()=>{ if(note!==(p.note||"")) onPatch({note}); }}/></div>
+          </div>
+        </div>
+        <div className="card" style={{marginTop:16}}>
+          <h3 style={{marginTop:0}}>Colori ({(varianti||[]).length})</h3>
+          {varianti===null? <div className="empty">Caricamento…</div> :
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {varianti.map(v=>{ const im=(v.immagini||[])[0]; const on=v.codice_colore===colSel; return (
+              <button key={v.id} className="btn small" onClick={()=>setColSel(v.codice_colore)}
+                style={{display:"flex",alignItems:"center",gap:6,outline:on?"2px solid var(--brand)":"none",opacity:v.attivo?1:.5}}>
+                {im? <img src={im.anteprima} alt="" loading="lazy" style={{width:28,height:28,objectFit:"contain",background:"#fff"}}/> : null}
+                {v.colore||v.codice_colore} <span className="muted" style={{fontSize:11}}>{v.codice_colore}</span></button>); })}
+          </div>}
+          {vSel && <div style={{overflow:"auto",marginTop:12}}>
+            <table>
+              <thead><tr><th>Taglia</th><th>SKU</th><th>EAN</th><th>Netto</th><th>Listino fornitore</th><th>Prezzo Komunigo</th><th>Pz/cartone</th><th>Lead time</th></tr></thead>
+              <tbody>{skuSel.map(s=>{ const pk=s.prezzo_netto!=null? Number(s.prezzo_netto)*k : null; const sopra=s.prezzo_listino>0&&pk>Number(s.prezzo_listino); return (
+                <tr key={s.id} style={{opacity:s.attivo?1:.5}}>
+                  <td><b>{s.taglia||s.codice_taglia}</b></td>
+                  <td className="muted">{s.sku}</td>
+                  <td className="muted" style={{fontSize:12}}>{s.ean}</td>
+                  <td>{s.prezzo_netto!=null? eur(s.prezzo_netto) : "—"}</td>
+                  <td className="muted">{Number(s.prezzo_listino)>0? eur(s.prezzo_listino) : <span style={{color:"#c47a1e"}}>0 ⚠</span>}
+                    {s.prezzo_listino>0 && Number(s.prezzo_netto)>Number(s.prezzo_listino) && <div style={{fontSize:11,color:"#c47a1e"}}>netto &gt; listino ⚠</div>}</td>
+                  <td><b>{pk!=null? eur(pk) : "—"}</b>{sopra && <div style={{fontSize:11,color:"#c0392b"}}>sopra listino</div>}</td>
+                  <td className="muted">{s.pezzi_cartone??"—"}</td>
+                  <td className="muted">{s.lead_time!=null? s.lead_time+" gg" : "—"}</td>
+                </tr>); })}</tbody>
+            </table>
+            <div className="muted" style={{fontSize:12,marginTop:6}}>Giacenza: non ancora disponibile (il fornitore non la include nell'esportazione).</div>
+          </div>}
+        </div>
+      </div>
+    </>
+  );
+}
 
 function ModuloVetrina({profilo,perm}){
   const [articoli,setArticoli]=useState([]);

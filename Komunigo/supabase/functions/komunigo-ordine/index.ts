@@ -100,6 +100,66 @@ function calcStampa(prod: any, va: any, L: number, H: number, N: number, opts: a
   return costoCarta + costoStampa;
 }
 
+// ---- ABBIGLIAMENTO dal catalogo fornitore (v16/v17) ----------------------
+// capo = netto × (1+ricarico) per taglia; stampa = posizioni del MODELLO
+// (prod = prodotti_config solo_modello) con il suo margine; fasce del modello
+// sul totale. IDENTICA in prezzo-configuratore (hyper-endpoint) e komunigo-ordine.
+async function calcAbbigliamento(admin: any, prod: any, abb: any, stampeSel: any) {
+  const r2 = (x: number) => Math.round(x * 100) / 100;
+  const forn = String(abb?.fornitore || "newwave");
+  const cod = String(abb?.codice || "");
+  const col = String(abb?.colore ?? "");
+  const { data: cp } = await admin.from("catalogo_fornitore_prodotti")
+    .select("codice,nome,selezionato,attivo,ricarico_pct,modello_stampa_id").eq("fornitore", forn).eq("codice", cod).maybeSingle();
+  if (!cp || !cp.selezionato || !cp.attivo) throw new Error("Capo non disponibile");
+  const { data: sy } = await admin.from("catalogo_fornitore_sync")
+    .select("ricarico_default,modello_stampa_id").eq("fornitore", forn).maybeSingle();
+  if ((cp.modello_stampa_id || sy?.modello_stampa_id) !== prod.id) throw new Error("Modello di stampa non valido");
+  const ric = cp.ricarico_pct != null ? Number(cp.ricarico_pct) : Number(sy?.ricarico_default ?? 100);
+  const richieste = (Array.isArray(abb?.taglie) ? abb.taglie : [])
+    .map((t: any) => ({ sku: String(t?.sku || ""), qta: Math.max(0, Math.floor(Number(t?.qta) || 0)) }))
+    .filter((t: any) => t.sku && t.qta > 0);
+  if (!richieste.length) throw new Error("Nessuna taglia scelta");
+  const { data: skus } = await admin.from("catalogo_fornitore_sku")
+    .select("sku,taglia,prezzo_netto,attivo,codice_colore,ordine").eq("fornitore", forn).eq("codice_prodotto", cod)
+    .in("sku", richieste.map((t: any) => t.sku));
+  let N = 0, costoCapo = 0, prezzoCapo = 0;
+  const taglie: any[] = [];
+  for (const t of richieste) {
+    const s = (skus || []).find((x: any) => x.sku === t.sku);
+    if (!s || !s.attivo || String(s.codice_colore) !== col || !(Number(s.prezzo_netto) > 0)) throw new Error("Taglia non disponibile: " + t.sku);
+    const pu = r2(Number(s.prezzo_netto) * (1 + ric / 100));
+    N += t.qta; costoCapo += Number(s.prezzo_netto) * t.qta; prezzoCapo += pu * t.qta;
+    taglie.push({ sku: s.sku, taglia: s.taglia, qta: t.qta, ordine: Number(s.ordine) || 0 });
+  }
+  taglie.sort((a, b) => a.ordine - b.ordine);
+  const allSt = prod.prodotti_config_stampe || [];
+  const scelte = Array.isArray(stampeSel) ? stampeSel : [];
+  const stCost: any[] = [];
+  let costoSetup = 0;
+  for (const sc of scelte) {
+    const st = allSt.find((x: any) => x.id === sc.stampa_id);
+    if (!st) continue;
+    const colori = Math.max(1, Math.min(Number(sc.colori) || 1, Number(st.max_colori) || 4));
+    stCost.push({ nome: st.nome, colori, costo: (Number(st.prezzo_pz) || 0) * colori * N });
+    costoSetup += Number(st.setup) || 0;
+  }
+  const mg = Number(prod.margine_pct) || 0;
+  const mF = mg > 0 && mg < 100 ? 1 / (1 - mg / 100) : 1;
+  const fasce = (prod.prodotti_config_fasce || []).slice()
+    .sort((a: any, b: any) => (Number(b.da_quantita) || 0) - (Number(a.da_quantita) || 0));
+  const fa = fasce.find((x: any) => N >= (Number(x.da_quantita) || 0));
+  const ff = fa ? (1 - (Number(fa.sconto_pct) || 0) / 100) : 1;
+  const dettaglio = {
+    prodotto: r2(prezzoCapo * ff),
+    stampe: stCost.map((x) => ({ nome: x.nome, colori: x.colori, prezzo: r2(x.costo * mF * ff) })),
+    impianto: r2(costoSetup * mF * ff),
+    taglie: taglie.map((t) => ({ taglia: t.taglia, qta: t.qta })),
+  };
+  const tot = r2(dettaglio.prodotto + dettaglio.stampe.reduce((s: number, x: any) => s + x.prezzo, 0) + dettaglio.impianto);
+  const costo = r2(costoCapo + stCost.reduce((s, x) => s + x.costo, 0) + costoSetup);
+  return { N, tot, costo, dettaglio, minimo: Number(prod.minimo) || 0, nome: cp.nome, categoria: prod.categoria || "Abbigliamento" };
+}
 // ---- ricalcolo prezzo di un configurabile (replica di calcolaConfigurato) ----
 async function prezzoConfigurabile(admin: any, prodotto_id: string, config: any) {
   const { data: prod, error } = await admin
@@ -118,6 +178,13 @@ async function prezzoConfigurabile(admin: any, prodotto_id: string, config: any)
   if (va.articolo_id) {
     const { data: a } = await admin.from("articoli").select("costo").eq("id", va.articolo_id).maybeSingle();
     if (a && a.costo != null) costoMat = Number(a.costo) || 0;
+  }
+
+  // ---- ABBIGLIAMENTO (capo del catalogo fornitore + modello di stampa) ----
+  if (config?.abbigliamento) {
+    const a = await calcAbbigliamento(admin, prod, config.abbigliamento, config?.stampe);
+    if (a.minimo > 0 && a.N < a.minimo) throw new Error(`Quantità minima ${a.minimo} pezzi per "${a.nome}"`);
+    return { prezzo_unitario: a.N > 0 ? Math.round(a.tot / a.N * 100) / 100 : a.tot, prezzo_totale: a.tot, sotto_costo: a.tot < a.costo, costo_totale: a.costo, categoria: a.categoria, nome: a.nome, quantita: a.N, unita_calcolo: "pz" };
   }
 
   const N = Number(config?.quantita) || 0;

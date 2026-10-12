@@ -90,11 +90,71 @@ function calcStampa(prod: any, va: any, L: number, H: number, N: number, opts: a
   return { costo: costoCarta + costoStampa, pose, perStock, fogliMacchina, fogliAcq, fmtNome, grande, valido: pose > 0 };
 }
 
+// ---- ABBIGLIAMENTO dal catalogo fornitore (v16/v17) ----------------------
+// capo = netto × (1+ricarico) per taglia; stampa = posizioni del MODELLO
+// (prod = prodotti_config solo_modello) con il suo margine; fasce del modello
+// sul totale. IDENTICA in prezzo-configuratore (hyper-endpoint) e komunigo-ordine.
+async function calcAbbigliamento(admin: any, prod: any, abb: any, stampeSel: any) {
+  const r2 = (x: number) => Math.round(x * 100) / 100;
+  const forn = String(abb?.fornitore || "newwave");
+  const cod = String(abb?.codice || "");
+  const col = String(abb?.colore ?? "");
+  const { data: cp } = await admin.from("catalogo_fornitore_prodotti")
+    .select("codice,nome,selezionato,attivo,ricarico_pct,modello_stampa_id").eq("fornitore", forn).eq("codice", cod).maybeSingle();
+  if (!cp || !cp.selezionato || !cp.attivo) throw new Error("Capo non disponibile");
+  const { data: sy } = await admin.from("catalogo_fornitore_sync")
+    .select("ricarico_default,modello_stampa_id").eq("fornitore", forn).maybeSingle();
+  if ((cp.modello_stampa_id || sy?.modello_stampa_id) !== prod.id) throw new Error("Modello di stampa non valido");
+  const ric = cp.ricarico_pct != null ? Number(cp.ricarico_pct) : Number(sy?.ricarico_default ?? 100);
+  const richieste = (Array.isArray(abb?.taglie) ? abb.taglie : [])
+    .map((t: any) => ({ sku: String(t?.sku || ""), qta: Math.max(0, Math.floor(Number(t?.qta) || 0)) }))
+    .filter((t: any) => t.sku && t.qta > 0);
+  if (!richieste.length) throw new Error("Nessuna taglia scelta");
+  const { data: skus } = await admin.from("catalogo_fornitore_sku")
+    .select("sku,taglia,prezzo_netto,attivo,codice_colore,ordine").eq("fornitore", forn).eq("codice_prodotto", cod)
+    .in("sku", richieste.map((t: any) => t.sku));
+  let N = 0, costoCapo = 0, prezzoCapo = 0;
+  const taglie: any[] = [];
+  for (const t of richieste) {
+    const s = (skus || []).find((x: any) => x.sku === t.sku);
+    if (!s || !s.attivo || String(s.codice_colore) !== col || !(Number(s.prezzo_netto) > 0)) throw new Error("Taglia non disponibile: " + t.sku);
+    const pu = r2(Number(s.prezzo_netto) * (1 + ric / 100));
+    N += t.qta; costoCapo += Number(s.prezzo_netto) * t.qta; prezzoCapo += pu * t.qta;
+    taglie.push({ sku: s.sku, taglia: s.taglia, qta: t.qta, ordine: Number(s.ordine) || 0 });
+  }
+  taglie.sort((a, b) => a.ordine - b.ordine);
+  const allSt = prod.prodotti_config_stampe || [];
+  const scelte = Array.isArray(stampeSel) ? stampeSel : [];
+  const stCost: any[] = [];
+  let costoSetup = 0;
+  for (const sc of scelte) {
+    const st = allSt.find((x: any) => x.id === sc.stampa_id);
+    if (!st) continue;
+    const colori = Math.max(1, Math.min(Number(sc.colori) || 1, Number(st.max_colori) || 4));
+    stCost.push({ nome: st.nome, colori, costo: (Number(st.prezzo_pz) || 0) * colori * N });
+    costoSetup += Number(st.setup) || 0;
+  }
+  const mg = Number(prod.margine_pct) || 0;
+  const mF = mg > 0 && mg < 100 ? 1 / (1 - mg / 100) : 1;
+  const fasce = (prod.prodotti_config_fasce || []).slice()
+    .sort((a: any, b: any) => (Number(b.da_quantita) || 0) - (Number(a.da_quantita) || 0));
+  const fa = fasce.find((x: any) => N >= (Number(x.da_quantita) || 0));
+  const ff = fa ? (1 - (Number(fa.sconto_pct) || 0) / 100) : 1;
+  const dettaglio = {
+    prodotto: r2(prezzoCapo * ff),
+    stampe: stCost.map((x) => ({ nome: x.nome, colori: x.colori, prezzo: r2(x.costo * mF * ff) })),
+    impianto: r2(costoSetup * mF * ff),
+    taglie: taglie.map((t) => ({ taglia: t.taglia, qta: t.qta })),
+  };
+  const tot = r2(dettaglio.prodotto + dettaglio.stampe.reduce((s: number, x: any) => s + x.prezzo, 0) + dettaglio.impianto);
+  const costo = r2(costoCapo + stCost.reduce((s, x) => s + x.costo, 0) + costoSetup);
+  return { N, tot, costo, dettaglio, minimo: Number(prod.minimo) || 0, nome: cp.nome, categoria: prod.categoria || "Abbigliamento" };
+}
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
     const { prodotto_id, variante_id, larghezza_cm, altezza_cm, quantita, opzioni, stampe,
-      st_macchina, st_fr, st_colore, st_fmt } = await req.json();
+      st_macchina, st_fr, st_colore, st_fmt, abbigliamento } = await req.json();
     if (!prodotto_id) throw new Error("prodotto_id mancante");
     const N = Number(quantita) || 0;
 
@@ -112,6 +172,18 @@ Deno.serve(async (req) => {
     // sconto riservato del cliente loggato (0 se ospite o non B2B)
     const profB2b = await caricaProfiloB2b(admin, req.headers.get("Authorization"));
     const scB2b = scForCat(profB2b, (prod as any).categoria);
+    // ---- ABBIGLIAMENTO (capo del catalogo fornitore + modello di stampa) ----
+    if (abbigliamento) {
+      const r2 = (x: number) => Math.round(x * 100) / 100;
+      const a = await calcAbbigliamento(admin, prod, abbigliamento, stampe);
+      const netA = scB2b > 0 ? r2(a.tot * (1 - scB2b / 100)) : a.tot;
+      return new Response(JSON.stringify({
+        prezzo_unitario: a.N > 0 ? r2(netA / a.N) : netA,
+        prezzo_totale: netA,
+        prezzo_listino_totale: a.tot, prezzo_listino_unitario: a.N > 0 ? r2(a.tot / a.N) : a.tot, sconto_pct: scB2b,
+        dettaglio: a.dettaglio, quantita: a.N, sotto_costo: netA < a.costo, minimo: a.minimo, valuta: "EUR",
+      }), { headers: { ...cors, "Content-Type": "application/json" } });
+    }
 
     const varr = prod.prodotti_config_varianti || [];
     const va = varr.find((v: any) => v.id === variante_id) || varr[0] || { costo_materiale: 0, sfrido_pct: 0, spessore: 0 };

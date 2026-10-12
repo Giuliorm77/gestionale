@@ -160,6 +160,16 @@
   .price-da{font-size:15px;color:var(--ink);} .price-da b{color:var(--blu);font-size:17px;}
   .stampa-pos{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
   .stampa-pos.on{border-color:var(--blu);background:#f6faff;}
+  .abb-swatches{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px;}
+  .abb-sw{width:54px;height:54px;border:1.5px solid var(--line);border-radius:10px;background:#fff;padding:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;}
+  .abb-sw img{width:100%;height:100%;object-fit:contain;}
+  .abb-sw.on{border-color:var(--blu);box-shadow:0 0 0 2px var(--blu);}
+  .abb-taglie{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;}
+  .abb-tg{border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center;}
+  .abb-tg.on{border-color:var(--blu);background:#f6faff;}
+  .abb-tg-n{font-weight:700;margin-bottom:4px;}
+  .abb-tg input{width:100%;text-align:center;padding:6px 4px;}
+  .abb-tg-p{font-size:11.5px;color:var(--ink-soft);margin-top:4px;}
   .stampa-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer;}
   .stampa-nome{font-weight:600;}
   .tec-badge{background:#eef0f4;color:var(--ink-soft);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;}
@@ -620,7 +630,13 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
   const [dettaglio,setDettaglio]=useState(null);
   const [cat,setCat]=useState(catInit||"");
   const [prezziDa,setPrezziDa]=useState({});   // {confId: prezzo unitario base} per i gadget
+  const [abb,setAbb]=useState([]);   // capi del catalogo fornitore proposti (vista komunigo_abbigliamento, v17)
+  const [abbSub,setAbbSub]=useState("");
   useEffect(()=>{ setCat(catInit||""); },[catInit]);
+  useEffect(()=>{ (async()=>{
+    try{ const {data,error}=await sb.from("komunigo_abbigliamento").select("*").order("nome");
+      if(!error) setAbb((data||[]).map(x=>({...x, categoria:"Abbigliamento"}))); }catch(e){}
+  })(); },[]);
 
   useEffect(()=>{ (async()=>{
     try{
@@ -650,16 +666,20 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
       <code> komunigo-v1.sql </code> in Supabase (crea le viste pubbliche). Dettaglio: {errore}</div>
   );
   if(prodotti===null || conf===null) return <div className="empty">Carico il catalogo…</div>;
+  if(dettaglio && dettaglio.tipo==="abbigliamento") return <AbbigliamentoDettaglio capo={dettaglio.prod} addCart={addCart} onBack={()=>setDettaglio(null)} profilo={profilo} vaiGuida={vaiGuida} iva={iva} setIva={setIva}/>;
   if(dettaglio) return <ProdottoDettaglio tipo={dettaglio.tipo} prod={dettaglio.prod} addCart={addCart} onBack={()=>setDettaglio(null)} profilo={profilo} vaiGuida={vaiGuida} iva={iva} setIva={setIva}/>;
 
-  const catList=[...new Set([...conf,...prodotti].map(x=>x.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const catList=[...new Set([...conf,...prodotti,...abb].map(x=>x.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   const matchCat = x => !cat || String(x.categoria||"").toLowerCase()===cat.toLowerCase();
   const q=(ricerca||"").trim().toLowerCase();
-  const matchQ = x => !q || [x.nome,x.descrizione,x.note,x.categoria,x.codice].filter(Boolean).join(" ").toLowerCase().includes(q);
+  const matchQ = x => !q || [x.nome,x.descrizione,x.note,x.categoria,x.codice,x.sottocategoria,x.brand].filter(Boolean).join(" ").toLowerCase().includes(q);
+  const capiAll = abb.filter(x=>matchCat(x) && matchQ(x));
+  const abbSubs = [...new Set(capiAll.map(x=>x.sottocategoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const capi = capiAll.filter(x=>!abbSub || x.sottocategoria===abbSub);
   const gadget = conf.filter(c=>c.tipo==="gadget" && matchCat(c) && matchQ(c));
   const misura = conf.filter(c=>c.tipo!=="gadget" && matchCat(c) && matchQ(c));
   const stock  = prodotti.filter(x=>matchCat(x) && matchQ(x));
-  const nTot = gadget.length+misura.length+stock.length;
+  const nTot = gadget.length+misura.length+stock.length+capiAll.length;
   const vuoto = nTot===0;
 
   const cardConf = (c,isGadget) => (
@@ -693,8 +713,28 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
         {catList.map(cc=><button key={cc} className={cat.toLowerCase()===cc.toLowerCase()?"on":""} onClick={()=>setCat(cc)}>{cc}</button>)}
       </div>}
 
+      {capiAll.length>0 && <>
+        <h2 className="sec">👕 Abbigliamento personalizzato</h2>
+        <p className="sec-sub">T-shirt, felpe, polo e giacche con il tuo logo: scegli colore, taglie e dove stampare.</p>
+        {abbSubs.length>1 && <div className="catbar" style={{marginTop:0}}>
+          <button className={!abbSub?"on":""} onClick={()=>setAbbSub("")}>Tutto</button>
+          {abbSubs.map(sc=><button key={sc} className={abbSub===sc?"on":""} onClick={()=>setAbbSub(sc)}>{sc}</button>)}
+        </div>}
+        <div className="grid">{capi.map(c=>{ const img=(c.immagini||[])[0]; return (
+          <div className="card" key={c.fornitore+":"+c.codice} style={{cursor:"pointer"}} onClick={()=>setDettaglio({tipo:"abbigliamento",prod:c})}>
+            <div className="ph">{img?<img src={img.anteprima} alt={c.nome} loading="lazy" style={{objectFit:"contain",background:"#fff"}}/>:"👕"}</div>
+            <div className="bd"><span className="tag-conf">Personalizzabile</span>{c.sottocategoria && <span className="cat-l" style={{marginLeft:6}}>{c.sottocategoria}</span>}
+              <h3>{c.nome}</h3>
+              <div className="desc">{[c.brand,c.genere,c.grammatura].filter(Boolean).join(" · ")}</div>
+              <div className="row">{c.prezzo_da
+                ? <span className="price-da">da <b>{eur(conIva(c.prezzo_da,iva))}</b>/pz <span className="iva-tag">{ivaLbl(iva)}</span></span>
+                : <span className="muted">prezzo su configurazione</span>}</div>
+              <button className="add" onClick={e=>{e.stopPropagation();setDettaglio({tipo:"abbigliamento",prod:c});}}>Personalizza</button></div>
+          </div>); })}</div>
+      </>}
+
       {gadget.length>0 && <>
-        <h2 className="sec">🎁 Gadget personalizzati</h2>
+        <h2 className="sec" style={{marginTop:capiAll.length?40:0}}>🎁 Gadget personalizzati</h2>
         <p className="sec-sub">Scegli colore, quantità e dove stampare: il prezzo lo calcola il sistema.</p>
         <div className="grid">{gadget.map(c=>cardConf(c,true))}</div>
       </>}
@@ -803,6 +843,187 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida, iva,
       </div>}
 
       {cfgOpen && <Configuratore prod={prod} chiudi={()=>setCfgOpen(false)} addCart={addCart} iva={iva} setIva={setIva}/>}
+    </div>
+  );
+}
+
+// =====================================================================
+//  ABBIGLIAMENTO (capi del catalogo fornitore, v17): scheda + configuratore
+//  colore → quantità per taglia → posizioni di stampa. Il prezzo lo calcola
+//  SOLO il server (hyper-endpoint con {abbigliamento}); qui niente costi.
+// =====================================================================
+function AbbigliamentoDettaglio({capo, addCart, onBack, profilo, vaiGuida, iva, setIva}){
+  const [colori,setColori]=useState(null);
+  const [colSel,setColSel]=useState(null);
+  const [imgSel,setImgSel]=useState(0);
+  const [cfgOpen,setCfgOpen]=useState(false);
+  useEffect(()=>{ (async()=>{
+    const {data}=await sb.from("komunigo_abbigliamento_colori").select("*")
+      .eq("fornitore",capo.fornitore).eq("codice_prodotto",capo.codice).order("ordine");
+    setColori(data||[]); if((data||[]).length) setColSel(data[0].codice_colore);
+  })(); },[capo.fornitore,capo.codice]);
+  const vSel=(colori||[]).find(c=>c.codice_colore===colSel);
+  const imgs=((vSel&&vSel.immagini&&vSel.immagini.length)? vSel.immagini : (capo.immagini||[])).filter(i=>i.anteprima);
+  const fotoMain=imgs[imgSel]||imgs[0]||null;
+  const carat=[["Marchio",capo.brand],["Tipo",capo.sottocategoria],["Genere",capo.genere],["Vestibilità",capo.vestibilita],
+    ["Taglie",capo.taglie],["Grammatura",capo.grammatura],["Tessuto",capo.tessuto],
+    ["Lavaggio",String(capo.lavaggio||"").split(";").map(x=>x.trim()).filter(Boolean).join(" · ")],["Codice",capo.codice]]
+    .filter(x=>String(x[1]||"").trim());
+  return (
+    <div>
+      <button className="pdp-back" onClick={onBack}>← Torna al catalogo</button>
+      <div className="pdp">
+        <div className="pdp-media">
+          <div className="pdp-main">{fotoMain? <img src={fotoMain.anteprima} alt={capo.nome} style={{objectFit:"contain",background:"#fff"}}/> : <span style={{fontSize:64}}>👕</span>}</div>
+          {imgs.length>1 && <div className="pdp-thumbs">{imgs.map((u,i)=>
+            <button key={i} className={"pdp-thumb "+(i===imgSel?"on":"")} onClick={()=>setImgSel(i)}><img src={u.anteprima} alt="" loading="lazy" style={{objectFit:"contain",background:"#fff"}}/></button>)}</div>}
+        </div>
+        <div className="pdp-info">
+          <span className="tag-conf">Personalizzabile</span>{capo.sottocategoria && <span className="cat-l" style={{marginLeft:6}}>{capo.sottocategoria}</span>}
+          <h1 className="pdp-title">{capo.nome}</h1>
+          <p className="pdp-sub">{[capo.brand,capo.linea,capo.genere].filter(Boolean).join(" · ")}</p>
+          {capo.descrizione && <div className="pdp-desc">{capo.descrizione}</div>}
+          {colori && colori.length>0 && <>
+            <label className="fld" style={{marginTop:14}}>Colore: <b>{vSel?vSel.colore:""}</b></label>
+            <div className="abb-swatches">{colori.map(c=>{ const im=(c.immagini||[])[0]; return (
+              <button key={c.codice_colore} title={c.colore} className={"abb-sw"+(c.codice_colore===colSel?" on":"")}
+                onClick={()=>{setColSel(c.codice_colore);setImgSel(0);}}>
+                {im? <img src={im.anteprima} alt={c.colore} loading="lazy"/> : <span>{c.colore}</span>}</button>); })}</div>
+          </>}
+          <div className="pdp-buy">
+            {capo.prezzo_da? <span className="price">da {eur(conIva(capo.prezzo_da,iva))}/pz <span className="iva-tag">{ivaLbl(iva)}</span></span> : null}
+            <span className="muted" style={{fontSize:13}}>capo neutro · stampa a parte{capo.minimo?` · minimo ${capo.minimo} pz`:""}</span>
+            <button className="add" disabled={!colori||!colori.length} onClick={()=>setCfgOpen(true)}>Personalizza e ordina</button>
+          </div>
+          {Number(capo.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:10}}>📦 Spedizione stimata: <b>{dataStimata(capo.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {capo.giorni_lavorazione} gg lavorativi + spedizione)</span></div>}
+          <div style={{marginTop:14}}><BarraFiducia compact/></div>
+          {vaiGuida && <p className="muted" style={{fontSize:13,marginTop:12}}>📄 Come preparare il file? <button className="lnk" onClick={vaiGuida}>Leggi le linee guida di stampa →</button></p>}
+        </div>
+      </div>
+      {carat.length>0 && <div className="pdp-specs">
+        <h2 className="sec">Caratteristiche</h2>
+        <table className="spec"><tbody>{carat.map(([a,b])=><tr key={a}><th>{a}</th><td>{b}</td></tr>)}</tbody></table>
+      </div>}
+      {cfgOpen && <ConfiguratoreAbbigliamento capo={capo} colori={colori||[]} colInit={colSel} chiudi={()=>setCfgOpen(false)} addCart={addCart} iva={iva} setIva={setIva}/>}
+    </div>
+  );
+}
+
+function ConfiguratoreAbbigliamento({capo, colori, colInit, chiudi, addCart, iva, setIva}){
+  const [col,setCol]=useState(colInit||(colori[0]&&colori[0].codice_colore)||"");
+  const [taglie,setTaglie]=useState([]);   // [{sku,taglia,prezzo,ordine,codice_colore}]
+  const [qta,setQta]=useState({});         // {sku: n}
+  const [stampe,setStampe]=useState([]);
+  const [stSel,setStSel]=useState({});     // {stampa_id: n_colori}
+  const [prezzo,setPrezzo]=useState(null);
+  const [stato,setStato]=useState(""); const [errMsg,setErrMsg]=useState("");
+  const [step,setStep]=useState(1);
+  useEffect(()=>{ (async()=>{
+    const [t,s]=await Promise.all([
+      sb.from("komunigo_abbigliamento_taglie").select("*").eq("fornitore",capo.fornitore).eq("codice_prodotto",capo.codice).order("ordine"),
+      sb.from("komunigo_configuratori_stampe").select("*").eq("prodotto_id",capo.modello_stampa_id).order("ordine"),
+    ]);
+    setTaglie(t.data||[]); setStampe(s.data||[]);
+  })(); },[capo.fornitore,capo.codice,capo.modello_stampa_id]);
+  const invalida=()=>{ setPrezzo(null); setErrMsg(""); setStato(""); };
+  const tCol=taglie.filter(t=>t.codice_colore===col);
+  const righeT=tCol.map(t=>({sku:t.sku, taglia:t.taglia, qta:Math.max(0,Math.floor(Number(qta[t.sku])||0))})).filter(t=>t.qta>0);
+  const N=righeT.reduce((s,t)=>s+t.qta,0);
+  const minimo=Number(capo.minimo)||0;
+  const stArr=()=>Object.keys(stSel).filter(id=>stSel[id]>0).map(id=>({stampa_id:id, colori:stSel[id]}));
+  const cNome=(colori.find(c=>c.codice_colore===col)||{}).colore||col;
+  const abbCfg=()=>({fornitore:capo.fornitore, codice:capo.codice, colore:col, colore_nome:cNome, taglie:righeT});
+  const calcola=async()=>{
+    setStato("calcolo"); setPrezzo(null); setErrMsg("");
+    try{
+      const {data,error}=await sb.functions.invoke("hyper-endpoint",{body:{prodotto_id:capo.modello_stampa_id, abbigliamento:abbCfg(), stampe:stArr()}});
+      if(error) throw error;
+      if(!data || data.error) throw new Error((data&&data.error)||"Calcolo non riuscito");
+      setPrezzo(data); setStato("");
+    }catch(e){ setStato("errore"); setErrMsg(e.message||String(e)); }
+  };
+  const prezzoOk=prezzo && Number(prezzo.prezzo_totale)>0 && !prezzo.sotto_costo;
+  const aggiungi=()=>{
+    if(!prezzoOk) return;
+    const stNomi=stArr().map(x=>{ const st=stampe.find(s=>s.id===x.stampa_id); return st? `${st.nome} ${x.colori} col.` : ""; }).filter(Boolean);
+    const descr=`${capo.nome} · ${cNome} · ${righeT.map(t=>t.taglia+"×"+t.qta).join(", ")}`+(stNomi.length?` · stampa: ${stNomi.join(", ")}`:" · senza stampa");
+    addCart({ tipo:"configurabile", prodotto_config_id:capo.modello_stampa_id, descrizione:descr,
+      config:{abbigliamento:abbCfg(), stampe:stArr(), quantita:N, unita_calcolo:"pz"},
+      quantita:N, prezzo_unitario:Number(prezzo.prezzo_unitario)||0, prezzo_totale:Number(prezzo.prezzo_totale)||0 });
+    chiudi();
+  };
+  const passi=[[1,"Colore"],[2,"Taglie"],...(stampe.length?[[3,"Stampa"]]:[])];
+  const ultimo=passi[passi.length-1][0];
+  const puoAvanti = step===1? !!col : step===2? (N>0 && N>=minimo) : true;
+  const d=prezzo&&prezzo.dettaglio;
+  return (
+    <div className="overlay">
+      <div className="modal">
+        <div className="mh"><h3>{capo.nome}</h3>
+          {setIva && <div className="iva-toggle sm">
+            <button className={iva==="escl"?"on":""} onClick={()=>setIva("escl")}>IVA escl.</button>
+            <button className={iva==="incl"?"on":""} onClick={()=>setIva("incl")}>IVA incl.</button>
+          </div>}
+          <button className="x" onClick={chiudi}>×</button></div>
+        <div className="wiz-steps">{passi.map(([n,l])=>
+          <span key={n} className={"wiz-step"+(step===n?" on":"")+(step>n?" done":"")}>{n}. {l}</span>)}</div>
+        <div className="mb">
+          {step===1 && <>
+            <label className="fld">Colore: <b>{cNome}</b></label>
+            <div className="abb-swatches">{colori.map(c=>{ const im=(c.immagini||[])[0]; return (
+              <button key={c.codice_colore} title={c.colore} className={"abb-sw"+(c.codice_colore===col?" on":"")}
+                onClick={()=>{ if(c.codice_colore!==col){ setCol(c.codice_colore); setQta({}); invalida(); } }}>
+                {im? <img src={im.anteprima} alt={c.colore} loading="lazy"/> : <span>{c.colore}</span>}</button>); })}</div>
+          </>}
+          {step===2 && <>
+            <label className="fld">Quantità per taglia · {cNome}{minimo?` · minimo ${minimo} pz in totale`:""}</label>
+            <div className="abb-taglie">{tCol.map(t=>(
+              <div key={t.sku} className={"abb-tg"+((Number(qta[t.sku])||0)>0?" on":"")}>
+                <div className="abb-tg-n">{t.taglia}</div>
+                <input type="number" min="0" step="1" inputMode="numeric" value={qta[t.sku]??""} placeholder="0"
+                  onChange={e=>{ const v=e.target.value; setQta(o=>({...o,[t.sku]:v})); invalida(); }}/>
+                <div className="abb-tg-p">{eur(conIva(t.prezzo,iva))}</div>
+              </div>))}</div>
+            <div className="muted" style={{fontSize:12.5,marginTop:6}}>Totale <b>{N}</b> pz{minimo&&N<minimo?<> — ne servono almeno <b>{minimo}</b></>:""}. Sotto ogni taglia il prezzo del capo neutro: le taglie grandi costano un po' di più.</div>
+          </>}
+          {step===3 && stampe.length>0 && <div className="opts"><label className="fld">Dove stampare</label>
+            {stampe.map(s=>{ const c=stSel[s.id]||0; return (
+              <div key={s.id} className={"stampa-pos"+(c>0?" on":"")}>
+                <label className="stampa-head"><input type="checkbox" checked={c>0}
+                  onChange={e=>{ const on=e.target.checked; setStSel(o=>({...o,[s.id]:on?1:0})); invalida(); }}/>
+                  <span className="stampa-nome">{s.nome}</span>
+                  {s.tecnica?<span className="tec-badge">{s.tecnica}</span>:null}</label>
+                <div className="stampa-area"><span className="area-rect">area</span>
+                  <span className="area-lbl">Area di stampa{s.area_cm?` · ${s.area_cm} cm`:""}</span></div>
+                {c>0 && <div className="stampa-col">N° colori <input type="number" min="1" max={s.max_colori||4} value={c} style={{width:56,padding:"4px 6px"}}
+                  onChange={e=>{ const n=Math.max(1,Math.min(Number(e.target.value)||1, s.max_colori||4)); setStSel(o=>({...o,[s.id]:n})); invalida(); }}/> <span className="muted" style={{fontSize:12}}>(dal n° colori del tuo logo)</span></div>}
+              </div>); })}
+          </div>}
+          {step===ultimo && <>
+            {Number(capo.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}>📦 Spedizione stimata: <b>{dataStimata(capo.giorni_lavorazione)}</b></div>}
+            <div className="note" style={{marginTop:12}}>📎 Dopo l'ordine carichi il logo e ricevi la <b>bozza di stampa da approvare</b> prima della produzione.</div>
+            {stato==="errore" && <div className="warn" style={{marginTop:14}}><b>Prezzo non disponibile.</b> {errMsg} — scrivici a <a href="mailto:info@komunigo.it">info@komunigo.it</a>.</div>}
+            {prezzoOk && <div className="cart-tot" style={{marginTop:14}}>
+              {d && <>
+                <div className="r"><span>Capi ({N} pz · {(d.taglie||[]).map(t=>t.taglia+"×"+t.qta).join(", ")})</span><span>{eur(conIva(d.prodotto,iva))}</span></div>
+                {(d.stampe||[]).map((x,i)=><div className="r" key={i}><span>Stampa {x.nome} · {x.colori} col.</span><span>{eur(conIva(x.prezzo,iva))}</span></div>)}
+                {Number(d.impianto)>0 && <div className="r"><span>Impianto stampa (una tantum)</span><span>{eur(conIva(d.impianto,iva))}</span></div>}
+              </>}
+              {Number(prezzo.sconto_pct)>0 && <div className="r" style={{color:"var(--blu)",fontWeight:700}}><span>Sconto riservato B2B</span><span>−{prezzo.sconto_pct}%</span></div>}
+              <div className="r"><span>Prezzo medio a capo</span><span>{eur(conIva(prezzo.prezzo_unitario,iva))}</span></div>
+              <div className="r big"><span>Totale ({N} pz) <span className="iva-tag">{ivaLbl(iva)}</span></span><span>{eur(conIva(prezzo.prezzo_totale,iva))}</span></div></div>}
+            {prezzo && !prezzoOk && <div className="warn" style={{marginTop:14}}><b>Prezzo su richiesta.</b> Contattaci a <a href="mailto:info@komunigo.it">info@komunigo.it</a>.</div>}
+          </>}
+        </div>
+        <div className="mf">
+          {step>1 && <button className="btn ghost" onClick={()=>setStep(s=>s-1)}>← Indietro</button>}
+          {step<ultimo && <button className="btn" disabled={!puoAvanti} onClick={()=>setStep(s=>s+1)}>Avanti →</button>}
+          {step===ultimo && (prezzoOk
+            ? <button className="btn" onClick={aggiungi}>Aggiungi al carrello</button>
+            : <button className="btn" onClick={calcola} disabled={stato==="calcolo"||N<=0||N<minimo}>{stato==="calcolo"?"Calcolo…":"Calcola prezzo"}</button>)}
+          <button className="btn ghost" onClick={chiudi}>Annulla</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1088,7 +1309,7 @@ function Carrello({cart,delCart,vaiCatalogo,onOrdineCreato,account,profilo}){
         {cart.map(r=>(
           <div className="cart-line" key={r.rid}>
             <div className="g"><h4>{r.descrizione}</h4>
-              <p>{r.quantita} × {eur(r.prezzo_unitario)}{r.tipo==="configurabile"?" · su misura":""}</p></div>
+              <p>{r.quantita} × {eur(r.prezzo_unitario)}{r.tipo==="configurabile"?(r.config&&r.config.abbigliamento?" · personalizzato":" · su misura"):""}</p></div>
             <div className="price">{eur(r.prezzo_totale)}</div>
             <button className="x" title="Rimuovi" onClick={()=>delCart(r.rid)}>×</button>
           </div>

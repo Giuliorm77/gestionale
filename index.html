@@ -10101,9 +10101,12 @@ function ModuloCatalogoFornitori({profilo,perm}){
   const [soloAnom,setSoloAnom]=useState(false);
   const [aperto,setAperto]=useState(null);   // codice prodotto aperto in scheda
   const [ricDef,setRicDef]=useState("");
+  const [modelli,setModelli]=useState([]);   // prodotti config tipo gadget usabili come modello di stampa
 
   const carica=useCallback(async()=>{
     setErr("");
+    sb.from("prodotti_config").select("*").eq("tipo","gadget").order("nome")
+      .then(({data})=>setModelli((data||[]).filter(m=>m.solo_modello || m.categoria==="Abbigliamento")));
     const [r,s]=await Promise.all([
       sb.from("catalogo_fornitore_riepilogo").select("*").eq("fornitore",CATFOR_ID).order("nome"),
       sb.from("catalogo_fornitore_sync").select("*").eq("fornitore",CATFOR_ID).maybeSingle(),
@@ -10133,6 +10136,11 @@ function ModuloCatalogoFornitori({profilo,perm}){
     if(error){ setErr(error.message); return; }
     await carica();
   }
+  async function salvaModelloDef(id){
+    const {error}=await sb.from("catalogo_fornitore_sync").update({modello_stampa_id:id||null}).eq("fornitore",CATFOR_ID);
+    if(error){ setErr(error.message.includes("modello_stampa_id")? "Serve la migrazione Komunigo/migrazioni/komunigo-v17.sql." : error.message); return; }
+    await carica();
+  }
   async function patchProd(p,patch){
     setErr("");
     setRighe(prev=>prev.map(x=>x.id===p.id?{...x,...patch}:x));   // ottimistico
@@ -10154,7 +10162,8 @@ function ModuloCatalogoFornitori({profilo,perm}){
   const fasciaEur=(a,b)=> a==null? "—" : (Number(a)===Number(b)||b==null? eur(a) : eur(a)+" – "+eur(b));
 
   const pAperto=(righe||[]).find(p=>p.codice===aperto)||null;
-  if(pAperto) return <SchedaCatalogoFornitore p={pAperto} ric={ricOf(pAperto)} ricDefault={ricDefault} perm={perm}
+  const modDef=modelli.find(m=>m.id===sync?.modello_stampa_id)||null;
+  if(pAperto) return <SchedaCatalogoFornitore p={pAperto} ric={ricOf(pAperto)} ricDefault={ricDefault} perm={perm} modelli={modelli} modDef={modDef}
     onBack={()=>setAperto(null)} onPatch={patch=>patchProd(pAperto,patch)}/>;
 
   return (
@@ -10163,7 +10172,7 @@ function ModuloCatalogoFornitori({profilo,perm}){
       <div className="content">
         {err && <div className="banner err">{err}</div>}
         {msg && <div className="banner info">{msg}</div>}
-        <div className="banner info">Catalogo <b>New Wave (Clique)</b> scaricato dal portale del fornitore. Scegli i prodotti da <b>proporre su Komunigo</b> e il <b>ricarico</b> sul nostro prezzo netto. Per ora resta tutto interno: <b>non</b> pubblica nulla sul negozio.</div>
+        <div className="banner info">Catalogo <b>New Wave (Clique)</b> scaricato dal portale del fornitore. Spunta <b>Proponi</b> sui capi da vendere su <b>Komunigo</b> e regola il <b>ricarico</b> sul nostro prezzo netto. Sul negozio il cliente sceglie colore, quantità per taglia e dove stampare (dal <b>modello di stampa</b>).</div>
         <div className="card" style={{display:"flex",gap:16,flexWrap:"wrap",alignItems:"center",marginBottom:12}}>
           <div style={{flex:"1 1 260px"}}>
             <div><b>Ultimo aggiornamento:</b> {sync?.ultimo_sync? new Date(sync.ultimo_sync).toLocaleString("it-IT") : <span className="muted">mai</span>}</div>
@@ -10175,6 +10184,14 @@ function ModuloCatalogoFornitori({profilo,perm}){
             <span className="muted" style={{fontSize:12}}>(margine {ricDefault>0? Math.round(ricDefault/(100+ricDefault)*100):0}%)</span>
           </label>
           {perm.scrivi && <button className="btn primary" disabled={busy} onClick={aggiorna}>{busy?"Scarico…":"🔄 Aggiorna dal fornitore"}</button>}
+          {sync && "modello_stampa_id" in sync && <div style={{flexBasis:"100%",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",borderTop:"1px solid #eee",paddingTop:10}}>
+            <span><b>Modello di stampa</b> predefinito:</span>
+            <select value={sync.modello_stampa_id||""} disabled={!perm.scrivi} onChange={e=>salvaModelloDef(e.target.value)}>
+              <option value="">— nessuno (i capi non vanno sul negozio) —</option>
+              {modelli.map(m=><option key={m.id} value={m.id}>{m.nome}</option>)}
+            </select>
+            <span className="muted" style={{fontSize:12}}>Posizioni, prezzi di stampa, impianto, minimo e sconti quantità si modificano in <b>🧩 Prodotti config.</b> I capi con <b>Proponi</b> ✓ compaiono sul negozio Komunigo con questo modello.</span>
+          </div>}
         </div>
         <div className="toolbar" style={{flexWrap:"wrap"}}>
           <div className="search"><span className="mag">🔍</span><input placeholder="Cerca nome, codice, categoria…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
@@ -10226,7 +10243,7 @@ function ModuloCatalogoFornitori({profilo,perm}){
   );
 }
 
-function SchedaCatalogoFornitore({p,ric,ricDefault,perm,onBack,onPatch}){
+function SchedaCatalogoFornitore({p,ric,ricDefault,perm,modelli,modDef,onBack,onPatch}){
   const [varianti,setVarianti]=useState(null);
   const [sku,setSku]=useState([]);
   const [err,setErr]=useState("");
@@ -10266,6 +10283,12 @@ function SchedaCatalogoFornitore({p,ric,ricDefault,perm,onBack,onPatch}){
               <label style={{display:"flex",gap:6,alignItems:"center"}}><input type="checkbox" checked={!!p.selezionato} disabled={!perm.scrivi} onChange={e=>onPatch({selezionato:e.target.checked})}/> <b>Proponi su Komunigo</b></label>
               <span className="muted">Ricarico {ric}%{p.ricarico_pct==null?" (predefinito)":""} · margine {Math.round(ric/(100+ric)*100)}%</span>
             </div>
+            {"modello_stampa_id" in p && <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",marginBottom:10,fontSize:13}}>
+              <span>Modello di stampa:</span>
+              <select value={p.modello_stampa_id||""} disabled={!perm.scrivi} onChange={e=>onPatch({modello_stampa_id:e.target.value||null})}>
+                <option value="">Predefinito{modDef?" ("+modDef.nome+")":" (nessuno)"}</option>
+                {(modelli||[]).map(m=><option key={m.id} value={m.id}>{m.nome}</option>)}
+              </select></div>}
             {p.descrizione && <p style={{marginTop:0}}>{p.descrizione}</p>}
             <table><tbody>{info.map(([a,b])=><tr key={a}><td className="muted" style={{width:130}}>{a}</td><td>{b}</td></tr>)}</tbody></table>
             <div style={{marginTop:10}}><div className="muted" style={{fontSize:12}}>Note interne</div>
@@ -10847,6 +10870,7 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
     ricarico_pct:(prodotto && prodotto.margine_pct!=null && prodotto.margine_pct!=="") ? (ricaricoDaMargine(prodotto.margine_pct) ?? "") : "",
     minimo:prodotto?.minimo ?? "",
     attivo:prodotto?.attivo!==false,
+    solo_modello:!!prodotto?.solo_modello,
     note:prodotto?.note||"",
     stampa_vivo_mm:prodotto?.stampa_vivo_mm ?? 4,
     stampa_margine_mm:prodotto?.stampa_margine_mm ?? 8,
@@ -10908,6 +10932,8 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
       const rec={nome:f.nome,tipo:f.tipo,categoria:(f.categoria||"").trim(),giorni_lavorazione:Number(f.giorni_lavorazione)||0,
         unita_calcolo:(gadget||stampa)?"pz":f.unita_calcolo,margine_pct:Number(f.margine_pct)||0,
         minimo:Number(f.minimo)||0,attivo:f.attivo,note:f.note,
+        // colonna di komunigo-v17: la mando solo se esiste già (record caricato) o se è attivata
+        ...((prodotto && "solo_modello" in prodotto) || f.solo_modello ? {solo_modello:!!f.solo_modello} : {}),
         stampa_vivo_mm:Number(f.stampa_vivo_mm)||0, stampa_margine_mm:Number(f.stampa_margine_mm)||0,
         stampa_prezzo_bn:Number(f.stampa_prezzo_bn)||0, stampa_prezzo_colore:Number(f.stampa_prezzo_colore)||0,
         stampa_avviamento:Number(f.stampa_avviamento)||0, stampa_prezzo_mq:Number(f.stampa_prezzo_mq)||0,
@@ -10977,6 +11003,9 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
               <div className="field" style={{maxWidth:200}}><label>Giorni di lavorazione <span className="muted" style={{textTransform:"none",fontWeight:400}}>(per la data stimata)</span></label>
                 <input type="number" min="0" value={f.giorni_lavorazione} onChange={e=>set("giorni_lavorazione",e.target.value)} placeholder="es. 5"/></div>
             </div>
+            {gadget && <label style={{display:"flex",gap:6,alignItems:"center",margin:"6px 0",fontSize:13}}>
+              <input type="checkbox" checked={!!f.solo_modello} onChange={e=>set("solo_modello",e.target.checked)}/>
+              <span>🧵 <b>Solo modello di stampa</b> per l'abbigliamento del catalogo fornitori (non compare come prodotto nel negozio)</span></label>}
             {gadget && <div className="muted" style={{fontSize:12,marginTop:2}}>🎁 <b>Gadget:</b> il cliente sceglie un <b>colore</b> + <b>quantità</b> e le <b>posizioni di stampa</b> (sotto). Il prezzo è per pezzo.</div>}
             {stampa && <div className="muted" style={{fontSize:12,marginTop:2}}>🖨️ <b>Stampa su carta:</b> il programma calcola le <b>pose per foglio</b> (con nesting) e i <b>fogli</b> necessari. Piccolo formato = stampa a passaggio (B/N o colore, ×2 fronte/retro) sui fogli macchina {FORMATI_STAMPA.map(F=>F.nome).join(" / ")} cm (scelti in automatico). Grande formato = stampa a mq sul foglio d'acquisto.</div>}
           </div>

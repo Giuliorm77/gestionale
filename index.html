@@ -6787,6 +6787,14 @@ function calcolaPreventivo(righe, prev){
   const totale = imponibile + iva;
   return {ricavi,costi,speseGen,imponibile,costoTot,margine,marginePct,iva,totale,imbRighe};
 }
+// Base provvigione = ricavo delle SOLE righe prodotto/materiale (lavorazioni escluse).
+// Lavorazione = tipo manodopera/impianto (come nella versione cliente). Extra imballo/trasporto esclusi.
+function imponibileProdotti(righe){
+  const isLav=r=>r.tipo==="manodopera"||r.tipo==="impianto";
+  const v=(righe||[]).filter(r=>!isLav(r)).reduce((s,r)=>
+    s+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0)*(1-(Number(r.sconto_pct)||0)/100),0);
+  return Math.round(v*100)/100;
+}
 // PDF RISERVATO (uso interno): mostra costi e margine riga per riga + totali.
 // NON va mai consegnato al cliente — pulsante visibile solo ai ruoli economici.
 function htmlPreventivoCosti(prev, righe, az, cli, tot){
@@ -8599,7 +8607,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const provvEreditata = provvFb.cliPct!=null ? provvFb.cliPct : (provvFb.agPct!=null ? provvFb.agPct : null);
   const provvFonte = provvFb.cliPct!=null ? "eccezione cliente"
                    : (provvFb.agPct!=null ? ("standard agente"+(provvFb.agNome?" "+provvFb.agNome:"")) : "");
-  const provvPrev = calcProvvTratt({valore_stimato:Number(tot.imponibile)||0, tipo_provvigione:f.tipo_provvigione,
+  // Base provvigione = SOLO prodotti/materiali (lavorazioni escluse).
+  const baseProvv = imponibileProdotti(righeCalc);
+  const provvPrev = calcProvvTratt({valore_stimato:baseProvv, tipo_provvigione:f.tipo_provvigione,
     provvigione_pct:numLoc(f.provvigione_pct),
     prezzo_netto:Number(f.prezzo_netto)||0, quota_margine_pct:Number(f.quota_margine_pct)||0}, provvFb);
   const margineNet = tot.margine - provvPrev;
@@ -8757,7 +8767,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
         agente_id:(cli&&cli.agente_id)||null,
         provvigione_pct: numLoc(f.provvigione_pct),
         consumi:suggerisciConsumi(righe.map(r=>({...r, imballo_pluriball:pluriballDaSalvare(r)})), prodotti),
-        valore:Math.round((tot.imponibile||0)*100)/100, creato_da:profilo.id, aggiornato_il:new Date().toISOString()};
+        valore:Math.round((tot.imponibile||0)*100)/100, valore_prodotti:imponibileProdotti(righeCalc),
+        creato_da:profilo.id, aggiornato_il:new Date().toISOString()};
       const {data:nc,error}=await sb.from("commesse").insert(rec).select("id").single();
       if(error) throw error;
       // fasi: righe di manodopera + lavorazioni dei prodotti configurati (stampa, taglio, finiture scelte)
@@ -9185,8 +9196,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
 
           <div className="section" style={{marginTop:18}}>
             <h3>💶 Provvigione agente</h3>
-            <div className="muted" style={{fontSize:12,marginBottom:8}}>La stabilisce il commerciale qui, in fase di preventivo. L'agente la vedrà solo in lettura. Calcolata sull'<b>imponibile</b> ({eur(tot.imponibile)}).</div>
-            {(()=>{ const base=Number(tot.imponibile)||0;
+            <div className="muted" style={{fontSize:12,marginBottom:8}}>La stabilisce il commerciale qui, in fase di preventivo. L'agente la vedrà solo in lettura. Calcolata sui <b>soli prodotti</b> ({eur(baseProvv)}) — le <b>lavorazioni</b> sono escluse{tot.imponibile>baseProvv?` (imponibile totale ${eur(tot.imponibile)})`:""}.</div>
+            {(()=>{ const base=baseProvv;
               const provv=calcProvvTratt({valore_stimato:base, tipo_provvigione:f.tipo_provvigione,
                 provvigione_pct:numLoc(f.provvigione_pct),
                 prezzo_netto:Number(f.prezzo_netto)||0, quota_margine_pct:Number(f.quota_margine_pct)||0}, provvFb);
@@ -11553,6 +11564,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     stato:commessa?.stato||"aperta",
     priorita:commessa?.priorita||"normale",
     valore:commessa?.valore ?? 0,
+    valore_prodotti:commessa?.valore_prodotti ?? null,   // base provvigione (solo prodotti); null = usa valore intero
     trasporto:commessa?.trasporto ?? 0,
     agente_id:commessa?.agente_id||"",
     provvigione_pct:commessa?.provvigione_pct ?? "",
@@ -11926,7 +11938,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const costoEsterno=fasi.filter(fa=>fa.esterna).reduce((s,fa)=>s+(Number(fa.costo_reale)||0),0);
   const oreStraordTot=straordinari.reduce((s,a)=>s+(Number(a.ore)||0),0);
   const costoStraordinario=oreStraordTot*COSTO_STRAORDINARIO;
-  const costoProvvigione=Math.round((Number(f.valore)||0)*(Number(agenteInfo.pct)||0)/100*100)/100;   // provvigione agente = costo reale
+  // Base provvigione = SOLO prodotti (valore_prodotti); commesse vecchie senza dettaglio -> valore intero.
+  const baseProvvC = f.valore_prodotti!=null ? (Number(f.valore_prodotti)||0) : (Number(f.valore)||0);
+  const costoProvvigione=Math.round(baseProvvC*(Number(agenteInfo.pct)||0)/100*100)/100;   // provvigione agente = costo reale
   // CORREZIONE COSTO REALE FORNITORI: se ci sono ordini fornitore collegati e una base
   // preventivata sulle righe, sostituiamo il preventivato col realmente pagato (risparmio o extra).
   const realeFornC=(ofColl||[]).reduce((s,o)=>s+(o.ordini_fornitore_righe||[]).reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0),0),0);
@@ -12812,7 +12826,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               {costoExtra>0 && <><span className="k" style={{color:"var(--danger)"}}>Extra costi / spese impreviste{addebitiExtra>0?" (riaddebito nei ricavi)":""}</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoExtra)}</span></>}
               {costoPerdite>0 && <><span className="k" style={{color:"var(--danger)"}}>Perdite materiale (pezzi persi)</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoPerdite)}</span></>}
               {costoInterventi>0 && <><span className="k" style={{color:"var(--danger)"}}>Costo rilavorazioni</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoInterventi)}</span></>}
-              {costoProvvigione>0 && <><span className="k" style={{color:"var(--danger)"}}>Provvigione agente ({agenteInfo.pct}%{agenteInfo.eff?" · "+agenteInfo.eff.nome:""})</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoProvvigione)}</span></>}
+              {costoProvvigione>0 && <><span className="k" style={{color:"var(--danger)"}}>Provvigione agente ({agenteInfo.pct}% sui prodotti {eur(baseProvvC)}{agenteInfo.eff?" · "+agenteInfo.eff.nome:""})</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoProvvigione)}</span></>}
               <span className="k" style={{fontWeight:800}}>MARGINE REALE</span><span style={{textAlign:"right",fontWeight:800,fontSize:16,color:margineReale>=0?"var(--ok)":"var(--danger)"}}>{eur(margineReale)}</span>
             </div>
             <div className="muted" style={{fontSize:11,marginTop:8}}>Costi materiali/manodopera dai costi di catalogo e costi orari operatori. Le rilavorazioni "a nostro carico" riducono il margine; quelle "a carico cliente" rientrano nei ricavi.</div>
@@ -15194,7 +15208,8 @@ function ModuloReport({profilo,perm}){
     const cliP=cliMap[c.cliente_id]; const agIdP=c.agente_id || (cliP&&cliP.agente_id); const agP=agMap[agIdP];
     const pctP=(c.provvigione_pct!=null) ? Number(c.provvigione_pct)
       : (cliP && cliP.provvigione_pct!=null && (!c.agente_id || c.agente_id===cliP.agente_id)) ? Number(cliP.provvigione_pct) : (agP?Number(agP.provvigione_pct)||0:0);
-    const costoProvv=(Number(c.valore)||0)*pctP/100;
+    const baseProvv=(c.valore_prodotti!=null?Number(c.valore_prodotti):(Number(c.valore)||0));   // solo prodotti
+    const costoProvv=baseProvv*pctP/100;
     const speseGenR=(costoMat+scostForn+costoMdo)*(Number(impSg)||0)/100;   // spese generali (gestione)
     const ricavi=(Number(c.valore)||0)+addeb+extraRic+addebExtraImprev;
     const costi=costoMat+costoMdo+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos+costiExtraImprev+costoProvv+speseGenR;
@@ -15300,7 +15315,7 @@ function ModuloReport({profilo,perm}){
       const pct = (c.provvigione_pct!=null) ? Number(c.provvigione_pct)
         : (cli && cli.provvigione_pct!=null && (!c.agente_id || c.agente_id===cli.agente_id))
           ? Number(cli.provvigione_pct) : (ag?Number(ag.provvigione_pct)||0:0);
-      const valore=Number(c.valore)||0;
+      const valore=(c.valore_prodotti!=null?Number(c.valore_prodotti):(Number(c.valore)||0));   // base = solo prodotti
       const e=m[agId]||(m[agId]={nome:(ag&&ag.nome)||"—",ncomm:0,valore:0,prov:0});
       e.ncomm++; e.valore+=valore; e.prov+=valore*pct/100;
     });
@@ -15573,7 +15588,7 @@ function ModuloReport({profilo,perm}){
               ⚠ Provvigioni a <b>0</b>: le commesse hanno un agente ma <b>nessuna % impostata</b>. Imposta la <b>% standard</b> sulla scheda Agente (o l'eccezione sul cliente); le commesse generate da un preventivo con provvigione la ereditano già.
             </div>}
             <table>
-              <thead><tr><th>Agente</th><th style={{textAlign:"right"}}>Commesse</th><th style={{textAlign:"right"}}>Valore</th><th style={{textAlign:"right"}}>%</th><th style={{textAlign:"right"}}>Provvigione</th></tr></thead>
+              <thead><tr><th>Agente</th><th style={{textAlign:"right"}}>Commesse</th><th style={{textAlign:"right"}}>Valore prodotti</th><th style={{textAlign:"right"}}>%</th><th style={{textAlign:"right"}}>Provvigione</th></tr></thead>
               <tbody>
                 {provvAgg.length===0 ? <tr><td colSpan={5} className="muted" style={{padding:12}}>Nessuna commessa consegnata con agente in questo mese.</td></tr>
                   : provvAgg.map((r,i)=><tr key={i}>

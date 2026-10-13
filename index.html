@@ -15106,6 +15106,125 @@ function PianifForm({sch,commesse,profilo,onClose,onSalvato}){
   );
 }
 
+/* --- Saldo provvigioni per agente: maturato su incassato − pagato = residuo da pagare --- */
+function SaldoProvvigioni({profilo,perm}){
+  const [mat,setMat]=useState(null);       // maturato cumulativo su incassato per agente (RPC, p_mese null)
+  const [pag,setPag]=useState(null);       // pagamenti registrati
+  const [agenti,setAgenti]=useState([]);
+  const [editor,setEditor]=useState(null); // {agente_id, nome, residuo} per nuovo pagamento
+  const [apri,setApri]=useState(null);     // agente_id espanso (storico pagamenti)
+  const [err,setErr]=useState("");
+  const eur=n=>Number(n||0).toLocaleString("it-IT",{style:"currency",currency:"EUR"});
+  const carica=useCallback(async()=>{
+    setErr("");
+    const [m,p,a]=await Promise.all([
+      sb.rpc("provvigioni_incassato",{p_mese:null}),
+      sb.from("provvigioni_pagamenti").select("*").order("data",{ascending:false}),
+      sb.from("agenti").select("id,nome").order("nome"),
+    ]);
+    if(m.error){ setErr(m.error.message); }
+    setMat(m.data||[]); setPag(p.data||[]); setAgenti(a.data||[]);
+  },[]);
+  useEffect(()=>{ carica(); },[carica]);
+
+  const righe=useMemo(()=>{
+    const m={};
+    (mat||[]).forEach(r=>{ m[r.agente_id]=(m[r.agente_id]||{agente_id:r.agente_id,nome:r.agente_nome||"—",maturato:0,pagato:0,nPag:0}); m[r.agente_id].maturato=Number(r.provvigione)||0; });
+    (pag||[]).forEach(p=>{ const k=p.agente_id; const nome=(agenti.find(a=>a.id===k)||{}).nome||"—";
+      m[k]=(m[k]||{agente_id:k,nome,maturato:0,pagato:0,nPag:0}); m[k].pagato+=Number(p.importo)||0; m[k].nPag++; });
+    return Object.values(m).map(r=>({...r,residuo:Math.round((r.maturato-r.pagato)*100)/100}))
+      .sort((a,b)=>b.residuo-a.residuo);
+  },[mat,pag,agenti]);
+  const tot=righe.reduce((o,r)=>({mat:o.mat+r.maturato,pag:o.pag+r.pagato,res:o.res+r.residuo}),{mat:0,pag:0,res:0});
+
+  async function eliminaPag(id){ if(!window.confirm("Eliminare questo pagamento provvigione?")) return;
+    const {error}=await sb.from("provvigioni_pagamenti").delete().eq("id",id); if(error){ setErr(error.message); return; } carica(); }
+
+  return (
+    <div className="card" style={{padding:20,marginBottom:18,overflow:"auto"}}>
+      <h3 style={{marginTop:0}}>🧾 Saldo provvigioni per agente <span className="muted" style={{fontSize:12,fontWeight:400}}>· da pagare e pagate</span></h3>
+      <div className="muted" style={{fontSize:12,marginBottom:10}}>
+        <b>Maturato</b> = provvigione su tutte le fatture-cliente <b>incassate</b> finora (da Fatture in Cloud). <b>Pagato</b> = quanto hai già liquidato all'agente. <b>Residuo</b> = ancora da pagare.
+      </div>
+      {err && <div className="banner err" style={{marginBottom:10}}>{err}</div>}
+      {mat===null ? <div className="muted">Caricamento…</div> :
+        <table>
+          <thead><tr><th>Agente</th><th style={{textAlign:"right"}}>Maturato (incassato)</th><th style={{textAlign:"right"}}>Pagato</th><th style={{textAlign:"right"}}>Residuo da pagare</th><th></th></tr></thead>
+          <tbody>
+            {righe.length===0 ? <tr><td colSpan={5} className="muted" style={{padding:12}}>Nessuna provvigione maturata su incassato né pagamento registrato.</td></tr>
+              : righe.map(r=><React.Fragment key={r.agente_id}>
+                <tr>
+                  <td className="rs">{r.nome}
+                    {r.nPag>0 && <button className="btn small" style={{marginLeft:8,padding:"1px 7px"}} onClick={()=>setApri(apri===r.agente_id?null:r.agente_id)} title="Mostra i pagamenti registrati">{r.nPag} pagam. {apri===r.agente_id?"▲":"▼"}</button>}</td>
+                  <td style={{textAlign:"right"}}>{eur(r.maturato)}</td>
+                  <td style={{textAlign:"right"}}>{eur(r.pagato)}</td>
+                  <td style={{textAlign:"right",fontWeight:800,color:r.residuo>0.005?"var(--danger)":"var(--ok)"}}>{eur(r.residuo)}</td>
+                  <td style={{textAlign:"right"}}>{perm.scrivi && <button className="btn small primary" onClick={()=>setEditor({agente_id:r.agente_id,nome:r.nome,residuo:r.residuo})}>+ Pagamento</button>}</td>
+                </tr>
+                {apri===r.agente_id && (pag||[]).filter(p=>p.agente_id===r.agente_id).map(p=>
+                  <tr key={p.id} style={{background:"#fafbfe"}}>
+                    <td style={{paddingLeft:24,fontSize:12}} className="muted">↳ {p.data? new Date(p.data).toLocaleDateString("it-IT"):"—"}{p.metodo?" · "+p.metodo:""}{p.riferimento?" · "+p.riferimento:""}{p.note?" · "+p.note:""}</td>
+                    <td></td>
+                    <td style={{textAlign:"right",fontSize:12}}>{eur(p.importo)}</td>
+                    <td></td>
+                    <td style={{textAlign:"right"}}>{perm.elimina && <button className="btn small danger" onClick={()=>eliminaPag(p.id)} title="Elimina pagamento">🗑</button>}</td>
+                  </tr>)}
+              </React.Fragment>)}
+            {righe.length>0 && <tr style={{borderTop:"2px solid var(--line)"}}>
+              <td style={{fontWeight:800}}>TOTALE</td>
+              <td style={{textAlign:"right",fontWeight:800}}>{eur(tot.mat)}</td>
+              <td style={{textAlign:"right",fontWeight:800}}>{eur(tot.pag)}</td>
+              <td style={{textAlign:"right",fontWeight:800,color:tot.res>0.005?"var(--danger)":"var(--ok)"}}>{eur(tot.res)}</td>
+              <td></td>
+            </tr>}
+          </tbody>
+        </table>}
+      {editor && <PagamentoProvvForm profilo={profilo} agente={editor} onClose={()=>setEditor(null)} onSalvato={()=>{setEditor(null);carica();}}/>}
+    </div>
+  );
+}
+function PagamentoProvvForm({profilo,agente,onClose,onSalvato}){
+  const [f,setF]=useState(()=>({ data:new Date().toISOString().slice(0,10),
+    importo: agente.residuo>0?String(Math.round(agente.residuo*100)/100).replace(".",","):"", metodo:"bonifico", riferimento:"", note:"" }));
+  const [busy,setBusy]=useState(false),[err,setErr]=useState("");
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  async function salva(e){ e.preventDefault(); setBusy(true); setErr("");
+    const imp=numLoc(f.importo);
+    if(imp==null||imp<=0){ setErr("Inserisci l'importo del pagamento (es. 150 oppure 150,50)."); setBusy(false); return; }
+    const rec={ agente_id:agente.agente_id, data:f.data||null, importo:imp, metodo:(f.metodo||"").trim(),
+      riferimento:(f.riferimento||"").trim(), note:(f.note||"").trim(), creato_da:profilo.id };
+    const {data,error}=await sb.from("provvigioni_pagamenti").insert(rec).select("id");
+    if(error){ setErr(error.message); setBusy(false); return; }
+    if(!data||!data.length){ setErr("Pagamento non registrato: permessi insufficienti (serve Amministratore o Back office)."); setBusy(false); return; }
+    onSalvato();
+  }
+  return (
+    <div className="overlay"><form className="modal" style={{maxWidth:460}} onClick={e=>e.stopPropagation()} onSubmit={salva}>
+      <header><h2>Registra pagamento — {agente.nome}</h2><button type="button" className="x" onClick={onClose}>×</button></header>
+      <div className="body">
+        {err && <div className="banner err">{err}</div>}
+        {agente.residuo>0 && <div className="muted" style={{fontSize:12.5,marginBottom:8}}>Residuo da pagare: <b>{Number(agente.residuo).toLocaleString("it-IT",{style:"currency",currency:"EUR"})}</b></div>}
+        <div className="row">
+          <div className="field" style={{maxWidth:180}}><label>Data pagamento</label>
+            <input type="date" value={f.data} onChange={e=>set("data",e.target.value)}/></div>
+          <div className="field" style={{maxWidth:160}}><label>Importo €</label>
+            <input type="text" inputMode="decimal" value={f.importo} onChange={e=>set("importo",e.target.value)} placeholder="es. 150 o 150,50"/></div>
+        </div>
+        <div className="row">
+          <div className="field" style={{maxWidth:180}}><label>Metodo</label>
+            <input value={f.metodo} onChange={e=>set("metodo",e.target.value)} placeholder="bonifico, assegno…"/></div>
+          <div className="field"><label>Riferimento</label>
+            <input value={f.riferimento} onChange={e=>set("riferimento",e.target.value)} placeholder="es. periodo, n° distinta"/></div>
+        </div>
+        <div className="field"><label>Note</label><textarea rows={2} value={f.note} onChange={e=>set("note",e.target.value)}/></div>
+      </div>
+      <footer>
+        <button type="button" className="btn" style={{marginLeft:"auto"}} onClick={onClose}>Annulla</button>
+        <button className="btn primary" disabled={busy}>{busy?<span className="spin"/>:"Registra pagamento"}</button>
+      </footer>
+    </form></div>
+  );
+}
 function ModuloReport({profilo,perm}){
   const [commesse,setCommesse]=useState(null);
   const [artMap,setArtMap]=useState({});
@@ -15643,6 +15762,8 @@ function ModuloReport({profilo,perm}){
                 </tbody>
               </table>; })()}
           </div>
+
+          <SaldoProvvigioni profilo={profilo} perm={perm}/>
 
           <div className="card" style={{padding:20,marginBottom:18,overflow:"auto"}}>
             <h3 style={{marginTop:0}}>🎯 Pipeline vendite e provvigioni per agente <span className="muted" style={{fontSize:12,fontWeight:400}}>· trattative CRM</span></h3>

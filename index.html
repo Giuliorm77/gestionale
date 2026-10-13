@@ -5895,7 +5895,7 @@ function AgenteForm({agente,profilo,perm,onClose,onSalvato}){
   }
 
   return (
-    <div className="modal-bg" onClick={onClose}>
+    <div className="overlay">
       <form className="modal" onClick={e=>e.stopPropagation()} onSubmit={salva}>
         <header>
           <h2>{nuovo?"Nuovo agente":"Modifica agente"}</h2>

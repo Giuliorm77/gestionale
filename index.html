@@ -7048,6 +7048,8 @@ function calcProvvTratt(t, fb){
             : (cliPct!=null ? Number(cliPct) : (agPct!=null ? Number(agPct) : 0));
   return val*pct/100;
 }
+// Numero da campo testo locale: accetta virgola o punto; vuoto/non valido => null.
+function numLoc(v){ const s=String(v==null?"":v).replace(",",".").trim(); if(s==="") return null; const n=Number(s); return isFinite(n)?n:null; }
 function prossimoNumero(preventivi){
   const anno=new Date().getFullYear();
   const n=(preventivi||[]).filter(p=>String(p.numero||"").startsWith(anno+"-")).length+1;
@@ -7955,7 +7957,7 @@ function ModuloPreventivi({profilo,perm}){
     setErr("");
     const [p,c,a,i,t,pc,imb,co,fo,cmp,op]=await Promise.all([
       sb.from("preventivi").select("*, preventivi_righe(*)").order("creato_il",{ascending:false}),
-      sb.from("clienti").select("id,ragione_sociale,categoria,sconto_pct,agente_id,provvigione_pct, clienti_sconti(categoria,sconto_pct), agente:agenti(provvigione_pct)").order("ragione_sociale"),
+      sb.from("clienti").select("id,ragione_sociale,categoria,sconto_pct,agente_id,provvigione_pct, clienti_sconti(categoria,sconto_pct), agente:agenti(nome,provvigione_pct)").order("ragione_sociale"),
       caricaArticoliTutti("id,codice,nome_articolo,unita,categoria,costo,prezzo_pubblico,giacenza,impegnato,peso_kg,peso_um,peso_eccedenza_pct,traccia_avanzo,materiale_tipo,formati"),
       sb.from("impostazioni").select("*").eq("id",1).maybeSingle(),
       sb.from("impostazioni_lavorazioni").select("*"),
@@ -8591,9 +8593,14 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   // Se la % nel preventivo è vuota, ripiega sulla % del cliente (eccezione) o dell'agente (standard).
   const cliProvv=(clienti||[]).find(c=>c.id===f.cliente_id);
   const provvFb={ cliPct: (cliProvv&&cliProvv.provvigione_pct!=null)?Number(cliProvv.provvigione_pct):null,
-    agPct: (cliProvv&&cliProvv.agente&&cliProvv.agente.provvigione_pct!=null)?Number(cliProvv.agente.provvigione_pct):null };
+    agPct: (cliProvv&&cliProvv.agente&&cliProvv.agente.provvigione_pct!=null)?Number(cliProvv.agente.provvigione_pct):null,
+    agNome: (cliProvv&&cliProvv.agente&&cliProvv.agente.nome)||"" };
+  // % che verrà effettivamente applicata se il campo resta vuoto, e da dove arriva
+  const provvEreditata = provvFb.cliPct!=null ? provvFb.cliPct : (provvFb.agPct!=null ? provvFb.agPct : null);
+  const provvFonte = provvFb.cliPct!=null ? "eccezione cliente"
+                   : (provvFb.agPct!=null ? ("standard agente"+(provvFb.agNome?" "+provvFb.agNome:"")) : "");
   const provvPrev = calcProvvTratt({valore_stimato:Number(tot.imponibile)||0, tipo_provvigione:f.tipo_provvigione,
-    provvigione_pct:f.provvigione_pct===""?null:Number(f.provvigione_pct),
+    provvigione_pct:numLoc(f.provvigione_pct),
     prezzo_netto:Number(f.prezzo_netto)||0, quota_margine_pct:Number(f.quota_margine_pct)||0}, provvFb);
   const margineNet = tot.margine - provvPrev;
   const margineNetPct = tot.imponibile>0 ? margineNet/tot.imponibile*100 : 0;
@@ -8686,7 +8693,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       spese_generali_pct:Number(f.spese_generali_pct)||0, iva_pct:Number(f.iva_pct)||0, margine_minimo_pct:Number(f.margine_minimo_pct)||0,
       abbondanza_pct:Number(f.abbondanza_pct)||0,
       tipo_provvigione:f.tipo_provvigione||"percentuale",
-      provvigione_pct: isMarg ? null : (f.provvigione_pct===""?null:Number(f.provvigione_pct)),
+      provvigione_pct: isMarg ? null : numLoc(f.provvigione_pct),
       prezzo_netto: isMarg ? (Number(f.prezzo_netto)||0) : null,
       quota_margine_pct: isMarg ? (Number(f.quota_margine_pct)||0) : null,
       righe_cliente: righeCliente.filter(x=>String(x.descrizione||"").trim()!==""||Number(x.prezzo_un)>0).map(x=>({descrizione:x.descrizione||"",quantita:Number(x.quantita)||0,unita:x.unita||"",prezzo_un:Number(x.prezzo_un)||0,mostra:x.mostra!==false})),
@@ -8748,7 +8755,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
         prodotto:f.descrizione_breve||"",
         riferimento:f.riferimento||"", stato:"aperta", priorita:"normale",
         agente_id:(cli&&cli.agente_id)||null,
-        provvigione_pct: f.provvigione_pct===""||f.provvigione_pct==null ? null : Number(f.provvigione_pct),
+        provvigione_pct: numLoc(f.provvigione_pct),
         consumi:suggerisciConsumi(righe.map(r=>({...r, imballo_pluriball:pluriballDaSalvare(r)})), prodotti),
         valore:Math.round((tot.imponibile||0)*100)/100, creato_da:profilo.id, aggiornato_il:new Date().toISOString()};
       const {data:nc,error}=await sb.from("commesse").insert(rec).select("id").single();
@@ -9181,7 +9188,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
             <div className="muted" style={{fontSize:12,marginBottom:8}}>La stabilisce il commerciale qui, in fase di preventivo. L'agente la vedrà solo in lettura. Calcolata sull'<b>imponibile</b> ({eur(tot.imponibile)}).</div>
             {(()=>{ const base=Number(tot.imponibile)||0;
               const provv=calcProvvTratt({valore_stimato:base, tipo_provvigione:f.tipo_provvigione,
-                provvigione_pct:f.provvigione_pct===""?null:Number(f.provvigione_pct),
+                provvigione_pct:numLoc(f.provvigione_pct),
                 prezzo_netto:Number(f.prezzo_netto)||0, quota_margine_pct:Number(f.quota_margine_pct)||0}, provvFb);
               const marg=Math.max(0, base-(Number(f.prezzo_netto)||0));
               return <>
@@ -9192,9 +9199,14 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                       <option value="margine">A margine (su prezzo netto)</option>
                     </select></div>
                   {f.tipo_provvigione==="percentuale"
-                    ? <div className="field" style={{maxWidth:170}}><label>Provvigione %</label>
-                        <input type="number" step="0.5" value={f.provvigione_pct} onChange={e=>set("provvigione_pct",e.target.value)}
-                          placeholder="(se vuoto: % cliente/agente)"/></div>
+                    ? <div className="field" style={{maxWidth:210}}><label>Provvigione %</label>
+                        <input type="text" inputMode="decimal" value={f.provvigione_pct}
+                          onChange={e=>set("provvigione_pct",e.target.value)}
+                          placeholder={provvEreditata!=null?`vuoto = eredita ${provvEreditata}%`:"vuoto = nessun agente"}/>
+                        {f.provvigione_pct!=="" && provvEreditata!=null &&
+                          <button type="button" className="btn small" style={{marginTop:6}} onClick={()=>set("provvigione_pct","")}
+                            title={"Svuota per usare la % del cliente/agente ("+provvEreditata+"%)"}>↩ Usa % agente ({provvEreditata}%)</button>}
+                      </div>
                     : <>
                         <div className="field" style={{maxWidth:190}}><label>Prezzo netto azienda €</label>
                           <input type="number" step="0.01" value={f.prezzo_netto} onChange={e=>set("prezzo_netto",e.target.value)} placeholder="quanto incassa l'azienda"/></div>
@@ -9205,7 +9217,12 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                 <div className="muted" style={{fontSize:12.5}}>
                   {f.tipo_provvigione==="margine"
                     ? <>Margine: <b>{eur(marg)}</b> (imponibile − netto) · Provvigione agente: <b style={{color:"var(--ok)"}}>{eur(provv)}</b></>
-                    : <>Provvigione agente: <b style={{color:"var(--ok)"}}>{eur(provv)}</b>{f.provvigione_pct===""?<span> — lasciando vuoto userà la % del cliente o dell'agente</span>:null}</>}
+                    : <>Provvigione agente: <b style={{color:"var(--ok)"}}>{eur(provv)}</b>
+                        {f.provvigione_pct===""
+                          ? (provvEreditata!=null
+                              ? <span> — campo vuoto: eredita <b>{provvEreditata}%</b> ({provvFonte})</span>
+                              : <span> — nessun agente/% impostata: provvigione 0</span>)
+                          : <span> — % impostata qui (ha la precedenza{provvEreditata!=null?`, ignora il ${provvEreditata}% del cliente/agente`:""})</span>}</>}
                 </div>
               </>; })()}
           </div>

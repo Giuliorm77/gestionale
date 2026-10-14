@@ -4327,8 +4327,10 @@ function ModuloMagazzino({profilo,perm}){
                       {artFiltrati.map(a=>{
                         const gi=num(a.giacenza), imp=num(a.impegnato), disp=gi-imp, sc=num(a.scorta_minima);
                         const mql=num(a.mq_per_lastra);
-                        const esaurito = disp<=0;
-                        const sotto = !esaurito && sc>0 && disp<=sc;
+                        const isLastraA = a.materiale_tipo==="lastra";
+                        const nLastre = isLastraA ? ((pezziGiac[a.id]||{}).n||0) : 0;
+                        const esaurito = isLastraA ? nLastre<=0 : disp<=0;
+                        const sotto = !esaurito && !isLastraA && sc>0 && disp<=sc;
                         return (
                           <tr key={a.id} onClick={canMov?(()=>{ setFiltroArt({id:a.id,nome:a.nome_articolo||a.codice||"articolo"}); setVista("movimenti"); }):undefined}
                             style={canMov?{cursor:"pointer"}:{cursor:"default"}} title={canMov?"Apri lo storico movimenti di questo articolo":""}>

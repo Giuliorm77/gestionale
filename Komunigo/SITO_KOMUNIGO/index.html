@@ -1481,6 +1481,7 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
   const [prezziDa,setPrezziDa]=useState({});   // {confId: prezzo unitario base} per i gadget
   const [abb,setAbb]=useState([]);   // capi del catalogo fornitore proposti (vista komunigo_abbigliamento, v17)
   const [abbSub,setAbbSub]=useState("");
+  useEffect(()=>{ if(ricerca){ setAbbSub(""); setCat(""); } },[ricerca]);   // la ricerca cerca in TUTTO il catalogo: via filtri di categoria e tipo
   const [fotoLavori,setFotoLavori]=useState([]);   // foto reali per la colonna destra
   useEffect(()=>{ (async()=>{
     try{
@@ -1532,10 +1533,12 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
     if(x.categoria==="Abbigliamento" && x.sottocategoria!==undefined){ if(k==="borse e zaini") return eBorsa(x); if(k==="abbigliamento") return !eBorsa(x); }
     return c===k; };
   const q=(ricerca||"").trim().toLowerCase();
-  const matchQ = x => !q || [x.nome,x.descrizione,x.note,x.categoria,x.codice,x.sottocategoria,x.brand].filter(Boolean).join(" ").toLowerCase().includes(q);
+  const matchQ = x => !q || [x.nome,x.descrizione,x.note,x.categoria,x.codice,x.sottocategoria,x.brand, x.sottocategoria!==undefined? tradSub(x.sottocategoria):"", (x.sottocategoria!==undefined && eBorsa(x))? "borse borsa zaini zaino":""].filter(Boolean).join(" ").toLowerCase().includes(q);
   const capiAll = abb.filter(x=>matchCat(x) && matchQ(x));
   const abbSubs = [...new Set(capiAll.map(x=>x.sottocategoria).filter(Boolean))].sort((a,b)=>tradSub(a).localeCompare(tradSub(b),"it"));
-  const capi = capiAll.filter(x=>!abbSub || x.sottocategoria===abbSub);
+  const subOk = abbSubs.includes(abbSub)? abbSub : "";   // un filtro tipo che non c'entra coi risultati viene ignorato
+  const capi = capiAll.filter(x=>!subOk || x.sottocategoria===subOk);
+  const soloBorse = capiAll.length>0 && capiAll.every(eBorsa);
   const gadget = conf.filter(c=>c.tipo==="gadget" && matchCat(c) && matchQ(c));
   const misura = conf.filter(c=>c.tipo!=="gadget" && c.tipo!=="scatola" && matchCat(c) && matchQ(c));
   const scatole = conf.filter(c=>c.tipo==="scatola" && matchCat(c) && matchQ(c));
@@ -1595,11 +1598,11 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
       </div>}
 
       {capiAll.length>0 && <>
-        <h2 className="sec"><Ico n={cat.toLowerCase()==="borse e zaini"?"bag":"shirt"} s={26} sw={1.5} className="ico-t"/>{cat.toLowerCase()==="borse e zaini"?"Borse e zaini personalizzati":"Abbigliamento personalizzato"}</h2>
+        <h2 className="sec"><Ico n={(soloBorse||cat.toLowerCase()==="borse e zaini")?"bag":"shirt"} s={26} sw={1.5} className="ico-t"/>{(soloBorse||cat.toLowerCase()==="borse e zaini")?"Borse e zaini personalizzati":"Abbigliamento personalizzato"}</h2>
         <p className="sec-sub">T-shirt, felpe, polo e giacche con il tuo logo: scegli colore, taglie e dove stampare.</p>
         {abbSubs.length>1 && <div className="catbar" style={{marginTop:0}}>
-          <button className={!abbSub?"on":""} onClick={()=>setAbbSub("")}>Tutto</button>
-          {abbSubs.map(sc=><button key={sc} className={abbSub===sc?"on":""} onClick={()=>setAbbSub(sc)}>{tradSub(sc)}</button>)}
+          <button className={!subOk?"on":""} onClick={()=>setAbbSub("")}>Tutto</button>
+          {abbSubs.map(sc=><button key={sc} className={subOk===sc?"on":""} onClick={()=>setAbbSub(sc)}>{tradSub(sc)}</button>)}
         </div>}
         <div className="grid">{capi.map(c=>{ const img=(c.immagini||[])[0]; return (
           <div className="card" key={c.fornitore+":"+c.codice} style={{cursor:"pointer"}} onClick={()=>setDettaglio({tipo:"abbigliamento",prod:c})}>

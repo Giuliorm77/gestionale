@@ -100,6 +100,39 @@ begin
   where fornitore = 'newwave' and categoria ilike 'borse%' and modello_stampa_id is null;
 end $$;
 
+-- ---------------------------------------------------------------------
+--  PENNE, MATITE E STRUMENTI DI SCRITTURA: posizioni fusto e clip
+--  (deciso da Giulio 2026-10-14), in tampografia. Modello standard per i
+--  futuri cataloghi gadget + allinea i nomi della penna di esempio.
+-- ---------------------------------------------------------------------
+do $$
+declare v_p uuid;
+begin
+  select id into v_p from public.prodotti_config where nome = 'Stampa strumenti di scrittura (modello)' limit 1;
+  if v_p is null then
+    insert into public.prodotti_config (nome, unita_calcolo, tipo, categoria, margine_pct, minimo,
+                                        giorni_lavorazione, attivo, solo_modello, note)
+    values ('Stampa strumenti di scrittura (modello)', 'pz', 'gadget', 'Gadget', 40, 100, 7, true, true,
+            'Modello di stampa per penne, matite e strumenti di scrittura. AREE e PREZZI PROVVISORI.')
+    returning id into v_p;
+    insert into public.prodotti_config_fasce (prodotto_id, da_quantita, sconto_pct, ordine) values
+      (v_p, 500, 5, 0), (v_p, 1000, 10, 1);
+  end if;
+  insert into public.prodotti_config_stampe (prodotto_id, nome, area_cm, max_colori, prezzo_pz, setup, tecnica, ordine)
+  select v_p, x.nome, x.area, x.maxc, x.pz, x.setup, 'Tampografia', x.ord
+  from (values
+    ('Fusto', '4 × 0,8', 2, 0.08, 30, 0),
+    ('Clip',  '3 × 0,6', 1, 0.08, 30, 1)
+  ) as x(nome, area, maxc, pz, setup, ord)
+  where not exists (select 1 from public.prodotti_config_stampe s where s.prodotto_id = v_p and s.nome = x.nome);
+end $$;
+
+-- penna di esempio: nomi standard
+update public.prodotti_config_stampe s set nome = 'Fusto'
+from public.prodotti_config p where p.id = s.prodotto_id and p.nome = 'Penna personalizzata (esempio)' and s.nome = 'Sul fusto';
+update public.prodotti_config_stampe s set nome = 'Clip'
+from public.prodotti_config p where p.id = s.prodotto_id and p.nome = 'Penna personalizzata (esempio)' and s.nome = 'Sulla clip';
+
 -- controllo zaini/borse: posizioni + quanti prodotti lo usano
 select s.ordine, s.nome, s.area_cm, s.prezzo_pz, s.setup,
        (select count(*) from public.catalogo_fornitore_prodotti p where p.modello_stampa_id = s.prodotto_id) as prodotti_assegnati

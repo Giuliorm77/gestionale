@@ -8082,7 +8082,17 @@ function DDTEditor({ddt,commessaId,profilo,perm,onClose,onSalvato}){
       const {error}=await sb.from("ddt_righe").insert(rr); if(error){ setErr(error.message); setBusy(false); return; } }
     // all'EMISSIONE (solo la prima volta): segna consegnate le righe di commessa spedite
     if(emesso && (!ddt || ddt.stato!=="emesso")){
+      // tipo materiale degli articoli spediti (le LASTRE non scaricano la giacenza sfusa: sono a pezzi)
+      let matTipo={};
+      try{ const aids=[...new Set(righe.map(r=>r.articolo_id).filter(Boolean))];
+        if(aids.length){ const {data:aa}=await sb.from("articoli_magazzino").select("id,materiale_tipo").in("id",aids);
+          (aa||[]).forEach(a=>matTipo[a.id]=a.materiale_tipo||""); } }catch(e){}
       for(const r of righe){
+        // SCARICO giacenza della merce spedita (prodotti a pezzo, non lastre)
+        if(r.articolo_id && (Number(r.quantita)||0)>0 && matTipo[r.articolo_id]!=="lastra"){
+          try{ await sb.from("movimenti_magazzino").insert({articolo_id:r.articolo_id, tipo:"scarico",
+            quantita:Number(r.quantita)||0, causale:"Consegna (DDT)", riferimento:"DDT "+(f.numero||""), creato_da:profilo.id}); }catch(e){}
+        }
         if(!r.commessa_riga_id) continue;
         const {data:cr}=await sb.from("commesse_righe").select("quantita,quantita_consegnata").eq("id",r.commessa_riga_id).maybeSingle();
         if(cr){ const nc=(Number(cr.quantita_consegnata)||0)+(Number(r.quantita)||0), tot=Number(cr.quantita)||0;

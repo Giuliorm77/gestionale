@@ -1,90 +1,40 @@
-# Tecniche di stampa — testi informativi per il cliente
+# Tecniche di stampa — testi per il cliente (Komunigo)
 
-Raccolta dei testi da mostrare a chi acquista su Komunigo, in base alla tecnica di
-stampa usata (es. nella scheda prodotto, nel configuratore accanto alla posizione
-di stampa, o in una pagina "Le nostre tecniche").
+**Versione ORIGINALE Komunigo (riscritta il 2026-10-15).** I primi testi raccolti venivano da
+screenshot di un sito di un altro fornitore e non vanno usati: questi sono riscritti da zero,
+con il nostro tono, mantenendo solo le informazioni tecniche (es. ricamo fino a 12 colori).
 
-Collegamento previsto: il campo **tecnica** delle posizioni di stampa
-(`prodotti_config_stampe.tecnica`, es. "Serigrafia", "Stampa digitale") → mostra
-il testo della tecnica corrispondente.
+Sul negozio sono in `Komunigo/index.html` → `TECNICHE_INFO` ("ⓘ Cos'è?" accanto al badge della
+tecnica e pagina "Le nostre tecniche"). Se cambi un testo qui, aggiornalo anche lì.
 
-Stato: raccolta in corso (Giulio fornisce i testi, uno alla volta).
-
-**Sul negozio (2026-10-14):** i testi sono in `Komunigo/index.html` → `TECNICHE_INFO` (versione con refusi corretti:
-"un'incisione", "Questa", "Con l'utilizzo di telai…"). "Punciatura" è il termine tecnico corretto del
-ricamo, NON un refuso. Accanto al badge della tecnica nel configuratore compare "ⓘ Cos'è?".
-Se si cambia un testo qui, aggiornarlo anche lì.
+Da scrivere quando servono: Stampa Digitale 360°, Single Pass, Adesivo Digitale.
 
 ---
 
 ## Stampa digitale
 
-La **stampa digitale** è un processo che riproduce immagini e testi direttamente da
-un file elettronico (come un PDF, JPG o TIF) su un supporto fisico, senza la
-necessità di lastre di stampa intermedie. Questo la rende veloce e flessibile,
-ideale per tirature medio-piccole e personalizzazioni, poiché i dati vengono
-inviati direttamente alla stampante, che utilizza tecnologie come il getto
-d'inchiostro, il toner, la sublimazione, il transfer DTF e i raggi UV per
-trasferire il colore. Permette di stampare su una vasta gamma di supporti, come
-carta, cartone, tessuti, plastica, metallo e legno qualsiasi file o logo senza
-limiti di colore.
-
-Sotto-tecniche (testi da fornire):
-
-### Stampa Digitale 360°
-_(testo da inserire)_
-
-### Single Pass
-_(testo da inserire)_
-
-### Adesivo Digitale
-_(testo da inserire)_
+La stampa digitale parte direttamente dal tuo file, senza telai né lastre da preparare: per questo è veloce e conveniente anche per poche copie o per tante versioni diverse. Riproduce foto, sfumature e qualsiasi numero di colori senza costi aggiuntivi. A seconda del materiale usiamo tecnologie diverse — UV per rigidi e oggetti, sublimazione e DTF per i tessuti, getto d'inchiostro per carta e grandi formati — scegliendo noi quella che dà il risultato migliore.
 
 ---
 
 ## Serigrafia
 
-La **serigrafia** è una tecnica di stampa versatile che trasferisce inchiostro
-direttamente su quasi ogni tipo di superficie (tessuti, carta, vetro, metallo)
-usando un incisione del file su un telaio, permettendo di ottenere colori vivaci e
-resistenti, ideali per grandi tirature e stampe d'arte su shopper o T-shirt, con
-effetti speciali anche a più colori.
+È la stampa classica dei tessuti e delle shopper: l'inchiostro viene spinto attraverso una rete finissima (il telaio) che lascia passare il colore solo dove serve. Ogni colore ha il suo telaio, per questo conviene con loghi a pochi colori e su quantità medio-grandi: una volta preparato l'impianto, ogni pezzo costa poco. I colori sono pieni e brillanti, coprono bene anche i tessuti scuri e resistono a lungo ai lavaggi.
 
 ---
 
 ## Tampografia
 
-La **tampografia** è una tecnica di stampa indiretta che trasferisce loghi e
-scritte su oggetti di forme diverse (piane, curve, irregolari) tramite un tampone
-morbido in silicone che preleva l'inchiostro da una lastra incisa (cliché) e lo
-deposita sull'oggetto, ideale per personalizzare gadget, oggettistica, penne o
-portachiavi grazie alla sua precisione e versatilità anche su piccole superfici,
-con alta definizione di testi e piccoli dettagli.
+Serve per stampare su oggetti piccoli o curvi, dove un foglio non arriverebbe: penne, accendini, portachiavi, tappi, gadget in plastica e metallo. Un tampone in silicone morbido raccoglie l'inchiostro da una lastra incisa con il tuo logo e lo appoggia sull'oggetto, adattandosi alla sua forma. È molto precisa: anche testi piccoli e linee sottili restano nitidi.
 
 ---
 
 ## Ricamo
 
-Il **ricamo** personalizzato è l'arte di decorare tessuti e altri materiali con
-fili colorati (**fino a 12 colori**) per creare disegni, loghi o scritte uniche, su
-richiesta del cliente, offrendo alta qualità, eleganza e durabilità, ed è ideale
-per abbigliamento aziendale, divise e gadget di pregio. questa tecnica, che può
-includere anche patch applicabili (patch ricamate), si adatta a diverse superfici,
-conferendo prestigio e resistenza nel tempo, a differenza di altre tecniche di
-stampa. La **ricamatura** viene effettuata da una macchina che riceve il logo
-attraverso un software. Il macchinario stesso prepara la punciatura dell'immagine
-che consentirà un ricamo punto a punto. Il logo ricamato è resistente ai lavaggi e
-nel tempo e si adatta ad ogni tipo di tessuto.
+Il logo viene cucito direttamente nel tessuto, punto dopo punto, con filati fino a 12 colori. Prima lo trasformiamo in un percorso di punti (la «punciatura»), poi la ricamatrice lo esegue con precisione su polo, giacche, felpe e cappellini. Il risultato ha rilievo, si sente al tatto e dura quanto il capo: non si scolorisce e non si stacca con i lavaggi. È la scelta giusta per divise e abbigliamento di rappresentanza; il prezzo dipende dalla grandezza del logo, non dal numero di colori.
 
 ---
 
 ## Quadricromia
 
-La **quadricromia** è una tecnica di stampa serigrafica che consente di riprodurre
-immagini fotografiche o con sfumature utilizzando i quattro colori primari: ciano,
-magenta, giallo e nero. Attraverso la separazione dei quattro colori in retini,
-questi vengono sovrapposti e mescolati in diverse intensità per generare tutte le
-altre sfumature cromatiche. Il risultato migliore si ottiene modulando la
-luminosità e la densità di ciascun colore primario. L'utilizzo di telai ad alta
-definizione, si riduce significativamente la dimensione dei retini, ottenendo così
-una resa fotografica.
+Quando il logo ha sfumature o è una vera fotografia, usiamo la serigrafia in quadricromia. L'immagine viene scomposta in quattro inchiostri — ciano, magenta, giallo e nero — stampati uno sopra l'altro con una retinatura finissima: da vicino sono puntini, da un passo di distanza diventano tutte le tonalità dell'originale. Con telai ad alta definizione la resa si avvicina a quella fotografica, con la resistenza tipica della serigrafia.

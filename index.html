@@ -4879,16 +4879,23 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
   const artById=useMemo(()=>{ const m={}; articoli.forEach(a=>m[a.id]=a); return m; },[articoli]);
   // materiali agganciati alla commessa scelta (dai consumi e dalle righe)
   useEffect(()=>{ if(!commessaId){ setMatCommessa([]); return; } let vivo=true;
-    sb.from("commesse").select("consumi, commesse_righe(articolo_id,descrizione,config)").eq("id",commessaId).maybeSingle()
-      .then(({data})=>{ if(!vivo) return;
-        const ids=new Map();
-        (Array.isArray(data&&data.consumi)?data.consumi:[]).forEach(c=>{ if(c&&c.articolo_id) ids.set(c.articolo_id, {descrizione:c.descrizione||"", pagato_intero:c.pagato_intero!==false, mis:null}); });
-        (data&&data.commesse_righe||[]).forEach(r=>{ if(!r.articolo_id) return;
-          const mis=(r.config&&r.config.mis)||null;
-          if(!ids.has(r.articolo_id)) ids.set(r.articolo_id, {descrizione:r.descrizione||"", pagato_intero:true, mis});
-          else if(mis && !ids.get(r.articolo_id).mis){ ids.get(r.articolo_id).mis=mis; } });
-        setMatCommessa([...ids.keys()].map(id=>({articolo_id:id, descrizione:ids.get(id).descrizione, pagato_intero:ids.get(id).pagato_intero, mis:ids.get(id).mis})));
-      });
+    (async()=>{
+      const {data}=await sb.from("commesse").select("preventivo_id, consumi, commesse_righe(articolo_id,descrizione,config)").eq("id",commessaId).maybeSingle();
+      if(!vivo||!data) return;
+      // mappa articolo_id -> misura richiesta (config.mis del prodotto), da commessa e preventivo
+      const misMap={};
+      const addMis=(aid,cfg)=>{ const m=cfg&&cfg.mis; if(aid && m && (Number(m.L)>0||Number(m.H)>0) && !misMap[aid]) misMap[aid]={L:m.L,H:m.H}; };
+      (data.commesse_righe||[]).forEach(r=>{ addMis(r.articolo_id,r.config); addMis(r.config&&r.config.articolo_id,r.config); });
+      if(data.preventivo_id){
+        const {data:pr}=await sb.from("preventivi_righe").select("articolo_id,config").eq("preventivo_id",data.preventivo_id);
+        (pr||[]).forEach(r=>{ addMis(r.articolo_id,r.config); addMis(r.config&&r.config.articolo_id,r.config); });
+      }
+      if(!vivo) return;
+      const ids=new Map();
+      (Array.isArray(data.consumi)?data.consumi:[]).forEach(c=>{ if(c&&c.articolo_id) ids.set(c.articolo_id, {descrizione:c.descrizione||"", pagato_intero:c.pagato_intero!==false}); });
+      (data.commesse_righe||[]).forEach(r=>{ if(r.articolo_id && !ids.has(r.articolo_id)) ids.set(r.articolo_id, {descrizione:r.descrizione||"", pagato_intero:true}); });
+      setMatCommessa([...ids.keys()].map(id=>({articolo_id:id, descrizione:ids.get(id).descrizione, pagato_intero:ids.get(id).pagato_intero, mis:misMap[id]||null})));
+    })();
     return ()=>{vivo=false;};
   },[commessaId]);
 

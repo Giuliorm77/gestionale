@@ -4163,7 +4163,7 @@ function ModuloMagazzino({profilo,perm}){
     const q=cercaDeb.trim().replace(/[,()*]/g," ");
     // il filtro "solo materiali a magazzino" vale per la vista di default; quando CERCHI
     // qualcosa vuoi trovarlo comunque (anche un articolo nuovo a giacenza 0), quindi non lo applico.
-    if(soloMag && !q) qy=qy.or("giacenza.neq.0,impegnato.neq.0,scorta_minima.gt.0");
+    if(soloMag && !q) qy=qy.or("giacenza.neq.0,impegnato.neq.0,scorta_minima.gt.0,materiale_tipo.not.is.null");
     if(q) qy=qy.or("nome_articolo.ilike.*"+q+"*,codice.ilike.*"+q+"*,tipo.ilike.*"+q+"*");
     const a=await qy;
     if(a.error){ setErr(a.error.message); return; }

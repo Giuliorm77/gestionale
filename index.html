@@ -8412,7 +8412,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const ordineProdotti=React.useMemo(()=>{ const o=[]; (righe||[]).forEach(r=>{ const g=r.gruppo||gruppoCorr; if(!o.includes(g)) o.push(g); }); return o; },[righe,gruppoCorr]);
   const subProdotto=g=>(righe||[]).filter(r=>(r.gruppo||gruppoCorr)===g).reduce((s,r)=>s+subtotaleRiga(r),0);
   function generaRigheClienteDaProdotti(){
-    const linee=ordineProdotti.map(g=>({descrizione:g||"Prodotto", quantita:1, unita:"", prezzo_un:Math.round(subProdotto(g)*100)/100, mostra:true}));
+    const linee=ordineProdotti.map(g=>{ const r=rigaProdottoCliente(g); return {descrizione:r.descrizione, quantita:r.quantita, unita:r.unita, prezzo_un:r.prezzo_unitario, mostra:true}; });
     setRigheCliente(linee);
   }
   function duplicaProdotto(g){ const items=(righe||[]).filter(r=>(r.gruppo||gruppoCorr)===g); if(!items.length) return;
@@ -8598,6 +8598,19 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const optPrice=g=>calcolaPreventivo((righeCalc||[]).filter(r=>(r.gruppo||gruppoCorr)===g),{...f,imballaggio:0,trasporto:0}).imponibile;
   const scQ=g=>Number((f.scaglioni_qta||{})[g])||0;
   const setScQ=(g,v)=>setF(p=>({...p,scaglioni_qta:{...(p.scaglioni_qta||{}),[g]:v}}));
+  // QUANTITÀ DEL PRODOTTO per il PDF cliente: quella scritta a mano nell'intestazione (scaglioni_qta),
+  // altrimenti la riga in PEZZI del gruppo, altrimenti la riga unica (con la sua unità), altrimenti 1.
+  const qtaAutoProdotto=g=>{
+    const items=(righe||[]).filter(r=>(r.gruppo||gruppoCorr)===g);
+    const pz=items.find(r=>/^(pz|pezz)/i.test(String(r.unita||"").trim()) && Number(r.quantita)>0);
+    if(pz) return {q:Number(pz.quantita), u:"pz"};
+    if(items.length===1 && Number(items[0].quantita)>0) return {q:Number(items[0].quantita), u:items[0].unita||""};
+    return {q:1, u:""};
+  };
+  const qtaProdotto=g=>{ const m=scQ(g); return m>0? {q:m, u:"pz"} : qtaAutoProdotto(g); };
+  // riga cliente di un prodotto: quantità vera, prezzo unitario = subtotale / quantità (4 decimali → il totale torna)
+  const rigaProdottoCliente=g=>{ const {q,u}=qtaProdotto(g); const sub=subProdotto(g);
+    return {descrizione:g||(f.descrizione_breve||"Prodotto"), quantita:q, unita:u, prezzo_unitario:Math.round(sub/q*10000)/10000, sconto_pct:0, modalita_consegna:"corriere", imballo_costo:0}; };
   // PROVVIGIONE agente = costo reale → va sottratta dal margine.
   // Se la % nel preventivo è vuota, ripiega sulla % del cliente (eccezione) o dell'agente (standard).
   const cliProvv=(clienti||[]).find(c=>c.id===f.cliente_id);
@@ -8665,8 +8678,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       const ordine=[]; righeCalc.forEach(r=>{ const g=r.gruppo||""; if(!ordine.includes(g)) ordine.push(g); });
       const haGruppi = ordine.length>1 || ordine.some(g=>g);
       if(haGruppi){
-        const rows=ordine.map(g=>({descrizione:g||(f.descrizione_breve||"Prodotto"), quantita:1, unita:"", prezzo_unitario:Math.round(subProdotto(g)*100)/100, sconto_pct:0, modalita_consegna:"corriere", imballo_costo:0}));
-        const imp2=rows.reduce((s,r)=>s+r.prezzo_unitario,0);
+        const rows=ordine.map(g=>rigaProdottoCliente(g));
+        const imp2=Math.round(ordine.reduce((s,g)=>s+subProdotto(g),0)*100)/100;
         const ivaPct=Number(f.iva_pct)||0;
         const totC={imponibile:imp2, iva:imp2*ivaPct/100, totale:imp2*(1+ivaPct/100), imbRighe:0};
         stampaHTML(htmlPreventivo(f, rows, imp, cli, totC, null, {noExtra:true}));
@@ -8894,7 +8907,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                         <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
                           <span style={{fontWeight:700,fontSize:13}}>🧩 Prodotto</span>
                           <input value={gRiga} onChange={e=>rinominaGruppo(gRiga,e.target.value)} style={{padding:"5px 8px",border:"1px solid var(--line)",borderRadius:7,fontWeight:600,minWidth:220}}/>
-                          {f.scaglioni && <span style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:12.5}}>Q.tà <input type="number" step="any" value={scQ(gRiga)||""} onChange={e=>setScQ(gRiga,e.target.value)} placeholder="es. 100" style={{width:80,padding:"5px 8px",border:"1px solid #b89cff",borderRadius:7}}/> pz</span>}
+                          {(()=>{ const au=qtaAutoProdotto(gRiga); return <span style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:12.5}} title={"Quantità del prodotto mostrata nel PDF cliente. Vuoto = dedotta dalle righe ("+au.q+(au.u?" "+au.u:"")+")."}>Q.tà <input type="number" step="any" value={scQ(gRiga)||""} onChange={e=>setScQ(gRiga,e.target.value)} placeholder={f.scaglioni?"es. 100":String(au.q)} style={{width:80,padding:"5px 8px",border:"1px solid #b89cff",borderRadius:7}}/> {scQ(gRiga)>0?"pz":(au.u||"pz")}</span>; })()}
                           <span className="muted" style={{fontSize:12}}>{f.scaglioni? <>prezzo <b>{eur(optPrice(gRiga))}</b>{scQ(gRiga)>0?<> · cad. <b>{eur(optPrice(gRiga)/scQ(gRiga))}</b></>:null}</> : <>subtotale <b>{eur(subProdotto(gRiga))}</b></>}</span>
                           <button type="button" className="btn small" onClick={()=>duplicaProdotto(gRiga)} title="Copia questo prodotto con le sue righe">⧉ Duplica</button>
                           <button type="button" className="btn small danger" onClick={()=>rimuoviProdotto(gRiga)} title="Elimina questo prodotto e le sue righe">✕ Elimina prodotto</button>

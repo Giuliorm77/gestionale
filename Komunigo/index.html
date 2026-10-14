@@ -591,6 +591,8 @@ function App(){
   const [authOpen,setAuthOpen]=useState(false);
   const [authMotivo,setAuthMotivo]=useState("");
   const [aiutoOpen,setAiutoOpen]=useState(false);
+  const [focusRicerca,setFocusRicerca]=useState(false);
+  const phRicerca=usePlaceholderAnimato(FRASI_RICERCA, !focusRicerca && !ricerca);
   // download riservati (template, tracciati): servono agli altri componenti
   useEffect(()=>{ window.KG_AUTH={ sess, chiedi:(motivo)=>{ setAuthMotivo(motivo||""); setAuthOpen(true); } }; },[sess]);
   useEffect(()=>{
@@ -635,7 +637,8 @@ function App(){
           <button className="brand" onClick={()=>setVista("home")}>Komuni<span className="go">go</span></button>
           <form className="search" onSubmit={e=>{e.preventDefault(); setVista("catalogo");}}>
             <Ico n="search" s={18}/>
-            <input value={ricerca} onChange={e=>cercaIn(e.target.value)} placeholder="Cerca prodotti, lavorazioni…"/>
+            <input value={ricerca} onChange={e=>cercaIn(e.target.value)} placeholder={phRicerca} aria-label="Cerca prodotti e lavorazioni"
+              onFocus={()=>setFocusRicerca(true)} onBlur={()=>setFocusRicerca(false)}/>
             {ricerca && <button type="button" className="search-x" onClick={()=>setRicerca("")} aria-label="Pulisci">×</button>}
           </form>
           <nav className="main">
@@ -1249,6 +1252,24 @@ function PaginaPackaging({vaiCatalogo, addCart, iva, setIva}){
       </div>
       <RichiestaSuMisura categoria="Packaging"/>
     </div>);
+}
+
+// frasi a rotazione nella casella di ricerca (effetto macchina da scrivere)
+const FRASI_RICERCA=["Cosa stampiamo oggi?","Prova con «felpe»…","Prova con «scatole»…","Prova con «roll up»…","Prova con «zaini»…","Prova con «biglietti da visita»…","Cerca qui. Se non c'è, lo inventiamo."];
+function usePlaceholderAnimato(frasi, attivo){
+  const [t,setT]=useState(frasi[0]);
+  useEffect(()=>{
+    if(!attivo) return;
+    const fermo = typeof window!=="undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(fermo){ setT(frasi[0]); return; }
+    let i=0, c=0, giu=false, tm;
+    const passo=()=>{ const f=frasi[i];
+      if(!giu){ c++; setT(f.slice(0,c)); if(c>=f.length){ giu=true; tm=setTimeout(passo,1900); return; } tm=setTimeout(passo,60); }
+      else { c--; setT(f.slice(0,c)); if(c<=0){ giu=false; i=(i+1)%frasi.length; tm=setTimeout(passo,350); return; } tm=setTimeout(passo,22); } };
+    tm=setTimeout(passo,500);
+    return ()=>clearTimeout(tm);
+  },[attivo]);
+  return attivo? (t+"|") : "Cerca prodotti, lavorazioni…";
 }
 
 // =====================================================================

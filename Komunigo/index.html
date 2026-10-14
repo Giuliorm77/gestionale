@@ -91,6 +91,20 @@
   .cat h4{font-family:var(--disp);text-transform:uppercase;font-size:21px;margin:0 0 6px;letter-spacing:.01em;}
   .cat p{font-size:14px;color:var(--ink-soft);margin:0;line-height:1.4;}
   .pack-pg{max-width:1100px;margin:10px auto 40px;}
+  .mockup-box{background:linear-gradient(180deg,#fff,#f6f7f9);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:14px;}
+  .mockup-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:6px;font-size:14px;}
+  .mockup{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .mockup-v{margin:0;text-align:center;}
+  .mockup-v svg{width:100%;max-width:260px;height:auto;}
+  .mockup-v figcaption{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);}
+  .mockup-ph{font-family:var(--disp);font-weight:700;letter-spacing:.06em;opacity:.75;}
+  .logo-up{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;}
+  .logo-up.compatto{justify-content:center;}
+  .logo-btn{display:inline-flex;align-items:center;background:var(--blu);color:#fff;border-radius:10px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;}
+  .logo-btn:hover{filter:brightness(1.1);}
+  .logo-opt{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-soft);}
+  .logo-opt input[type=checkbox]{width:auto;}
+  .logo-opt input[type=range]{width:90px;}
   .consegna{display:inline-flex;flex-wrap:wrap;align-items:center;gap:0 4px;font-size:14px;color:var(--ink);}
   .consegna b{color:var(--ink);}
   .consegna-n{flex-basis:100%;font-size:12px;color:var(--ink-soft);margin-left:23px;}
@@ -954,7 +968,7 @@ const SCATOLA_STAMPA=[[0,"Senza stampa"],[1,"Stampa esterna"],[2,"Esterna e inte
 // disegno isometrico della scatola con QUOTE COLORATE (A blu, B arancio, H verde),
 // gli stessi colori dei campi misura: il cliente vede subito quale lato è quale
 const SC_COL={A:"#3b5bdb",B:"#e8590c",H:"#0ca678"};
-function ScatolaDisegno({A,B,H}){
+function ScatolaDisegno({A,B,H,logo}){
   // prospettiva "cavaliera": fronte A×H vero, profondità B a 30° ridotta a 0,6
   const a=Math.max(1,Number(A)||1), b=Math.max(1,Number(B)||1), h=Math.max(1,Number(H)||1);
   const VW=280, VH=230, L=58, R=44, T=18, Bm=40;                 // riquadro e margini per le quote
@@ -979,6 +993,7 @@ function ScatolaDisegno({A,B,H}){
       <line x1={x0+dx/2} y1={y0-dy/2} x2={x0+W+dx/2} y2={y0-dy/2} className="sf-seam"/>
       <polygon points={P([[x0+W,y0],[x0+W+dx,y0-dy],[x0+W+dx,yb-dy],[x0+W,yb]])} className="sf-side"/>
       <polygon points={P([[x0,y0],[x0+W,y0],[x0+W,yb],[x0,yb]])} className="sf-front"/>
+      {logo && <image href={logo} x={x0+W*0.15} y={y0+Hh*0.18} width={W*0.7} height={Hh*0.64} preserveAspectRatio="xMidYMid meet"/>}
       {quota(x0, yb+g+4, x0+W, yb+g+4, SC_COL.A, "A "+a, x0+W/2, yb+g+20)}
       {quota(x0+W+g*0.6, yb+g*0.6, x0+W+dx+g*0.6, yb-dy+g*0.6, SC_COL.B, "B "+b, x0+W+dx/2+g+18, yb-dy/2+g+12)}
       {quota(x0-g-4, y0, x0-g-4, yb, SC_COL.H, "H "+h, x0-g-24, (y0+yb)/2)}
@@ -997,6 +1012,7 @@ function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureInizial
   const [righe,setRighe]=useState(null);   // [{q,res}]
   const [stato,setStato]=useState(""); const [errMsg,setErrMsg]=useState("");
   const [vistaDis,setVistaDis]=useState("scatola");   // scatola | tracciato
+  const [logo,setLogo]=useLogoCliente();
   const modello=modelloScatola(prod);
   useEffect(()=>{ (async()=>{
     const {data}=await sb.from("komunigo_configuratori_varianti").select("*").eq("prodotto_id",prod.id).order("ordine");
@@ -1057,7 +1073,8 @@ function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureInizial
               <div className="scatola-tabs">
                 <button type="button" className={vistaDis==="scatola"?"on":""} onClick={()=>setVistaDis("scatola")}>Scatola</button>
                 <button type="button" className={vistaDis==="tracciato"?"on":""} onClick={()=>setVistaDis("tracciato")}>Tracciato</button></div>
-              {vistaDis==="scatola" ? <ScatolaDisegno A={A} B={B} H={H}/> : <TracciatoSvg modello={modello} A={Number(A)} B={Number(B)} H={Number(H)} t={Number(va&&va.spessore)||0}/>}
+              {vistaDis==="scatola" ? <ScatolaDisegno A={A} B={B} H={H} logo={logo}/> : <TracciatoSvg modello={modello} A={Number(A)} B={Number(B)} H={Number(H)} t={Number(va&&va.spessore)||0}/>}
+              {vistaDis==="scatola" && <CaricaLogo logo={logo} setLogo={setLogo} compatto/>}
               <button type="button" className="tracciato-dl" disabled={!(Number(A)>0&&Number(B)>0&&Number(H)>0)}
                 onClick={()=>soloRegistrati(()=>scaricaTracciato(modello,Number(A),Number(B),Number(H),Number(va&&va.spessore)||0,va?va.nome:""),"scaricare il tracciato della tua scatola")}><Ico n="download" s={16} style={{marginRight:6}}/>Scarica il tracciato (PDF)</button>
               {vistaDis==="tracciato" && <div className="muted" style={{fontSize:11.5,marginTop:4}}><span style={{color:"#d9002b"}}>━</span> taglio · <span style={{color:"#0073d9"}}>┅</span> piega</div>}
@@ -1786,19 +1803,100 @@ const SAGOME={
 };
 const sagomaPerCapo=c=> /bag|backpack|zain|borsa|borse|sacca/i.test([c&&c.sottocategoria,c&&c.nome].join(" ")) ? "zaino" : "maglietta";
 function areaCm(a){ const n=String(a||"").replace(/,/g,".").match(/[\d.]+/g); return n&&n.length>=2? [Number(n[0]),Number(n[1])] : null; }
-function SagomaStampa({sagoma,nome,area}){
+// rettangolo (nel disegno 240×240) di una posizione di stampa, in scala con l'area reale
+function rettPosizione(sagoma,nome,area){
   const S=SAGOME[sagoma]; if(!S) return null;
   const key=String(nome||"").toLowerCase().replace(/^ricamo\s+/,"").trim();
   const p=S.pos[key]; if(!p) return null;
   const a=areaCm(area)||[8,8];
   const w=Math.min(a[0]*S.ucm,200), h=Math.min(a[1]*S.ucm,180);
-  const x=p.cx-w/2, y=p.top!=null? p.top : p.cy-h/2;
+  return {v:p.v, x:p.cx-w/2, y:p.top!=null? p.top : p.cy-h/2, w, h};
+}
+function SagomaStampa({sagoma,nome,area}){
+  const S=SAGOME[sagoma]; if(!S) return null;
+  const r=rettPosizione(sagoma,nome,area); if(!r) return null;
+  const p={v:r.v}, x=r.x, y=r.y, w=r.w, h=r.h;
   return (
     <svg className="sagoma" viewBox="0 0 240 240" role="img" aria-label={"Posizione di stampa: "+nome}>
       <path d={S.viste[p.v]} fill="#fff" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" fillRule="evenodd"/>
       <rect x={x} y={y} width={w} height={h} rx="2" className="sagoma-area"/>
       <text x="120" y="238" textAnchor="middle" className="sagoma-vista">{p.v==="retro"?"retro":"fronte"}</text>
     </svg>);
+}
+
+// =====================================================================
+//  MOCKUP 2D con il logo del cliente
+//  Il logo (PNG/JPG/SVG) resta nella sessione: si carica una volta e si
+//  vede su ogni prodotto. Opzione "togli lo sfondo bianco" (raster).
+// =====================================================================
+function useLogoCliente(){
+  const [logo,setLogoS]=useState(()=>{ try{ return sessionStorage.getItem("kg_logo")||""; }catch(e){ return ""; } });
+  const setLogo=v=>{ setLogoS(v||""); try{ if(v) sessionStorage.setItem("kg_logo",v); else sessionStorage.removeItem("kg_logo"); }catch(e){} };
+  return [logo,setLogo];
+}
+function togliBianco(dataUrl){
+  return new Promise(res=>{ const im=new Image(); im.onload=()=>{ try{
+      const M=1400, k=Math.min(1,M/Math.max(im.width,im.height)); const c=document.createElement("canvas");
+      c.width=Math.round(im.width*k); c.height=Math.round(im.height*k); const x=c.getContext("2d"); x.drawImage(im,0,0,c.width,c.height);
+      const d=x.getImageData(0,0,c.width,c.height), p=d.data;
+      for(let i=0;i<p.length;i+=4){ const m=Math.min(p[i],p[i+1],p[i+2]); if(m>238) p[i+3]=0; else if(m>215) p[i+3]=Math.round(p[i+3]*(238-m)/23); }
+      x.putImageData(d,0,0); res(c.toDataURL("image/png"));
+    }catch(e){ res(dataUrl); } }; im.onerror=()=>res(dataUrl); im.src=dataUrl; });
+}
+function CaricaLogo({logo,setLogo,scala,setScala,compatto}){
+  const [togli,setTogli]=useState(false);
+  const [orig,setOrig]=useState("");
+  const [err,setErr]=useState("");
+  const leggi=async e=>{ const f=(e.target.files||[])[0]; e.target.value=""; if(!f) return; setErr("");
+    if(!/^image\/(png|jpe?g|svg\+xml|webp|gif)$/.test(f.type)){ setErr("Per l'anteprima usa un'immagine PNG, JPG o SVG. Il file definitivo (anche PDF) lo carichi dopo l'ordine."); return; }
+    if(f.size>8*1024*1024){ setErr("Immagine troppo grande per l'anteprima (max 8 MB)."); return; }
+    const r=new FileReader(); r.onload=async()=>{ const u=String(r.result); setOrig(u); setLogo(togli&&!/svg/.test(f.type)? await togliBianco(u) : u); }; r.readAsDataURL(f); };
+  const cambiaTogli=async v=>{ setTogli(v); const base=orig||logo; if(!base) return; setLogo(v? await togliBianco(base) : base); };
+  return (
+    <div className={"logo-up"+(compatto?" compatto":"")}>
+      <label className="logo-btn"><Ico n="upload" s={16} style={{marginRight:6}}/>{logo?"Cambia logo":"Prova il tuo logo"}
+        <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" onChange={leggi} hidden/></label>
+      {logo && <>
+        <label className="logo-opt"><input type="checkbox" checked={togli} onChange={e=>cambiaTogli(e.target.checked)}/> Togli lo sfondo bianco</label>
+        {setScala && <label className="logo-opt">Dimensione <input type="range" min="40" max="100" value={Math.round(scala*100)} onChange={e=>setScala(Number(e.target.value)/100)}/></label>}
+        <button type="button" className="lnk" style={{fontSize:12.5}} onClick={()=>{ setLogo(""); setOrig(""); }}>Rimuovi</button>
+      </>}
+      {err && <div className="warn" style={{marginTop:6,fontSize:12.5}}>{err}</div>}
+      {!logo && !compatto && <div className="muted" style={{fontSize:12,marginTop:4}}>Anteprima indicativa: il controllo vero lo fa il nostro grafico con la bozza.</div>}
+    </div>);
+}
+// colore del capo (dal nome del colore) per la sagoma del mockup
+function coloreCapo(nome){
+  const n=String(nome||"").toLowerCase();
+  const M=[[/bianc|white|naturale|ottico/,"#f7f7f4"],[/ner|black/,"#1d1d1f"],[/blu scuro|navy|notte|marine/,"#1f2b46"],[/royal/,"#2b4fb5"],[/azzurr|cielo|sky|light blue/,"#8cc2ea"],[/turchese|aqua/,"#2bb3b1"],[/blu|blue/,"#2f5fa7"],
+    [/bordeaux|burgundy|vinaccia/,"#6b1d2c"],[/ross|red/,"#c33131"],[/arancio|orange/,"#ef7d22"],[/giall|yellow|lime/,"#f1c533"],[/verde militare|army|kaki|khaki|oliva|olive/,"#59603c"],
+    [/verde|green/,"#2f8f5b"],[/antracite|anthracite|grigio scuro|charcoal|carbon/,"#3c3f45"],[/grig|grey|gray|melange/,"#a7aab0"],[/rosa|pink|fucsia/,"#ee9fbd"],[/viola|purple|lilla/,"#6c3d9a"],
+    [/sabbia|beige|sand|crema|panna|naturale/,"#e3d6b9"],[/marrone|brown|cioccolato|caff/,"#6b4a30"]];
+  for(const [re,c] of M) if(re.test(n)) return c;
+  return "#f2f2f0";
+}
+const scuro=hex=>{ const v=parseInt(hex.slice(1),16); return ((v>>16)*0.299+((v>>8)&255)*0.587+(v&255)*0.114)<120; };
+function MockupCapo({sagoma, posizioni, logo, scala, colore}){
+  const S=SAGOME[sagoma]; if(!S) return null;
+  const fill=coloreCapo(colore), bordo=scuro(fill)?"#0b0b0c":"#9aa3b0";
+  const viste=Object.keys(S.viste);
+  const rett=(posizioni||[]).map(p=>({...p, r:rettPosizione(sagoma,p.nome,p.area_cm)})).filter(p=>p.r);
+  return (
+    <div className="mockup">
+      {viste.map(v=>(
+        <figure key={v} className="mockup-v">
+          <svg viewBox="0 0 240 240" role="img" aria-label={"Anteprima "+v}>
+            <path d={S.viste[v]} fill={fill} stroke={bordo} strokeWidth="2.2" strokeLinejoin="round" fillRule="evenodd"/>
+            {rett.filter(p=>p.r.v===v).map((p,i)=>{ const {x,y,w,h}=p.r; const k=Math.max(.3,Math.min(1,scala||.85)); const lw=w*k, lh=h*k;
+              return <g key={i}>
+                <rect x={x} y={y} width={w} height={h} rx="1.5" fill="none" stroke={scuro(fill)?"rgba(255,255,255,.55)":"rgba(46,111,176,.55)"} strokeWidth="1" strokeDasharray="3 2"/>
+                {logo ? <image href={logo} x={x+(w-lw)/2} y={y+(h-lh)/2} width={lw} height={lh} preserveAspectRatio="xMidYMid meet"/>
+                      : <text x={x+w/2} y={y+h/2+3} textAnchor="middle" className="mockup-ph" style={{fill:scuro(fill)?"#fff":"#2E6FB0",fontSize:Math.max(5,Math.min(w,h)/3.2)}}>LOGO</text>}
+              </g>; })}
+          </svg>
+          <figcaption>{v}</figcaption>
+        </figure>))}
+    </div>);
 }
 
 // =====================================================================
@@ -1888,6 +1986,8 @@ function ConfiguratoreAbbigliamento({capo, colori, colInit, chiudi, addCart, iva
   const [stampe,setStampe]=useState([]);
   const [stSel,setStSel]=useState({});     // {stampa_id: n_colori}
   const [tecSel,setTecSel]=useState("");   // scheda tecnica (Serigrafia / Ricamo…): filtra solo la vista
+  const [logo,setLogo]=useLogoCliente();
+  const [scalaLogo,setScalaLogo]=useState(.85);
   const [prezzo,setPrezzo]=useState(null);
   const [stato,setStato]=useState(""); const [errMsg,setErrMsg]=useState("");
   const [step,setStep]=useState(1);
@@ -1940,7 +2040,7 @@ function ConfiguratoreAbbigliamento({capo, colori, colInit, chiudi, addCart, iva
   const d=prezzo&&prezzo.dettaglio;
   return (
     <div className="overlay">
-      <div className="modal">
+      <div className="modal modal-wide">
         <div className="mh"><h3>{capo.nome}</h3>
           {setIva && <div className="iva-toggle sm">
             <button className={iva==="escl"?"on":""} onClick={()=>setIva("escl")}>IVA escl.</button>
@@ -1968,7 +2068,14 @@ function ConfiguratoreAbbigliamento({capo, colori, colInit, chiudi, addCart, iva
               </div>))}</div>
             <div className="muted" style={{fontSize:12.5,marginTop:6}}>Totale <b>{N}</b> pz{minimo&&N<minimo?<> — ne servono almeno <b>{minimo}</b></>:""}. Sotto ogni taglia il prezzo del capo neutro: le taglie grandi costano un po' di più.</div>
           </>}
-          {step===3 && stampe.length>0 && (()=>{ const tecs=[...new Set(stampe.map(x=>x.tecnica||"Stampa"))]; const tAtt=tecs.includes(tecSel)?tecSel:tecs[0]; const visibili=tecs.length>1? stampe.filter(x=>(x.tecnica||"Stampa")===tAtt) : stampe; return <div className="opts"><label className="fld">Dove stampare</label>
+          {step===3 && stampe.length>0 && (()=>{ const tecs=[...new Set(stampe.map(x=>x.tecnica||"Stampa"))]; const tAtt=tecs.includes(tecSel)?tecSel:tecs[0]; const visibili=tecs.length>1? stampe.filter(x=>(x.tecnica||"Stampa")===tAtt) : stampe; return <div className="opts">
+            <div className="mockup-box">
+              <div className="mockup-h"><b>Anteprima con il tuo logo</b><CaricaLogo logo={logo} setLogo={setLogo} scala={scalaLogo} setScala={setScalaLogo}/></div>
+              <MockupCapo sagoma={sagomaPerCapo(capo)} colore={cNome} logo={logo} scala={scalaLogo}
+                posizioni={stampe.filter(x=>(stSel[x.id]||0)>0).map(x=>({nome:x.nome, area_cm:x.area_cm}))}/>
+              {!stampe.some(x=>(stSel[x.id]||0)>0) && <div className="muted" style={{fontSize:12.5,textAlign:"center"}}>Scegli qui sotto dove stampare: il logo comparirà sul capo.</div>}
+            </div>
+            <label className="fld">Dove stampare</label>
             {tecs.length>1 && <div className="tec-tabs">{tecs.map(t=>{ const n=stampe.filter(x=>(x.tecnica||"Stampa")===t && (stSel[x.id]||0)>0).length; return <button type="button" key={t} className={t===tAtt?"on":""} onClick={()=>setTecSel(t)}>{t}{n>0?" · "+n+" ✓":""}</button>; })}</div>}
             {tecs.length>1 && <div className="muted" style={{fontSize:12,margin:"-2px 0 8px"}}>Puoi combinare tecniche diverse (es. ricamo sul cuore e serigrafia sul retro).</div>}
             {visibili.map(s=>{ const c=stSel[s.id]||0; return (

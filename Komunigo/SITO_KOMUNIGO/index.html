@@ -36,7 +36,7 @@
   header.top{position:sticky;top:0;z-index:20;background:#15171C;box-shadow:var(--shadow);}
   .topline{height:3px;background:linear-gradient(90deg,var(--blu) 0%,var(--blu) 76%,var(--sand) 100%);}
   .top-in{max-width:var(--pagina,1560px);margin:0 auto;padding:13px 24px;display:flex;align-items:center;gap:20px;}
-  .brand{font-family:var(--disp);font-weight:700;text-transform:uppercase;font-size:25px;letter-spacing:.01em;color:#F7F4EE;background:none;border:none;padding:0;}
+  .brand{font-family:var(--disp);font-weight:700;text-transform:uppercase;font-size:33px;letter-spacing:.01em;color:#F7F4EE;background:none;border:none;padding:0;cursor:pointer;line-height:1;}
   .brand .go{color:var(--blu);}
   .search{flex:1;max-width:460px;display:flex;align-items:center;gap:8px;background:#22252C;border:1px solid #2c3037;border-radius:9px;padding:9px 13px;color:#8b9098;font-size:13.5px;}
   .search input{flex:1;background:none;border:none;outline:none;color:#e8eaed;font:inherit;}
@@ -56,6 +56,12 @@
   nav.main{display:flex;gap:6px;}
   nav.main button{background:transparent;border:none;color:#C7CBD3;font-size:14.5px;font-weight:600;padding:8px 12px;border-radius:8px;}
   nav.main button.on{color:#fff;background:rgba(255,255,255,.08);}
+  .aiuto-btn{margin-left:auto;display:inline-flex;align-items:center;background:transparent;color:#F7F4EE;border:1.5px solid rgba(247,244,238,.35);border-radius:9px;padding:8px 13px;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .aiuto-btn:hover{border-color:#F7F4EE;}
+  .aiuto-btn + .cart-btn{margin-left:0;}
+  @media(max-width:900px){.aiuto-btn{font-size:0;padding:8px 9px;} .aiuto-btn .ico{margin-right:0 !important;}}
+  .nav-promo{display:inline-flex;align-items:center;}
+  .nav-promo .ico{color:#C9A96B;}
   .cart-btn{margin-left:auto;position:relative;background:var(--blu);color:#fff;border:none;border-radius:9px;padding:9px 15px;font-weight:700;font-size:13px;}
   .cart-badge{position:absolute;top:-6px;right:-6px;background:var(--sand);color:#1a1300;border-radius:20px;font-size:11px;font-weight:800;min-width:18px;height:18px;display:grid;place-items:center;padding:0 4px;}
   .band-panna{height:10px;background:var(--paper);}
@@ -91,6 +97,23 @@
   .cat h4{font-family:var(--disp);text-transform:uppercase;font-size:21px;margin:0 0 6px;letter-spacing:.01em;}
   .cat p{font-size:14px;color:var(--ink-soft);margin:0;line-height:1.4;}
   .pack-pg{max-width:1100px;margin:10px auto 40px;}
+  .aiuto-modal{width:min(520px,100%);}
+  .aiuto-voci{display:flex;flex-direction:column;gap:10px;margin:14px 0;}
+  .aiuto-voce{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1.5px solid var(--line);border-radius:14px;text-decoration:none;color:var(--ink);background:var(--surface,#fff);transition:border-color .15s,background .15s;}
+  .aiuto-voce:hover{border-color:var(--blu);background:var(--blu-wash);}
+  .aiuto-voce > span:nth-child(2){flex:1;display:flex;flex-direction:column;gap:2px;}
+  .aiuto-voce b{font-size:15px;} .aiuto-voce span span{font-size:13px;color:var(--ink-soft);}
+  .aiuto-ic{flex:0 0 46px;height:46px;border-radius:13px;display:grid;place-items:center;color:#fff;background:linear-gradient(140deg,var(--blu),#1C2A44);}
+  .aiuto-voce.wa .aiuto-ic{background:linear-gradient(140deg,#2bb673,#128c4a);}
+  .aiuto-go{font-size:24px;color:var(--ink-soft);}
+  .promo-pg{max-width:1100px;margin:10px auto 40px;}
+  .promo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:16px;}
+  .promo-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow);}
+  .promo-badge{display:inline-block;background:#1C2A44;color:#fff;border-radius:8px;padding:3px 9px;font-weight:700;font-size:12.5px;}
+  .promo-vuota{display:flex;gap:18px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:26px 28px;margin-top:16px;box-shadow:var(--shadow);}
+  .promo-vuota h3{margin:0 0 6px;font-size:20px;} .promo-vuota p{margin:0;color:var(--ink-soft);line-height:1.5;max-width:640px;}
+  .promo-ic{flex:0 0 72px;height:72px;border-radius:20px;display:grid;place-items:center;color:#C9A96B;background:#1C2A44;}
+  .promo-iscrivi{margin-top:18px;}
   .mockup-box{background:linear-gradient(180deg,#fff,#f6f7f9);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:14px;}
   .mockup-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:6px;font-size:14px;}
   .mockup{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
@@ -567,6 +590,7 @@ function App(){
   const [account,setAccount]=useState(null);
   const [authOpen,setAuthOpen]=useState(false);
   const [authMotivo,setAuthMotivo]=useState("");
+  const [aiutoOpen,setAiutoOpen]=useState(false);
   // download riservati (template, tracciati): servono agli altri componenti
   useEffect(()=>{ window.KG_AUTH={ sess, chiedi:(motivo)=>{ setAuthMotivo(motivo||""); setAuthOpen(true); } }; },[sess]);
   useEffect(()=>{
@@ -615,13 +639,14 @@ function App(){
             {ricerca && <button type="button" className="search-x" onClick={()=>setRicerca("")} aria-label="Pulisci">×</button>}
           </form>
           <nav className="main">
-            <button className={vista==="home"?"on":""} onClick={()=>setVista("home")}>Home</button>
             <button className={vista==="catalogo"?"on":""} onClick={()=>vaiCat("")}>Catalogo</button>
+            <button className={"nav-promo"+(vista==="promo"?" on":"")} onClick={()=>{ setVista("promo"); try{ window.scrollTo(0,0); }catch(e){} }}><Ico n="percent" s={15} style={{marginRight:5}}/>Promozioni</button>
             {(!sess && (ultimoOrd||ordineToken)) && <button className={vista==="ordine"?"on":""} onClick={()=>apriOrdine(ordineToken||ultimoOrd)}>I miei ordini</button>}
             {sess
               ? <button className={vista==="account"?"on":""} onClick={()=>setVista("account")}><Ico n="user" s={17} className="ico-t" style={{color:"inherit"}}/>{nomeAcc}</button>
               : <button onClick={()=>setAuthOpen(true)}>Accedi</button>}
           </nav>
+          <button className="aiuto-btn" onClick={()=>setAiutoOpen(true)}><Ico n="help" s={18} style={{marginRight:6}}/>Hai bisogno di aiuto?</button>
           <button className="cart-btn" onClick={()=>setVista("carrello")}><Ico n="cart" s={18} style={{marginRight:6}}/>Carrello
             {nPezzi>0 && <span className="cart-badge">{nPezzi}</span>}</button>
         </div>
@@ -636,9 +661,11 @@ function App(){
         {vista==="account" && <AccountPagina account={account} sess={sess} onLogout={logout} vaiCatalogo={()=>vaiCat("")} apriOrdine={apriOrdine} onAccountChange={setAccount} riordina={riordina}/>}
         {vista==="guida" && <LineeGuida vaiCatalogo={()=>setVista("catalogo")}/>}
         {vista==="info" && <PaginaInfo slug={infoSlug} vaiCatalogo={()=>vaiCat("")}/>}
+        {vista==="promo" && <PaginaPromozioni sess={sess} account={account} onAccountChange={setAccount}/>}
         {vista==="packaging" && <PaginaPackaging vaiCatalogo={vaiCat} addCart={addCart} iva={iva} setIva={setIvaMode}/>}
       </div>}
 
+      {aiutoOpen && <AiutoModal onClose={()=>setAiutoOpen(false)} vaiFaq={()=>{ setAiutoOpen(false); setInfoSlug("faq"); setVista("info"); try{ window.scrollTo(0,0); }catch(e){} }}/>}
       {authOpen && <AuthModal motivo={authMotivo} onClose={()=>{ setAuthOpen(false); setAuthMotivo(""); }}/>}
 
       <FooterKomunigo vai={k=>{
@@ -1225,6 +1252,75 @@ function PaginaPackaging({vaiCatalogo, addCart, iva, setIva}){
 }
 
 // =====================================================================
+//  AIUTO (finestra contatti) e PROMOZIONI
+// =====================================================================
+// WhatsApp: numero in formato internazionale senza + e spazi (es. "393331234567").
+// Vuoto = il pulsante WhatsApp resta nascosto.
+const WHATSAPP_NUMERO="39065594377";   // 06 5594377 (WhatsApp Business)
+function AiutoModal({onClose, vaiFaq}){
+  const tel=DATI_AZIENDA.tel, telLink="tel:+39"+String(tel).replace(/\D/g,"");
+  const voci=[
+    {ic:"mail", t:"Scrivici una email", d:DATI_AZIENDA.email+" · rispondiamo in giornata", href:"mailto:"+DATI_AZIENDA.email+"?subject="+encodeURIComponent("Richiesta di aiuto dal sito")},
+    {ic:"phone", t:"Chiamaci", d:tel+" · dal lunedì al venerdì, orario d'ufficio", href:telLink},
+    ...(WHATSAPP_NUMERO? [{ic:"chat", t:"Scrivici su WhatsApp", d:"Chatta con noi dal telefono", href:"https://wa.me/"+WHATSAPP_NUMERO+"?text="+encodeURIComponent("Ciao Komunigo, ho bisogno di aiuto per un ordine"), wa:true}] : []),
+  ];
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal aiuto-modal" onClick={e=>e.stopPropagation()}>
+        <div className="mh"><h3>Hai bisogno di aiuto?</h3><button className="x" onClick={onClose} aria-label="Chiudi">×</button></div>
+        <div className="mb">
+          <p className="muted" style={{marginTop:0}}>Parli con persone vere, che conoscono i prodotti perché li stampano. Scegli come preferisci:</p>
+          <div className="aiuto-voci">{voci.map(v=>(
+            <a key={v.t} className={"aiuto-voce"+(v.wa?" wa":"")} href={v.href} target={v.wa?"_blank":undefined} rel={v.wa?"noopener noreferrer":undefined}>
+              <span className="aiuto-ic"><Ico n={v.ic} s={24} sw={1.6}/></span>
+              <span><b>{v.t}</b><span>{v.d}</span></span>
+              <span className="aiuto-go">›</span>
+            </a>))}</div>
+          {vaiFaq && <p className="muted" style={{fontSize:13,marginBottom:0}}>Oppure guarda le <button className="lnk" onClick={vaiFaq}>domande frequenti</button>.</p>}
+        </div>
+      </div>
+    </div>);
+}
+// promozioni attive: per ora definite qui (in futuro gestibili dal gestionale)
+// {titolo, testo, badge, scadenza:"2026-12-31", categoria:"Gadget"}
+const PROMOZIONI=[];
+function PaginaPromozioni({sess, account, onAccountChange}){
+  const oggi=new Date().toISOString().slice(0,10);
+  const attive=PROMOZIONI.filter(p=>!p.scadenza || p.scadenza>=oggi);
+  const iscritto=!!(account && account.consenso_marketing);
+  const [msg,setMsg]=useState("");
+  const avvisami=async()=>{
+    if(!sess){ if(window.KG_AUTH) window.KG_AUTH.chiedi("ricevere le offerte in anteprima"); return; }
+    const patch={consenso_marketing:true, consenso_marketing_il:new Date().toISOString(), consenso_marketing_fonte:"pagina promozioni"};
+    const {error}=await sb.from("komunigo_account").update(patch).eq("id",sess.user.id);
+    if(error){ setMsg("Non riesco a salvare la preferenza: riprova dall'area account."); return; }
+    if(onAccountChange) onAccountChange({...(account||{}),...patch}); setMsg("Fatto! Ti scriveremo quando c'è un'offerta.");
+  };
+  return (
+    <div className="promo-pg">
+      <div className="muted" style={{fontSize:12.5,letterSpacing:".04em",textTransform:"uppercase"}}>Promozioni</div>
+      <h1 className="pdp-title">Offerte del momento</h1>
+      {attive.length>0
+        ? <div className="promo-grid">{attive.map((p,i)=>(
+            <div key={i} className="promo-card">{p.badge && <span className="promo-badge">{p.badge}</span>}
+              <h3>{p.titolo}</h3><p>{p.testo}</p>
+              {p.scadenza && <div className="muted" style={{fontSize:12.5}}>Valida fino al {new Date(p.scadenza).toLocaleDateString("it-IT")}</div>}</div>))}</div>
+        : <div className="promo-vuota">
+            <span className="promo-ic"><Ico n="percent" s={34} sw={1.5}/></span>
+            <div><h3>Le prossime offerte stanno arrivando</h3>
+              <p>Prezzi speciali su gadget, abbigliamento e stampa, a tempo limitato. Iscriviti e te le mandiamo per primo, prima che vadano online.</p></div>
+          </div>}
+      <div className="promo-iscrivi">
+        {iscritto
+          ? <span><Ico n="ok" s={18} className="ico-t"/>Sei iscritto alle offerte via email.</span>
+          : <button className="btn" onClick={avvisami}><Ico n="mail" s={17} style={{marginRight:6}}/>Avvisami delle offerte</button>}
+        {msg && <span className="muted" style={{marginLeft:10}}>{msg}</span>}
+        <div className="muted" style={{fontSize:12,marginTop:8}}>Iscrizione facoltativa: puoi annullarla quando vuoi dal tuo account.</div>
+      </div>
+    </div>);
+}
+
+// =====================================================================
 //  HOME  (struttura a piani)
 // =====================================================================
 // carosello a scorrimento automatico (banda sotto l'hero)
@@ -1296,6 +1392,11 @@ const ICONS={
   layers:"M12 3l9 4.5-9 4.5-9-4.5z|M3 12l9 4.5 9-4.5|M3 16.5L12 21l9-4.5",
   astuccio:"M7 3h10v18H7z|M7 7.5h10|M9.5 3v4.5",
   menu:"M4 6h16|M4 12h16|M4 18h16",
+  help:"C12,12,9|M9.6 9.4a2.5 2.5 0 0 1 4.9.7c0 1.8-2.5 2.2-2.5 3.9|M12 17.2v.3",
+  mail:"M3 5.5h18v13H3z|M3.5 6.2l8.5 6.6 8.5-6.6",
+  phone:"M5 3.5h3.4l1.8 4.5-2.3 1.5a11 11 0 0 0 6.6 6.6l1.5-2.3 4.5 1.8V19a1.5 1.5 0 0 1-1.5 1.5C10.6 20.5 3.5 13.4 3.5 5A1.5 1.5 0 0 1 5 3.5z",
+  chat:"M3.5 20.5l1.4-4.3A8.4 8.4 0 1 1 8.2 19.3z|M8.5 10.5h7|M8.5 13.5h4.5",
+  percent:"M19 5L5 19|C7,7,2.3|C17,17,2.3",
   ok:"C12,12,9|M8 12.3l2.6 2.6L16 9.5",
 };
 function Ico({n,s=20,sw=1.7,className,style,title}){

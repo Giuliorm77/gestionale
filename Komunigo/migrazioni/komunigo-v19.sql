@@ -127,6 +127,41 @@ begin
   where not exists (select 1 from public.prodotti_config_stampe s where s.prodotto_id = v_p and s.nome = x.nome);
 end $$;
 
+-- ---------------------------------------------------------------------
+--  AGENDE E QUADERNI: 10 posizioni (deciso da Giulio 2026-10-14).
+--  Tecnica provvisoria "Serigrafia" (da confermare: su agende spesso
+--  incisione/stampa a caldo o digitale UV). AREE e PREZZI PROVVISORI.
+-- ---------------------------------------------------------------------
+do $$
+declare v_a uuid;
+begin
+  select id into v_a from public.prodotti_config where nome = 'Stampa agende e quaderni (modello)' limit 1;
+  if v_a is null then
+    insert into public.prodotti_config (nome, unita_calcolo, tipo, categoria, margine_pct, minimo,
+                                        giorni_lavorazione, attivo, solo_modello, note)
+    values ('Stampa agende e quaderni (modello)', 'pz', 'gadget', 'Gadget', 40, 25, 10, true, true,
+            'Modello di stampa per agende e quaderni. TECNICA, AREE e PREZZI PROVVISORI.')
+    returning id into v_a;
+    insert into public.prodotti_config_fasce (prodotto_id, da_quantita, sconto_pct, ordine) values
+      (v_a, 100, 5, 0), (v_a, 250, 10, 1);
+  end if;
+  insert into public.prodotti_config_stampe (prodotto_id, nome, area_cm, max_colori, prezzo_pz, setup, tecnica, ordine)
+  select v_a, x.nome, x.area, 4, x.pz, x.setup, 'Serigrafia', x.ord
+  from (values
+    ('Centro fronte',       '10 × 10', 0.50, 30, 0),
+    ('Centro retro',        '10 × 10', 0.50, 30, 1),
+    ('Centro basso fronte', '8 × 3',   0.40, 25, 2),
+    ('Centro alto fronte',  '8 × 3',   0.40, 25, 3),
+    ('Centro basso retro',  '8 × 3',   0.40, 25, 4),
+    ('Centro alto retro',   '8 × 3',   0.40, 25, 5),
+    ('Alto sinistra',       '4 × 2',   0.40, 25, 6),
+    ('Basso sinistra',      '4 × 2',   0.40, 25, 7),
+    ('Alto destra',         '4 × 2',   0.40, 25, 8),
+    ('Basso destra',        '4 × 2',   0.40, 25, 9)
+  ) as x(nome, area, pz, setup, ord)
+  where not exists (select 1 from public.prodotti_config_stampe s where s.prodotto_id = v_a and s.nome = x.nome);
+end $$;
+
 -- penna di esempio: nomi standard
 update public.prodotti_config_stampe s set nome = 'Fusto'
 from public.prodotti_config p where p.id = s.prodotto_id and p.nome = 'Penna personalizzata (esempio)' and s.nome = 'Sul fusto';

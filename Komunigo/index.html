@@ -101,7 +101,8 @@
   .sc-box input{-moz-appearance:textfield;appearance:textfield;text-align:center;font-size:16px !important;background:transparent !important;padding:4px 0 !important;width:100%;min-width:0;font:inherit;font-weight:600;outline:none;box-shadow:none !important;}
   .sc-box i{font-style:normal;color:var(--c);font-size:12px;font-weight:600;}
   .sc-lbl{font-size:12px;color:var(--ink-soft);}
-  .sf-top{fill:#E9D9B8;stroke:#8a6d3b;stroke-width:1.2;} .sf-front{fill:#D9C094;stroke:#8a6d3b;stroke-width:1.2;} .sf-side{fill:#C4A672;stroke:#8a6d3b;stroke-width:1.2;}
+  .sf-top{fill:#EEDFC0;stroke:#8a6d3b;stroke-width:1.4;stroke-linejoin:round;} .sf-front{fill:#DCC497;stroke:#8a6d3b;stroke-width:1.4;stroke-linejoin:round;} .sf-side{fill:#C2A36C;stroke:#8a6d3b;stroke-width:1.4;stroke-linejoin:round;}
+  .sf-seam{stroke:#8a6d3b;stroke-width:1;stroke-dasharray:4 3;opacity:.7;}
   .sf-q{font-size:11px;fill:#5b6472;font-family:inherit;font-weight:600;}
   .scatola-mis{display:grid;grid-template-columns:repeat(3,minmax(110px,1fr));gap:10px;}
   @media(max-width:520px){.scatola-mis{grid-template-columns:1fr;}}
@@ -747,24 +748,33 @@ const SCATOLA_STAMPA=[[0,"Senza stampa"],[1,"Stampa esterna"],[2,"Esterna e inte
 // gli stessi colori dei campi misura: il cliente vede subito quale lato è quale
 const SC_COL={A:"#3b5bdb",B:"#e8590c",H:"#0ca678"};
 function ScatolaDisegno({A,B,H}){
+  // prospettiva "cavaliera": fronte A×H vero, profondità B a 30° ridotta a 0,6
   const a=Math.max(1,Number(A)||1), b=Math.max(1,Number(B)||1), h=Math.max(1,Number(H)||1);
-  const k=150/Math.max(a+b*0.6, h+b*0.35);
-  const W=a*k, D=b*k*0.6, Hh=h*k, dx=D, dy=D*0.55;
-  const x0=48, y0=24+dy+(150-(Hh+dy))/2;
-  const P=(pts)=>pts.map(p=>p.join(",")).join(" ");
-  const q=(x1,y1,x2,y2,c,lab,tx,ty,anchor)=>(<g>
-    <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={c} strokeWidth="2.2"/>
-    <circle cx={x1} cy={y1} r="2.6" fill={c}/><circle cx={x2} cy={y2} r="2.6" fill={c}/>
-    <rect x={tx-(anchor==="end"?34:anchor==="start"?0:17)} y={ty-11} width="34" height="16" rx="4" fill={c}/>
-    <text x={tx+(anchor==="end"?-17:anchor==="start"?17:0)} y={ty+1} textAnchor="middle" className="sf-ql">{lab}</text></g>);
+  const VW=280, VH=230, L=58, R=44, T=18, Bm=40;                 // riquadro e margini per le quote
+  const cs=Math.cos(Math.PI/6)*0.6, sn=Math.sin(Math.PI/6)*0.6;
+  const k=Math.min((VW-L-R)/(a+b*cs), (VH-T-Bm)/(h+b*sn));
+  const W=a*k, Hh=h*k, dx=b*k*cs, dy=b*k*sn;
+  const x0=L+((VW-L-R)-(W+dx))/2, yb=T+dy+Hh+((VH-T-Bm)-(Hh+dy))/2, y0=yb-Hh;   // fronte: (x0,y0)-(x0+W,yb)
+  const P=pts=>pts.map(p=>p.map(n=>Math.round(n*10)/10).join(",")).join(" ");
+  // quota: linea con due tacche + etichetta colorata
+  const quota=(x1,y1,x2,y2,c,lab,lx,ly)=>{ const ang=Math.atan2(y2-y1,x2-x1), nx=-Math.sin(ang)*5, ny=Math.cos(ang)*5;
+    const tw=lab.length*6.4+12;
+    return (<g>
+      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={c} strokeWidth="2"/>
+      <line x1={x1-nx} y1={y1-ny} x2={x1+nx} y2={y1+ny} stroke={c} strokeWidth="2"/>
+      <line x1={x2-nx} y1={y2-ny} x2={x2+nx} y2={y2+ny} stroke={c} strokeWidth="2"/>
+      <rect x={lx-tw/2} y={ly-9} width={tw} height="18" rx="9" fill={c}/>
+      <text x={lx} y={ly+4} textAnchor="middle" className="sf-ql">{lab}</text></g>); };
+  const g=8;   // distanza delle quote dagli spigoli
   return (
-    <svg viewBox="0 0 260 220" className="scatola-svg" role="img" aria-label={`Scatola ${a}×${b}×${h} mm`}>
+    <svg viewBox={`0 0 ${VW} ${VH}`} className="scatola-svg" role="img" aria-label={`Scatola ${a}×${b}×${h} mm`}>
       <polygon points={P([[x0,y0],[x0+W,y0],[x0+W+dx,y0-dy],[x0+dx,y0-dy]])} className="sf-top"/>
-      <polygon points={P([[x0,y0],[x0+W,y0],[x0+W,y0+Hh],[x0,y0+Hh]])} className="sf-front"/>
-      <polygon points={P([[x0+W,y0],[x0+W+dx,y0-dy],[x0+W+dx,y0-dy+Hh],[x0+W,y0+Hh]])} className="sf-side"/>
-      {q(x0,y0+Hh+12,x0+W,y0+Hh+12,SC_COL.A,"A "+a,x0+W/2,y0+Hh+28,"middle")}
-      {q(x0+W+8,y0+Hh+6,x0+W+dx+8,y0-dy+Hh+6,SC_COL.B,"B "+b,x0+W+dx/2+14,y0-dy/2+Hh+26,"start")}
-      {q(x0-12,y0,x0-12,y0+Hh,SC_COL.H,"H "+h,x0-16,y0+Hh/2,"end")}
+      <line x1={x0+dx/2} y1={y0-dy/2} x2={x0+W+dx/2} y2={y0-dy/2} className="sf-seam"/>
+      <polygon points={P([[x0+W,y0],[x0+W+dx,y0-dy],[x0+W+dx,yb-dy],[x0+W,yb]])} className="sf-side"/>
+      <polygon points={P([[x0,y0],[x0+W,y0],[x0+W,yb],[x0,yb]])} className="sf-front"/>
+      {quota(x0, yb+g+4, x0+W, yb+g+4, SC_COL.A, "A "+a, x0+W/2, yb+g+20)}
+      {quota(x0+W+g*0.6, yb+g*0.6, x0+W+dx+g*0.6, yb-dy+g*0.6, SC_COL.B, "B "+b, x0+W+dx/2+g+18, yb-dy/2+g+12)}
+      {quota(x0-g-4, y0, x0-g-4, yb, SC_COL.H, "H "+h, x0-g-24, (y0+yb)/2)}
     </svg>);
 }
 function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureIniziali}){

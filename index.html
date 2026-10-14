@@ -8097,6 +8097,7 @@ function DDTEditor({ddt,commessaId,profilo,perm,onClose,onSalvato}){
           if(tutteCons){ await sb.from("commesse").update({stato:"consegnata"}).eq("id",f.commessa_id); }
         }catch(e){}
       }
+      try{ await sb.rpc("ricalcola_impegni"); }catch(e){}   // la merce consegnata non è più impegnata
     }
     setBusy(false); onSalvato();
   }

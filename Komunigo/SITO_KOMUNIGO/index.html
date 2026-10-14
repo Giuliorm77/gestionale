@@ -160,6 +160,11 @@
   .price-da{font-size:15px;color:var(--ink);} .price-da b{color:var(--blu);font-size:17px;}
   .stampa-pos{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
   .stampa-pos.on{border-color:var(--blu);background:#f6faff;}
+  .sagoma{width:76px;height:76px;flex:0 0 76px;color:#9aa3b0;}
+  .stampa-pos.on .sagoma{color:var(--blu);}
+  .sagoma-area{fill:rgba(46,111,176,.22);stroke:var(--blu);stroke-width:2;stroke-dasharray:5 3;}
+  .stampa-pos.on .sagoma-area{fill:rgba(46,111,176,.45);stroke-dasharray:none;}
+  .sagoma-vista{font-size:15px;fill:#8a93a0;font-family:inherit;}
   .tec-info-btn{border:none;background:none;color:var(--blu);font:inherit;font-size:12px;font-weight:600;cursor:pointer;padding:0 4px;margin-left:2px;}
   .tec-info-btn:hover{text-decoration:underline;}
   .tec-info{display:block;flex-basis:100%;margin-top:6px;padding:8px 10px;border-radius:8px;background:var(--surface,#f7f7f7);border:1px solid var(--line);font-size:12.5px;font-weight:400;line-height:1.5;color:var(--ink-soft);cursor:default;}
@@ -877,6 +882,53 @@ function TecBadge({tecnica}){
 }
 
 // =====================================================================
+//  SAGOME DI STAMPA: disegno vettoriale dell'oggetto + rettangolo della
+//  posizione, proporzionato all'area reale (area_cm della posizione).
+//  Coordinate in un viewBox 240×240; "ucm" = unità del disegno per 1 cm.
+//  Nomi posizione normalizzati (minuscolo, senza "ricamo ").
+// =====================================================================
+const SAGOME={
+  maglietta:{ ucm:2.4,
+    viste:{
+      fronte:"M88 30 Q120 50 152 30 L190 42 L228 88 L200 108 L182 92 L182 225 L58 225 L58 92 L40 108 L12 88 L50 42 Z",
+      retro:"M88 30 Q120 38 152 30 L190 42 L228 88 L200 108 L182 92 L182 225 L58 225 L58 92 L40 108 L12 88 L50 42 Z" },
+    pos:{
+      "lato cuore":{v:"fronte",cx:146,cy:82},          // petto sinistro di chi indossa = a destra guardando
+      "lato destro":{v:"fronte",cx:94,cy:82},
+      "centro fronte":{v:"fronte",cx:120,top:62},
+      "centro retro":{v:"retro",cx:120,top:50},
+      "manica sinistra":{v:"fronte",cx:204,cy:80},
+      "manica destra":{v:"fronte",cx:36,cy:80},
+      "centro collo fronte":{v:"fronte",cx:120,top:47},
+      "centro collo retro":{v:"retro",cx:120,top:38} } },
+  zaino:{ ucm:4,
+    viste:{
+      fronte:"M70 48 Q70 34 84 34 L156 34 Q170 34 170 48 L176 214 Q176 226 164 226 L76 226 Q64 226 64 214 Z M100 34 Q100 14 120 14 Q140 14 140 34 M78 150 L162 150 L162 212 L78 212 Z",
+      retro:"M70 48 Q70 34 84 34 L156 34 Q170 34 170 48 L176 214 Q176 226 164 226 L76 226 Q64 226 64 214 Z M100 34 Q100 14 120 14 Q140 14 140 34 M92 46 Q86 130 96 214 M148 46 Q154 130 144 214" },
+    pos:{
+      "fronte":{v:"fronte",cx:120,cy:100},
+      "retro":{v:"retro",cx:120,cy:120},
+      "alto fronte":{v:"fronte",cx:120,cy:62},
+      "basso fronte":{v:"fronte",cx:120,cy:181} } },
+};
+const sagomaPerCapo=c=> /bag|backpack|zain|borsa|borse|sacca/i.test([c&&c.sottocategoria,c&&c.nome].join(" ")) ? "zaino" : "maglietta";
+function areaCm(a){ const n=String(a||"").replace(/,/g,".").match(/[\d.]+/g); return n&&n.length>=2? [Number(n[0]),Number(n[1])] : null; }
+function SagomaStampa({sagoma,nome,area}){
+  const S=SAGOME[sagoma]; if(!S) return null;
+  const key=String(nome||"").toLowerCase().replace(/^ricamo\s+/,"").trim();
+  const p=S.pos[key]; if(!p) return null;
+  const a=areaCm(area)||[8,8];
+  const w=Math.min(a[0]*S.ucm,200), h=Math.min(a[1]*S.ucm,180);
+  const x=p.cx-w/2, y=p.top!=null? p.top : p.cy-h/2;
+  return (
+    <svg className="sagoma" viewBox="0 0 240 240" role="img" aria-label={"Posizione di stampa: "+nome}>
+      <path d={S.viste[p.v]} fill="#fff" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" fillRule="evenodd"/>
+      <rect x={x} y={y} width={w} height={h} rx="2" className="sagoma-area"/>
+      <text x="120" y="238" textAnchor="middle" className="sagoma-vista">{p.v==="retro"?"retro":"fronte"}</text>
+    </svg>);
+}
+
+// =====================================================================
 //  ABBIGLIAMENTO (capi del catalogo fornitore, v17): scheda + configuratore
 //  colore → quantità per taglia → posizioni di stampa. Il prezzo lo calcola
 //  SOLO il server (hyper-endpoint con {abbigliamento}); qui niente costi.
@@ -1039,7 +1091,9 @@ function ConfiguratoreAbbigliamento({capo, colori, colInit, chiudi, addCart, iva
                   onChange={e=>{ const on=e.target.checked; setStSel(o=>({...o,[s.id]:on?1:0})); invalida(); }}/>
                   <span className="stampa-nome">{s.nome}</span>
                   <TecBadge tecnica={s.tecnica}/></label>
-                <div className="stampa-area"><span className="area-rect">area</span>
+                <div className="stampa-area">{(SAGOME[sagomaPerCapo(capo)] && SAGOME[sagomaPerCapo(capo)].pos[String(s.nome||"").toLowerCase().replace(/^ricamo\s+/,"").trim()])
+                    ? <SagomaStampa sagoma={sagomaPerCapo(capo)} nome={s.nome} area={s.area_cm}/>
+                    : <span className="area-rect">area</span>}
                   <span className="area-lbl">Area di stampa{s.area_cm?` · ${s.area_cm} cm`:""}</span></div>
                 {c>0 && /digitale/i.test(s.tecnica||"") && <div className="stampa-col muted" style={{fontSize:12.5}}>🎨 Stampa a colori illimitati (anche foto e sfumature): il prezzo non dipende dai colori.</div>}
                 {c>0 && !/digitale/i.test(s.tecnica||"") && <div className="stampa-col">N° colori <input type="number" min="1" max={s.max_colori||4} value={c} style={{width:56,padding:"4px 6px"}}

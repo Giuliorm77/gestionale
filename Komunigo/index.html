@@ -91,6 +91,30 @@
   .cat h4{font-family:var(--disp);text-transform:uppercase;font-size:21px;margin:0 0 6px;letter-spacing:.01em;}
   .cat p{font-size:14px;color:var(--ink-soft);margin:0;line-height:1.4;}
   .pack-pg{max-width:1100px;margin:10px auto 40px;}
+  .wrap.wrap-wide{max-width:1680px;}
+  .cat-layout{display:grid;grid-template-columns:1fr;gap:26px;}
+  .cat-side,.cat-rail{display:none;}
+  @media(min-width:1280px){ .cat-layout{grid-template-columns:230px minmax(0,1fr);} .cat-side{display:block;} }
+  @media(min-width:1520px){ .cat-layout{grid-template-columns:230px minmax(0,1fr) 210px;} .cat-rail{display:block;} }
+  .side-menu{position:sticky;top:90px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;}
+  .side-head{width:100%;display:flex;align-items:center;gap:8px;background:#1C2A44;color:#fff;border:none;padding:13px 14px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;text-align:left;}
+  .side-head span:first-child{flex:1;}
+  .side-n{background:rgba(255,255,255,.15);border-radius:10px;padding:1px 8px;font-size:12px;}
+  .side-filtro{width:calc(100% - 20px);margin:10px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13px;}
+  .side-list{max-height:calc(100vh - 220px);overflow:auto;padding:0 6px 10px;}
+  .side-lett{font-size:11px;font-weight:800;color:var(--blu);letter-spacing:.08em;padding:10px 8px 2px;}
+  .side-item{display:block;width:100%;text-align:left;background:none;border:none;font:inherit;font-size:13.5px;color:var(--ink);padding:5px 8px;border-radius:7px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .side-item:hover{background:var(--blu-wash);color:var(--blu);}
+  .foto-rail{position:sticky;top:90px;}
+  .foto-rail-h{font-family:var(--disp);text-transform:uppercase;font-size:14px;letter-spacing:.06em;color:var(--ink-soft);margin:0 0 8px 2px;}
+  .foto-rail-win{height:calc(100vh - 140px);max-height:900px;overflow:hidden;border-radius:14px;-webkit-mask-image:linear-gradient(transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(transparent,#000 8%,#000 92%,transparent);}
+  .foto-rail-track{display:flex;flex-direction:column;gap:12px;}
+  .foto-rail-track.anim{animation:railUp linear infinite;}
+  .foto-rail-win:hover .foto-rail-track{animation-play-state:paused;}
+  @keyframes railUp{from{transform:translateY(0);}to{transform:translateY(calc(-50% - 6px));}}
+  .foto-rail-it{position:relative;display:block;width:100%;border:none;padding:0;background:#fff;border-radius:12px;overflow:hidden;cursor:pointer;box-shadow:var(--shadow);}
+  .foto-rail-it img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;}
+  .foto-rail-it span{position:absolute;left:0;right:0;bottom:0;padding:6px 8px;font-size:11.5px;font-weight:600;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.6));text-align:left;}
   .sumisura{margin:40px 0 10px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;background:#1C2A44;color:#F7F4EE;border-radius:18px;padding:28px 30px;position:relative;overflow:hidden;}
   .sumisura::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;border:28px solid rgba(169,136,75,.18);pointer-events:none;}
   .sumisura-ic{flex:0 0 64px;height:64px;border-radius:16px;background:rgba(247,244,238,.1);display:grid;place-items:center;font-size:30px;}
@@ -500,7 +524,7 @@ function App(){
       <div className="band-panna"></div>
 
       {vista==="home"     && <Home vaiCatalogo={vaiCat} vaiPackaging={()=>{ setVista("packaging"); try{ window.scrollTo(0,0); }catch(e){} }}/>}
-      {vista!=="home" && <div className="wrap">
+      {vista!=="home" && <div className={"wrap"+(vista==="catalogo"?" wrap-wide":"")}>
         {vista==="catalogo" && <Catalogo addCart={addCart} catInit={catFiltro} profilo={profiloB2b} vaiGuida={()=>setVista("guida")} ricerca={ricerca} setRicerca={setRicerca} iva={iva} setIva={setIvaMode}/>}
         {vista==="carrello" && <Carrello cart={cart} delCart={delCart} vaiCatalogo={()=>setVista("catalogo")} onOrdineCreato={onOrdineCreato} account={account} profilo={profiloB2b}/>}
         {vista==="ordine" && <OrdinePagina token={ordineToken||ultimoOrd} vaiCatalogo={()=>setVista("catalogo")}/>}
@@ -881,6 +905,52 @@ function Home({vaiCatalogo, vaiPackaging}){
 }
 
 // =====================================================================
+//  COLONNE LATERALI DEL CATALOGO (solo schermi larghi)
+//  sinistra: menu "Tutti i prodotti" in ordine alfabetico; destra: foto in loop
+// =====================================================================
+function MenuTuttiProdotti({voci, onApri}){
+  const [open,setOpen]=useState(true);
+  const [f,setF]=useState("");
+  const q=f.trim().toLowerCase();
+  const lista=voci.filter(v=>!q || v.nome.toLowerCase().includes(q));
+  let lettera="";
+  return (
+    <nav className="side-menu" aria-label="Tutti i prodotti">
+      <button type="button" className="side-head" onClick={()=>setOpen(o=>!o)} aria-expanded={open}>
+        <span>☰ Tutti i prodotti</span><span className="side-n">{voci.length}</span><span className="side-car">{open?"▴":"▾"}</span></button>
+      {open && <>
+        {voci.length>8 && <input className="side-filtro" placeholder="Filtra…" value={f} onChange={e=>setF(e.target.value)}/>}
+        <div className="side-list">
+          {lista.map(v=>{ const c0=v.nome.charAt(0).toUpperCase(); const L=/[A-ZÀ-Ý]/.test(c0)?c0:"#"; const head=L!==lettera; lettera=L; return (
+            <React.Fragment key={v.k}>
+              {head && <div className="side-lett">{L}</div>}
+              <button type="button" className="side-item" onClick={()=>onApri(v)} title={v.nome}>{v.nome}</button>
+            </React.Fragment>); })}
+          {lista.length===0 && <div className="muted" style={{fontSize:12.5,padding:"6px 10px"}}>Nessun prodotto.</div>}
+        </div>
+      </>}
+    </nav>);
+}
+function FotoLoop({foto, onApri}){
+  if(!foto.length) return null;
+  const reduce = typeof window!=="undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const lista = reduce? foto : [...foto, ...foto];   // doppia per il giro continuo
+  return (
+    <div className="foto-rail" aria-label="I nostri lavori">
+      <div className="foto-rail-h">Fatti da noi</div>
+      <div className="foto-rail-win">
+        <div className={"foto-rail-track"+(reduce?"":" anim")} style={{animationDuration:Math.max(20,foto.length*6)+"s"}}>
+          {lista.map((x,i)=>(
+            <button type="button" key={i} className="foto-rail-it" onClick={()=>x.apri&&onApri(x.apri)} tabIndex={i>=foto.length?-1:0}>
+              <img src={x.src} alt={x.titolo||""} loading="lazy"/>
+              {x.titolo && <span>{x.titolo}</span>}
+            </button>))}
+        </div>
+      </div>
+    </div>);
+}
+
+// =====================================================================
 //  CATALOGO
 // =====================================================================
 function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva, setIva}){
@@ -892,6 +962,13 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
   const [prezziDa,setPrezziDa]=useState({});   // {confId: prezzo unitario base} per i gadget
   const [abb,setAbb]=useState([]);   // capi del catalogo fornitore proposti (vista komunigo_abbigliamento, v17)
   const [abbSub,setAbbSub]=useState("");
+  const [fotoLavori,setFotoLavori]=useState([]);   // foto reali per la colonna destra
+  useEffect(()=>{ (async()=>{
+    try{
+      const [l,c]=await Promise.all([sb.from("komunigo_lavori_pub").select("*").order("ordine"), sb.from("komunigo_carosello_pub").select("*").order("ordine")]);
+      setFotoLavori([...(l.data||[]),...(c.data||[])].filter(x=>x.path).map(x=>({src:kPubShop(x.path), titolo:x.titolo||""})));
+    }catch(e){}
+  })(); },[]);
   useEffect(()=>{ setCat(catInit||""); },[catInit]);
   useEffect(()=>{ (async()=>{
     try{ const {data,error}=await sb.from("komunigo_abbigliamento").select("*").order("nome");
@@ -953,8 +1030,20 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
         <button className="add" onClick={e=>{e.stopPropagation();setDettaglio({tipo:"configuratore",prod:c});}}>{isGadget?"Personalizza":"Vedi e configura"}</button></div>
     </div>);
 
+  // voci del menu laterale: tutti i prodotti in ordine alfabetico
+  const vociMenu=[
+    ...(conf||[]).map(c=>({k:"c"+c.id, nome:c.nome||"", apri:{tipo:"configuratore",prod:c}})),
+    ...(prodotti||[]).map(p=>({k:"p"+p.id, nome:p.nome||"", apri:{tipo:"articolo",prod:p}})),
+    ...abb.map(c=>({k:"a"+c.fornitore+c.codice, nome:c.nome||"", apri:{tipo:"abbigliamento",prod:c}})),
+  ].filter(v=>v.nome.trim()).sort((a,b)=>a.nome.localeCompare(b.nome,"it"));
+  // foto in loop: lavori reali + capi d'abbigliamento (cliccabili)
+  const fotoRail=[...fotoLavori, ...abb.filter(c=>(c.immagini||[])[0]).slice(0,12).map(c=>({src:c.immagini[0].anteprima, titolo:c.nome, apri:{tipo:"abbigliamento",prod:c}}))];
+  const apriVoce=v=>{ setDettaglio(v.apri||v); try{ window.scrollTo(0,0); }catch(e){} };
+
   return (
-    <div>
+    <div className="cat-layout">
+    <aside className="cat-side"><MenuTuttiProdotti voci={vociMenu} onApri={apriVoce}/></aside>
+    <div className="cat-main">
       {profilo && profilo.b2b && <div className="b2b-note">🤝 <b>Prezzi riservati B2B{profilo.cliente_nome?" · "+profilo.cliente_nome:""}</b> — lo sconto del tuo listino è già applicato ai prezzi qui sotto.</div>}
       <div className="cat-toprow">
         <div className="cat-search">
@@ -1022,6 +1111,8 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
       {vuoto && (q||cat) && <p className="muted">Nessun prodotto{q?` per «${ricerca}»`:""}{cat?` nella categoria «${cat}»`:""}. <button className="lnk" onClick={()=>{setRicerca&&setRicerca("");setCat("");}}>Vedi tutto il catalogo</button></p>}
       {vuoto && !q && !cat && <p className="muted">Catalogo in allestimento. (Nel gestionale: attiva i configuratori o rendi "vendibile" gli articoli.)</p>}
       <RichiestaSuMisura categoria={cat}/>
+    </div>
+    <aside className="cat-rail"><FotoLoop foto={fotoRail} onApri={apriVoce}/></aside>
     </div>
   );
 }

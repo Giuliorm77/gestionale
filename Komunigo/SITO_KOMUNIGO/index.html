@@ -92,7 +92,14 @@
   .cat p{font-size:14px;color:var(--ink-soft);margin:0;line-height:1.4;}
   .pack-pg{max-width:1100px;margin:10px auto 40px;}
   .scatola-top{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;}
-  .scatola-svg{width:220px;flex:0 0 220px;background:#fff;border:1px solid var(--line);border-radius:12px;}
+  .scatola-svg{width:260px;flex:0 0 260px;background:#fff;border:1px solid var(--line);border-radius:12px;}
+  .sf-ql{font-size:10.5px;fill:#fff;font-weight:700;font-family:inherit;}
+  .sc-mis{display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .sc-box{display:flex;align-items:center;gap:6px;border:2px solid var(--c);border-radius:22px;padding:4px 12px;background:var(--surface,#fff);width:100%;}
+  .sc-box b{color:var(--c);font-size:15px;}
+  .sc-box input{border:none !important;background:transparent !important;padding:4px 0 !important;width:100%;min-width:0;font:inherit;font-weight:600;outline:none;box-shadow:none !important;}
+  .sc-box i{font-style:normal;color:var(--c);font-size:12px;font-weight:600;}
+  .sc-lbl{font-size:12px;color:var(--ink-soft);}
   .sf-top{fill:#E9D9B8;stroke:#8a6d3b;stroke-width:1.2;} .sf-front{fill:#D9C094;stroke:#8a6d3b;stroke-width:1.2;} .sf-side{fill:#C4A672;stroke:#8a6d3b;stroke-width:1.2;}
   .sf-q{font-size:11px;fill:#5b6472;font-family:inherit;font-weight:600;}
   .scatola-mis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
@@ -106,7 +113,7 @@
   .bf-head .muted{font-size:13px;}
   .bf-row{display:flex;gap:10px;flex-wrap:wrap;}
   .bf-row label{display:flex;flex-direction:column;font-size:12px;color:var(--ink-soft);gap:3px;}
-  .bf-row input{width:120px;}
+  .bf-row .sc-mis{width:150px;}
   .bf-modelli{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:14px;}
   .bf-mod{display:flex;align-items:center;gap:10px;text-align:left;border:1.5px solid var(--line);background:var(--surface,#fff);border-radius:12px;padding:10px 12px;font:inherit;color:var(--ink);cursor:pointer;flex-wrap:wrap;}
   .bf-mod:hover{border-color:var(--blu);}
@@ -733,20 +740,28 @@ function FooterKomunigo({vai}){
 // =====================================================================
 const SCATOLA_STAMPA=[[0,"Senza stampa"],[1,"Stampa esterna"],[2,"Esterna e interna"]];
 // piccolo disegno isometrico della scatola con le misure (proporzionato)
+// disegno isometrico della scatola con QUOTE COLORATE (A blu, B arancio, H verde),
+// gli stessi colori dei campi misura: il cliente vede subito quale lato è quale
+const SC_COL={A:"#3b5bdb",B:"#e8590c",H:"#0ca678"};
 function ScatolaDisegno({A,B,H}){
   const a=Math.max(1,Number(A)||1), b=Math.max(1,Number(B)||1), h=Math.max(1,Number(H)||1);
-  const k=120/Math.max(a+b*0.6, h+b*0.35);           // scala per stare nel riquadro
+  const k=150/Math.max(a+b*0.6, h+b*0.35);
   const W=a*k, D=b*k*0.6, Hh=h*k, dx=D, dy=D*0.55;
-  const x0=40, y0=30+dy;
+  const x0=48, y0=24+dy+(150-(Hh+dy))/2;
   const P=(pts)=>pts.map(p=>p.join(",")).join(" ");
+  const q=(x1,y1,x2,y2,c,lab,tx,ty,anchor)=>(<g>
+    <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={c} strokeWidth="2.2"/>
+    <circle cx={x1} cy={y1} r="2.6" fill={c}/><circle cx={x2} cy={y2} r="2.6" fill={c}/>
+    <rect x={tx-(anchor==="end"?34:anchor==="start"?0:17)} y={ty-11} width="34" height="16" rx="4" fill={c}/>
+    <text x={tx+(anchor==="end"?-17:anchor==="start"?17:0)} y={ty+1} textAnchor="middle" className="sf-ql">{lab}</text></g>);
   return (
-    <svg viewBox="0 0 220 190" className="scatola-svg" role="img" aria-label={`Scatola ${a}×${b}×${h} mm`}>
+    <svg viewBox="0 0 260 220" className="scatola-svg" role="img" aria-label={`Scatola ${a}×${b}×${h} mm`}>
       <polygon points={P([[x0,y0],[x0+W,y0],[x0+W+dx,y0-dy],[x0+dx,y0-dy]])} className="sf-top"/>
       <polygon points={P([[x0,y0],[x0+W,y0],[x0+W,y0+Hh],[x0,y0+Hh]])} className="sf-front"/>
       <polygon points={P([[x0+W,y0],[x0+W+dx,y0-dy],[x0+W+dx,y0-dy+Hh],[x0+W,y0+Hh]])} className="sf-side"/>
-      <text x={x0+W/2} y={y0+Hh+16} textAnchor="middle" className="sf-q">A {a}</text>
-      <text x={x0+W+dx/2+6} y={y0-dy/2+Hh+14} textAnchor="start" className="sf-q">B {b}</text>
-      <text x={x0-6} y={y0+Hh/2} textAnchor="end" className="sf-q">H {h}</text>
+      {q(x0,y0+Hh+12,x0+W,y0+Hh+12,SC_COL.A,"A "+a,x0+W/2,y0+Hh+28,"middle")}
+      {q(x0+W+8,y0+Hh+6,x0+W+dx+8,y0-dy+Hh+6,SC_COL.B,"B "+b,x0+W+dx/2+14,y0-dy/2+Hh+26,"start")}
+      {q(x0-12,y0,x0-12,y0+Hh,SC_COL.H,"H "+h,x0-16,y0+Hh/2,"end")}
     </svg>);
 }
 function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureIniziali}){
@@ -812,7 +827,9 @@ function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureInizial
               <label className="fld">Misure interne (mm)</label>
               <div className="scatola-mis">
                 {[["A","Larghezza",A,setA],["B","Profondità",B,setB],["H","Altezza",H,setH]].map(([k,l,v,s])=>(
-                  <label key={k}><span>{k} · {l}</span><input type="number" min="1" step="1" value={v} onChange={e=>{s(e.target.value);invalida();}}/></label>))}
+                  <label key={k} className="sc-mis" style={{"--c":SC_COL[k]}}>
+                    <span className="sc-box"><b>{k}</b><input type="number" min="1" step="1" value={v} onChange={e=>{s(e.target.value);invalida();}} aria-label={l+" in mm"}/><i>mm</i></span>
+                    <span className="sc-lbl">{l}</span></label>))}
               </div>
               <div className="muted" style={{fontSize:12,marginTop:4}}>Misura il tuo prodotto e indica lo spazio interno che deve avere la scatola.</div>
               {varianti.length>0 && <><label className="fld" style={{marginTop:12}}>Materiale</label>
@@ -874,7 +891,9 @@ function BoxFinder({addCart, iva, setIva}){
       <div className="bf-head"><b>📐 Trova la scatola</b><span className="muted">Inserisci le misure del tuo prodotto (mm) e scegli il modello.</span></div>
       <div className="bf-row">
         {[["A","Larghezza"],["B","Profondità"],["H","Altezza"]].map(([k,l])=>(
-          <label key={k}><span>{l}</span><input type="number" min="1" value={m[k]} placeholder="mm" onChange={e=>setM(o=>({...o,[k]:e.target.value}))}/></label>))}
+          <label key={k} className="sc-mis" style={{"--c":SC_COL[k]}}>
+            <span className="sc-box"><b>{k}</b><input type="number" min="1" value={m[k]} placeholder="0" onChange={e=>setM(o=>({...o,[k]:e.target.value}))} aria-label={l+" in mm"}/><i>mm</i></span>
+            <span className="sc-lbl">{l}</span></label>))}
       </div>
       <div className="bf-modelli">{mod.map(p=>(
         <button type="button" key={p.id} className="bf-mod" onClick={()=>setAperto(p)}>
@@ -1343,7 +1362,7 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida, iva,
       <button className="pdp-back" onClick={onBack}>← Torna al catalogo</button>
       <div className="pdp">
         <div className="pdp-media">
-          <div className="pdp-main">{fotoMain? <img src={fotoMain} alt={prod.nome}/> : <span style={{fontSize:64}}>{tipo==="configuratore"?"🎨":"📦"}</span>}</div>
+          <div className="pdp-main">{fotoMain? <img src={fotoMain} alt={prod.nome}/> : <span style={{fontSize:64}}>{tipo==="configuratore"?(prod.tipo==="scatola"?"📦":"🎨"):"📦"}</span>}</div>
           {galleria.length>1 && <div className="pdp-thumbs">{galleria.map((u,i)=>
             <button key={i} className={"pdp-thumb "+(i===imgSel?"on":"")} onClick={()=>setImgSel(i)}><img src={u} alt=""/></button>)}</div>}
         </div>

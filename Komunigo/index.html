@@ -505,13 +505,13 @@ function App(){
 //  Testi scritti per Komunigo (prima stesura, da rivedere con Giulio).
 //  Le pagine legali derivano da Pagine-Legali-BOZZA.html: vanno validate da
 //  legale/commercialista prima della messa online (PAGINE_LEGALI_BOZZA=true
-//  mostra l'avviso). I dati tra [QUADRE] sono da completare.
+//  mostra l'avviso). Dati aziendali forniti da Giulio il 2026-10-14.
 // =====================================================================
 const PAGINE_LEGALI_BOZZA=true;
 const DATI_AZIENDA={
-  ragione:"Creatio Group [FORMA GIURIDICA]", marchio:"Komunigo",
-  sedeLegale:"Via dei Prati Fiscali 289, 00141 Roma", sedeOperativa:"[INDIRIZZO], 00071 Pomezia (RM)",
-  piva:"[PARTITA IVA]", rea:"[REA]", email:"info@komunigo.it", pec:"[PEC]", tel:"06 9105683",
+  ragione:"Creatio S.r.l.", marchio:"Komunigo",
+  sedeLegale:"Via dei Prati Fiscali 289, 00141 Roma", sedeOperativa:"Via Vaccareccia 51, 00071 Pomezia (RM)",
+  piva:"15790001000", rea:"RM-1614205", email:"info@komunigo.it", pec:"creatiogroup@pec.it", tel:"06 9105683",
 };
 const PAGINE_INFO={
   "come-funziona":{gruppo:"Ordinare", titolo:"Come funziona", intro:"Dal tuo logo al prodotto finito, in quattro passaggi. Ti seguiamo noi in ognuno.",
@@ -585,7 +585,7 @@ const PAGINE_INFO={
       {h:"Pagamento", p:["Bonifico anticipato, pagamento in sede, carta (quando attiva) e, per le aziende approvate, pagamento a fattura nei limiti concordati. Con il bonifico la produzione inizia all'accredito."]},
       {h:"Consegna", p:["I tempi indicati sono stimati e decorrono da approvazione della bozza e pagamento. Ritardi del corriere o dovuti a bozze non approvate non dipendono da noi."]},
       {h:"Garanzia — solo privati", p:["Ai consumatori si applica la garanzia legale di conformità di 24 mesi. Non sono difetti le lievi variazioni di colore tipiche della stampa né gli errori presenti nei file o nelle bozze approvate."]},
-      {h:"Aziende", p:["Per i clienti con partita IVA non si applicano le tutele riservate ai consumatori (recesso, garanzia del Codice del Consumo); foro competente: [CITTÀ FORO]."]},
+      {h:"Aziende", p:["Per i clienti con partita IVA non si applicano le tutele riservate ai consumatori (recesso, garanzia del Codice del Consumo); foro competente: Roma."]},
       {h:"Reclami", p:["Scrivi a "+DATI_AZIENDA.email+". Legge italiana. I consumatori possono usare la piattaforma europea ODR."]},
     ]},
   "recesso":{gruppo:"Creatio", titolo:"Recesso e resi", legale:true, intro:"In breve: i prodotti personalizzati non si possono restituire, quelli neutri sì (solo privati, entro 14 giorni).",
@@ -653,7 +653,7 @@ function FooterKomunigo({vai}){
           </div>
         </div>
         <div className="ft-legal">
-          {DATI_AZIENDA.ragione} · Sede legale {DATI_AZIENDA.sedeLegale} · P.IVA {DATI_AZIENDA.piva} · REA {DATI_AZIENDA.rea} · {DATI_AZIENDA.email} · PEC {DATI_AZIENDA.pec}
+          {DATI_AZIENDA.ragione} · Sede legale {DATI_AZIENDA.sedeLegale} · Sede operativa {DATI_AZIENDA.sedeOperativa} · P.IVA e C.F. {DATI_AZIENDA.piva} · REA {DATI_AZIENDA.rea} · {DATI_AZIENDA.email} · PEC {DATI_AZIENDA.pec}
         </div>
       </div>
     </footer>);

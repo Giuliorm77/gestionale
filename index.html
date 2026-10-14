@@ -7688,13 +7688,16 @@ function ModuloDDT({profilo,perm}){
           : filtrati.length===0 ? <div className="card empty">Nessun DDT. Inizia con "+ Nuovo DDT".</div>
           : <div className="card" style={{overflow:"auto"}}>
               <table>
-                <thead><tr><th>Numero</th><th>Data</th><th>Destinatario</th><th>Causale</th><th>Colli</th><th>Stato</th><th></th></tr></thead>
+                <thead><tr><th>Numero</th><th>Data</th><th>Destinatario</th><th>Commessa</th><th>Causale</th><th>Colli</th><th>Stato</th><th></th></tr></thead>
                 <tbody>
-                  {filtrati.map(x=>(
+                  {filtrati.map(x=>{
+                    const commNum=(commesse.find(c=>c.id===x.commessa_id)||{}).numero;
+                    return (
                     <tr key={x.id}>
                       <td className="rs" style={{fontFamily:"monospace"}}>{x.numero}</td>
                       <td className="muted">{fmt(x.data)}</td>
                       <td>{x.cliente_nome||"—"}</td>
+                      <td className="muted">{commNum? <span style={{fontFamily:"monospace",color:"var(--brand)"}}>{commNum}</span> : "—"}</td>
                       <td className="muted">{x.causale||"—"}</td>
                       <td className="muted">{x.colli||"—"}</td>
                       <td><span style={{fontSize:12,fontWeight:700,color:x.stato==="emesso"?"var(--ok)":"var(--warn)"}}>{x.stato}</span></td>
@@ -7704,7 +7707,7 @@ function ModuloDDT({profilo,perm}){
                         {perm.elimina && <> <button className="btn small danger" onClick={()=>elimina(x)}>✕</button></>}
                       </td>
                     </tr>
-                  ))}
+                  );})}
                 </tbody>
               </table>
             </div>}
@@ -7852,7 +7855,7 @@ function DDTEditor({ddt,commessaId,profilo,perm,onClose,onSalvato}){
   return (
     <div className="overlay">
       <div className="modal" style={{maxWidth:820,maxHeight:"92vh",display:"flex",flexDirection:"column"}}>
-        <header><h2>{nuovo?"Nuovo DDT":"DDT "+f.numero}</h2><button type="button" className="x" onClick={onClose}>×</button></header>
+        <header><h2>{nuovo?"Nuovo DDT":"DDT "+f.numero}{f.commessa_id && <span style={{fontSize:13,fontWeight:600,color:"var(--brand)",marginLeft:10}}>· 📋 Commessa {(commesse.find(c=>c.id===f.commessa_id)||{}).numero||"—"}</span>}</h2><button type="button" className="x" onClick={onClose}>×</button></header>
         <div className="body" style={{overflow:"auto"}}>
           {err && <div className="banner err">{err}</div>}
           <div className="section">
@@ -7896,8 +7899,8 @@ function DDTEditor({ddt,commessaId,profilo,perm,onClose,onSalvato}){
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <h3 style={{margin:0}}>Articoli trasportati</h3>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                {commessaId
-                  ? <span className="muted" style={{fontSize:13}}>Commessa {(commesse.find(c=>c.id===commessaId)||{}).numero||f.commessa_id}</span>
+                {f.commessa_id
+                  ? <span className="tag" style={{background:"#eef4ff",color:"var(--brand)",fontSize:12.5,fontWeight:700}} title="Commessa di riferimento di questo DDT">📋 Commessa {(commesse.find(c=>c.id===f.commessa_id)||{}).numero||"—"}</span>
                   : (commesse.length>0 && <select className="btn small" value="" onChange={e=>e.target.value&&importaCommessa(e.target.value)} style={{maxWidth:230}}>
                       <option value="">⬇ Genera da commessa (solo pronti)…</option>{commesse.map(c=><option key={c.id} value={c.id}>{c.numero} · {c.cliente_nome}</option>)}</select>)}
                 <button type="button" className="btn small" onClick={addRiga}>+ Riga</button>
@@ -13134,14 +13137,16 @@ function ModuloOrdiniFornitori({profilo,perm}){
           : filtrati.length===0 ? <div className="card empty">Nessun ordine. Creane uno con “+ Nuovo ordine”.</div>
           : <div className="card" style={{overflow:"auto"}}>
               <table>
-                <thead><tr><th>Numero</th><th>Fornitore</th><th>Data</th><th>Stato</th><th style={{textAlign:"right"}}>Totale</th></tr></thead>
+                <thead><tr><th>Numero</th><th>Fornitore</th><th>Commessa</th><th>Data</th><th>Stato</th><th style={{textAlign:"right"}}>Totale</th></tr></thead>
                 <tbody>
                   {filtrati.map(o=>{
                     const st=STATI_OF[o.stato]||STATI_OF.bozza;
+                    const commNum=(commesse.find(c=>c.id===o.commessa_id)||{}).numero;
                     return (
                       <tr key={o.id} onClick={()=>setEditor(o)}>
                         <td className="rs">{o.numero||"—"}</td>
                         <td>{o.fornitore_nome||"—"}</td>
+                        <td className="muted">{commNum? <span style={{fontFamily:"monospace",color:"var(--brand)"}}>{commNum}</span> : (o.riferimento||"—")}</td>
                         <td className="muted">{o.data? new Date(o.data).toLocaleDateString("it-IT"):"—"}</td>
                         <td><span className="tag" style={{background:st.bg,color:st.c}}>{st.l}</span></td>
                         <td style={{textAlign:"right",fontWeight:700}}>{eur(o.totale)}</td>

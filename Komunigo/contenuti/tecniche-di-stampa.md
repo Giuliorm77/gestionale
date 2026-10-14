@@ -34,3 +34,24 @@ _(testo da inserire)_
 
 ### Adesivo Digitale
 _(testo da inserire)_
+
+---
+
+## Serigrafia
+
+La **serigrafia** è una tecnica di stampa versatile che trasferisce inchiostro
+direttamente su quasi ogni tipo di superficie (tessuti, carta, vetro, metallo)
+usando un incisione del file su un telaio, permettendo di ottenere colori vivaci e
+resistenti, ideali per grandi tirature e stampe d'arte su shopper o T-shirt, con
+effetti speciali anche a più colori.
+
+---
+
+## Tampografia
+
+La **tampografia** è una tecnica di stampa indiretta che trasferisce loghi e
+scritte su oggetti di forme diverse (piane, curve, irregolari) tramite un tampone
+morbido in silicone che preleva l'inchiostro da una lastra incisa (cliché) e lo
+deposita sull'oggetto, ideale per personalizzare gadget, oggettistica, penne o
+portachiavi grazie alla sua precisione e versatilità anche su piccole superfici,
+con alta definizione di testi e piccoli dettagli.

@@ -4926,6 +4926,8 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
       const {data,error}=await sb.rpc("preleva_pezzo_commessa",{
         p_pezzo_id:pezzoSel.id, p_commessa_id:commessaId, p_pagato_intero:pagatoScelto, p_note:note||null });
       if(error){ setErr(error.message); setBusy(false); return; }
+      const mqL=(Number(pezzoSel.larghezza_cm)||0)*(Number(pezzoSel.altezza_cm)||0)/10000;
+      await segnaMaterialeExtra(mqL, data);
       setFatto({codice:data, articolo:art.nome_articolo, larghezza_cm:pezzoSel.larghezza_cm, altezza_cm:pezzoSel.altezza_cm, spessore_mm:pezzoSel.spessore_mm, commessa: com?("Commessa "+com.numero):""});
       setBusy(false); return;
     }
@@ -4936,8 +4938,22 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
       p_ubicazione:ubic, p_note:note, p_pagato_intero:pagatoScelto,
     });
     if(error){ setErr(error.message); setBusy(false); return; }
+    const mqC=((Number(larg)||0)/10)*((Number(alt)||0)/10)/10000*(Number(qta)||1);
+    await segnaMaterialeExtra(mqC, data);
     setFatto({codice:data, articolo:art.nome_articolo, larghezza_cm:larg===""?"":Number(larg)/10, altezza_cm:alt===""?"":Number(alt)/10, spessore_mm:sp, commessa: com?("Commessa "+com.numero):""});
     setBusy(false);
+  }
+  // se il materiale NON è tra quelli previsti nella commessa, lo segnala come "aggiunto in produzione"
+  async function segnaMaterialeExtra(mqCons, codice){
+    const extra = commessaId && art && !matCommessa.some(m=>m.articolo_id===art.id);
+    if(!extra) return;
+    try{
+      const {data:cm}=await sb.from("commesse").select("consumi").eq("id",commessaId).maybeSingle();
+      const lista=Array.isArray(cm&&cm.consumi)?cm.consumi.map(x=>({...x})):[];
+      lista.push({articolo_id:art.id, descrizione:art.nome_articolo||"", quantita:Math.round((Number(mqCons)||0)*1000)/1000, unita:"mq",
+        scaricato:true, aggiunta_produzione:true, codice_pezzo:codice||"", data:new Date().toISOString().slice(0,10)});
+      await sb.from("commesse").update({consumi:lista, aggiornato_il:new Date().toISOString()}).eq("id",commessaId);
+    }catch(e){}
   }
 
   if(fatto) return (
@@ -12816,7 +12832,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                     const insuff=!c.scaricato && g!=null && g < (Number(c.quantita)||0);
                     return (
                       <tr key={i} style={c.scaricato?{background:"#f3faf6"}:null}>
-                        <td style={{minWidth:200}}>{c.descrizione||(artMap[c.articolo_id]&&artMap[c.articolo_id].nome_articolo)||"—"}</td>
+                        <td style={{minWidth:200}}>{c.descrizione||(artMap[c.articolo_id]&&artMap[c.articolo_id].nome_articolo)||"—"}
+                          {c.aggiunta_produzione && <div style={{marginTop:2,fontSize:11,color:"#9a6b00",fontWeight:700}}>➕ aggiunto in produzione (fuori preventivo){c.codice_pezzo?(" · "+c.codice_pezzo):""}</div>}</td>
                         <td>{c.scaricato
                           ? <span style={{fontWeight:600}}>{Number(c.quantita)||0}</span>
                           : <input type="number" step="0.01" value={c.quantita} onChange={e=>setConsumo(i,"quantita",e.target.value)}

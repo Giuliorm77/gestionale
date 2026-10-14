@@ -160,6 +160,7 @@
   .price-da{font-size:15px;color:var(--ink);} .price-da b{color:var(--blu);font-size:17px;}
   .stampa-pos{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
   .stampa-pos.on{border-color:var(--blu);background:#f6faff;}
+  .anteprima-band{background:#b3261e;color:#fff;text-align:center;font-size:13px;font-weight:600;padding:7px 12px;position:relative;z-index:50;}
   .tec-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px;}
   .tec-tabs button{border:1.5px solid var(--line);background:var(--surface,#fff);border-radius:20px;padding:6px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink);}
   .tec-tabs button.on{background:var(--blu);border-color:var(--blu);color:#fff;}
@@ -455,6 +456,7 @@ function App(){
 
   return (
     <div>
+      {window.KOMUNIGO_ANTEPRIMA && <div className="anteprima-band">🔒 ANTEPRIMA INTERNA — sito non pubblico. Il database è quello vero: gli ordini di prova compaiono nel gestionale (scrivi "TEST" nel nome).</div>}
       <header className="top">
         <div className="topline"></div>
         <div className="top-in">

@@ -33,3 +33,6 @@ desktop.ini
 
 # feed fornitori (link con chiave)
 Komunigo/.env.fornitore
+
+# copia di pubblicazione anteprima Komunigo (repo annidato komunigo-anteprima)
+Komunigo/SITO_ANTEPRIMA/

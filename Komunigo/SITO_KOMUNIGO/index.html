@@ -98,6 +98,10 @@
   .mockup-v svg{width:100%;max-width:260px;height:auto;}
   .mockup-v figcaption{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);}
   .mockup-ph{font-family:var(--disp);font-weight:700;letter-spacing:.06em;opacity:.75;}
+  .mockup-zoom{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px;padding-top:10px;border-top:1px dashed var(--line);}
+  .mockup-z{margin:0;text-align:center;}
+  .mockup-z > svg{width:170px;height:170px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+  .mockup-z figcaption{font-size:11.5px;color:var(--ink-soft);margin-top:4px;}
   .logo-up{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;}
   .logo-up.compatto{justify-content:center;}
   .logo-btn{display:inline-flex;align-items:center;background:var(--blu);color:#fff;border-radius:10px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;}
@@ -1881,22 +1885,35 @@ function MockupCapo({sagoma, posizioni, logo, scala, colore}){
   const fill=coloreCapo(colore), bordo=scuro(fill)?"#0b0b0c":"#9aa3b0";
   const viste=Object.keys(S.viste);
   const rett=(posizioni||[]).map(p=>({...p, r:rettPosizione(sagoma,p.nome,p.area_cm)})).filter(p=>p.r);
-  return (
+  const k=Math.max(.3,Math.min(1,scala||.85));
+  // disegno di una vista (riusato per la vista intera e per gli ingrandimenti)
+  const disegno=(v,sw)=>(<>
+    <path d={S.viste[v]} fill={fill} stroke={bordo} strokeWidth={sw} strokeLinejoin="round" fillRule="evenodd"/>
+    {rett.filter(p=>p.r.v===v).map((p,i)=>{ const {x,y,w,h}=p.r; const lw=w*k, lh=h*k;
+      return <g key={i}>
+        <rect x={x} y={y} width={w} height={h} rx="1.5" fill="none" stroke={scuro(fill)?"rgba(255,255,255,.55)":"rgba(46,111,176,.55)"} strokeWidth={sw*0.45} strokeDasharray={(sw*1.3)+" "+sw}/>
+        {logo ? <image href={logo} x={x+(w-lw)/2} y={y+(h-lh)/2} width={lw} height={lh} preserveAspectRatio="xMidYMid meet"/>
+              : <text x={x+w/2} y={y+h/2+Math.min(w,h)/9} textAnchor="middle" className="mockup-ph" style={{fill:scuro(fill)?"#fff":"#2E6FB0",fontSize:Math.max(3,Math.min(w,h)/3.2)}}>LOGO</text>}
+      </g>; })}
+  </>);
+  // posizioni piccole (cuore, lato destro, maniche, collo): lente d'ingrandimento
+  const piccole=rett.filter(p=>p.r.w<70 || p.r.h<70);
+  return (<>
     <div className="mockup">
       {viste.map(v=>(
         <figure key={v} className="mockup-v">
-          <svg viewBox="0 0 240 240" role="img" aria-label={"Anteprima "+v}>
-            <path d={S.viste[v]} fill={fill} stroke={bordo} strokeWidth="2.2" strokeLinejoin="round" fillRule="evenodd"/>
-            {rett.filter(p=>p.r.v===v).map((p,i)=>{ const {x,y,w,h}=p.r; const k=Math.max(.3,Math.min(1,scala||.85)); const lw=w*k, lh=h*k;
-              return <g key={i}>
-                <rect x={x} y={y} width={w} height={h} rx="1.5" fill="none" stroke={scuro(fill)?"rgba(255,255,255,.55)":"rgba(46,111,176,.55)"} strokeWidth="1" strokeDasharray="3 2"/>
-                {logo ? <image href={logo} x={x+(w-lw)/2} y={y+(h-lh)/2} width={lw} height={lh} preserveAspectRatio="xMidYMid meet"/>
-                      : <text x={x+w/2} y={y+h/2+3} textAnchor="middle" className="mockup-ph" style={{fill:scuro(fill)?"#fff":"#2E6FB0",fontSize:Math.max(5,Math.min(w,h)/3.2)}}>LOGO</text>}
-              </g>; })}
-          </svg>
+          <svg viewBox="0 0 240 240" role="img" aria-label={"Anteprima "+v}>{disegno(v,2.2)}</svg>
           <figcaption>{v}</figcaption>
         </figure>))}
-    </div>);
+    </div>
+    {piccole.length>0 && <div className="mockup-zoom">
+      {piccole.map((p,i)=>{ const {x,y,w,h,v}=p.r; const lato=Math.max(w,h)*1.55+6, cx=x+w/2, cy=y+h/2;
+        return <figure key={i} className="mockup-z">
+          <svg viewBox={`${cx-lato/2} ${cy-lato/2} ${lato} ${lato}`} role="img" aria-label={"Dettaglio "+p.nome}>{disegno(v,lato/110)}</svg>
+          <figcaption><Ico n="search" s={12} style={{marginRight:4}}/>{p.nome.replace(/^Ricamo\s+/i,"")}</figcaption>
+        </figure>; })}
+    </div>}
+  </>);
 }
 
 // =====================================================================

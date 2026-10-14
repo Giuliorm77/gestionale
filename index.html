@@ -8609,8 +8609,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   };
   const qtaProdotto=g=>{ const m=scQ(g); return m>0? {q:m, u:"pz"} : qtaAutoProdotto(g); };
   // riga cliente di un prodotto: quantità vera, prezzo unitario = subtotale / quantità (4 decimali → il totale torna)
-  const rigaProdottoCliente=g=>{ const {q,u}=qtaProdotto(g); const sub=subProdotto(g);
-    return {descrizione:g||(f.descrizione_breve||"Prodotto"), quantita:q, unita:u, prezzo_unitario:Math.round(sub/q*10000)/10000, sconto_pct:0, modalita_consegna:"corriere", imballo_costo:0}; };
+  const rigaProdottoCliente=g=>{ const {q}=qtaProdotto(g); const sub=subProdotto(g);   // nel PDF solo il numero, senza unità
+    return {descrizione:g||(f.descrizione_breve||"Prodotto"), quantita:q, unita:"", prezzo_unitario:Math.round(sub/q*10000)/10000, sconto_pct:0, modalita_consegna:"corriere", imballo_costo:0}; };
   // PROVVIGIONE agente = costo reale → va sottratta dal margine.
   // Se la % nel preventivo è vuota, ripiega sulla % del cliente (eccezione) o dell'agente (standard).
   const cliProvv=(clienti||[]).find(c=>c.id===f.cliente_id);

@@ -4573,6 +4573,7 @@ function ModuloPezzi({profilo,perm}){
   const [pezzi,setPezzi]=useState(null);
   const [err,setErr]=useState("");
   const [form,setForm]=useState(false);
+  const [carico,setCarico]=useState(false);
   const [rientro,setRientro]=useState(null);
   const [valorizza,setValorizza]=useState(null);
   const [storia,setStoria]=useState(null);
@@ -4615,6 +4616,7 @@ function ModuloPezzi({profilo,perm}){
     <>
       <div className="topbar">
         <h1>Pezzi &amp; Etichette</h1>
+        {perm.economici && <button className="btn" onClick={()=>setCarico(true)} title="Carica a magazzino pannelli/lastre con le loro misure (base × altezza × spessore)">📥 Carico pannelli</button>}
         {perm.magazzino && <button className="btn" onClick={()=>setRientro({})}>↩ Registra rientro</button>}
         {perm.magazzino && <button className="btn primary" onClick={()=>setForm(true)}>+ Prepara per commessa</button>}
       </div>
@@ -4667,6 +4669,7 @@ function ModuloPezzi({profilo,perm}){
             </div>}
       </div>
       {form && <PreparaPezzoForm profilo={profilo} onClose={()=>setForm(false)} onFatto={()=>{setForm(false);carica();}}/>}
+      {carico && <CaricoPannelliForm profilo={profilo} onClose={()=>setCarico(false)} onFatto={()=>{setCarico(false);carica();}}/>}
       {rientro && <RientroForm pezzoIniziale={rientro.pezzo||null} onClose={()=>setRientro(null)} onFatto={()=>{setRientro(null);carica();}}/>}
       {valorizza && <ValorizzaModal pezzo={valorizza} onClose={()=>setValorizza(null)} onSalvato={()=>{setValorizza(null);carica();}}/>}
       {storia && <StoriaPezzo pezzo={storia} perm={perm} onClose={()=>setStoria(null)}/>}
@@ -4727,6 +4730,88 @@ function StoriaPezzo({pezzo,perm,onClose}){
       </div>
       <footer><button className="btn primary" onClick={onClose}>Chiudi</button></footer>
     </div></div>
+  );
+}
+
+/* ------------------------------------------------ carico pannelli a magazzino (pezzi dimensionati a scaffale) */
+function CaricoPannelliForm({profilo,onClose,onFatto}){
+  const [articoli,setArticoli]=useState([]);
+  const [q,setQ]=useState(""); const [art,setArt]=useState(null);
+  const [larg,setLarg]=useState(""); const [alt,setAlt]=useState(""); const [sp,setSp]=useState("");
+  const [qta,setQta]=useState(1); const [costo,setCosto]=useState(""); const [ubic,setUbic]=useState(""); const [note,setNote]=useState("");
+  const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
+  const [fatti,setFatti]=useState(null);   // codici creati
+  useEffect(()=>{ caricaArticoliTutti("id,codice,nome_articolo,unita,materiale_tipo",{tabella:"articoli_magazzino"}).then(a=>setArticoli(a||[])); },[]);
+  const ris=useMemo(()=>{ const s=q.trim().toLowerCase(); if(!s) return [];
+    return articoli.filter(a=>[a.nome_articolo,a.codice].join(" ").toLowerCase().includes(s)).slice(0,12); },[q,articoli]);
+  const mqPezzo=(Number(larg)||0)*(Number(alt)||0)/10000;
+  const n=Math.max(1,Number(qta)||1);
+  const mqTot=Math.round(mqPezzo*n*1000)/1000;
+  const valore=costo!==""?Math.round((Number(costo)||0)*n*100)/100:null;
+  async function carica(e){
+    e.preventDefault();
+    if(!art){ setErr("Scegli il materiale (pannello/lastra)."); return; }
+    if(!(Number(larg)>0 && Number(alt)>0)){ setErr("Inserisci base e altezza del pannello (cm)."); return; }
+    setBusy(true); setErr("");
+    const {data,error}=await sb.rpc("carica_pannelli",{
+      p_articolo_id:art.id, p_larghezza:Number(larg), p_altezza:Number(alt),
+      p_spessore:sp===""?null:Number(sp), p_quantita:n,
+      p_costo_unitario:costo===""?null:Number(costo), p_ubicazione:ubic||"", p_note:note||"",
+    });
+    if(error){ setErr(error.message); setBusy(false); return; }
+    setFatti(data||[]); setBusy(false);
+  }
+  function stampaEtichette(){
+    (fatti||[]).forEach(cod=>stampaHTML(htmlEtichetta({codice:cod, articolo:art?art.nome_articolo:"",
+      larghezza_cm:Number(larg), altezza_cm:Number(alt), spessore_mm:sp===""?"":Number(sp), commessa:""})));
+  }
+  if(fatti){
+    return (
+      <div className="overlay"><div className="modal" style={{maxWidth:460}} onClick={e=>e.stopPropagation()}>
+        <header><h2>✓ Caricati {fatti.length} pannelli</h2><button type="button" className="x" onClick={onFatto}>×</button></header>
+        <div className="body">
+          <div className="banner ok">Creati a scaffale: <b>{art?art.nome_articolo:""}</b> — {Number(larg)}×{Number(alt)} cm{sp?(" · "+sp+" mm"):""} · {fatti.length} pz · {mqTot} mq{valore!=null?(" · "+Number(valore).toLocaleString("it-IT",{style:"currency",currency:"EUR"})):""}.</div>
+          <div className="muted" style={{fontSize:12.5,margin:"8px 0"}}>Codici: {fatti.join(", ")}</div>
+          <button type="button" className="btn" onClick={stampaEtichette}>🏷️ Stampa etichette ({fatti.length})</button>
+        </div>
+        <footer><button type="button" className="btn primary" style={{marginLeft:"auto"}} onClick={onFatto}>Chiudi</button></footer>
+      </div></div>
+    );
+  }
+  return (
+    <div className="overlay"><form className="modal" style={{maxWidth:560}} onClick={e=>e.stopPropagation()} onSubmit={carica}>
+      <header><h2>📥 Carico pannelli a misura</h2><button type="button" className="x" onClick={onClose}>×</button></header>
+      <div className="body">
+        {err && <div className="banner err">{err}</div>}
+        <div className="muted" style={{fontSize:12.5,marginBottom:10}}>Carica a scaffale pannelli/lastre con le loro dimensioni. Ogni pannello diventa un <b>pezzo tracciato</b> (con etichetta) che potrai poi prelevare per una commessa; l'avanzo rientrerà a base × altezza.</div>
+        <div className="field"><label>Materiale</label>
+          {art
+            ? <div style={{display:"flex",alignItems:"center",gap:8}}><span className="tag" style={{fontSize:13}}>{art.nome_articolo}{art.codice?(" · "+art.codice):""}</span><button type="button" className="btn small" onClick={()=>{setArt(null);setQ("");}}>cambia</button></div>
+            : <><input value={q} onChange={e=>setQ(e.target.value)} placeholder="cerca pannello/lastra per nome o codice…"/>
+                {ris.length>0 && <div className="card" style={{marginTop:4,maxHeight:180,overflow:"auto"}}>
+                  {ris.map(a=><div key={a.id} onClick={()=>{setArt(a);}} style={{padding:"7px 10px",cursor:"pointer",borderBottom:"1px solid var(--line)"}}>
+                    {a.nome_articolo} <span className="muted" style={{fontSize:12}}>{a.codice||""}{a.materiale_tipo?(" · "+a.materiale_tipo):""}</span></div>)}
+                </div>}</>}
+        </div>
+        <div className="row">
+          <div className="field" style={{maxWidth:130}}><label>Base (cm)</label><input type="number" step="0.1" value={larg} onChange={e=>setLarg(e.target.value)} placeholder="es. 305"/></div>
+          <div className="field" style={{maxWidth:130}}><label>Altezza (cm)</label><input type="number" step="0.1" value={alt} onChange={e=>setAlt(e.target.value)} placeholder="es. 205"/></div>
+          <div className="field" style={{maxWidth:130}}><label>Spessore (mm)</label><input type="number" step="0.1" value={sp} onChange={e=>setSp(e.target.value)} placeholder="es. 3"/></div>
+        </div>
+        <div className="row">
+          <div className="field" style={{maxWidth:130}}><label>Quantità (pz)</label><input type="number" step="1" min="1" value={qta} onChange={e=>setQta(e.target.value)}/></div>
+          <div className="field" style={{maxWidth:170}}><label>Costo unitario € <span className="muted" style={{textTransform:"none",fontWeight:400}}>(per pannello)</span></label><input type="text" inputMode="decimal" value={costo} onChange={e=>setCosto(e.target.value.replace(",","."))} placeholder="es. 18,50"/></div>
+          <div className="field"><label>Ubicazione</label><input value={ubic} onChange={e=>setUbic(e.target.value)} placeholder="es. scaffale A3"/></div>
+        </div>
+        <div className="field"><label>Note</label><input value={note} onChange={e=>setNote(e.target.value)} placeholder="facoltative"/></div>
+        {Number(larg)>0 && Number(alt)>0 && <div className="banner info" style={{fontSize:13}}>
+          {mqPezzo.toFixed(3)} mq/pannello × {n} = <b>{mqTot} mq</b>{valore!=null?<> · valore <b>{Number(valore).toLocaleString("it-IT",{style:"currency",currency:"EUR"})}</b></>:null}</div>}
+      </div>
+      <footer>
+        <button type="button" className="btn" style={{marginLeft:"auto"}} onClick={onClose}>Annulla</button>
+        <button className="btn primary" disabled={busy}>{busy?<span className="spin"/>:"📥 Carica a scaffale"}</button>
+      </footer>
+    </form></div>
   );
 }
 

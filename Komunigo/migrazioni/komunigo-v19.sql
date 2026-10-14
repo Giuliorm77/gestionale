@@ -67,6 +67,47 @@ begin
   where s.prodotto_id = v_mod and s.nome = x.nome;
 end $$;
 
+-- ---------------------------------------------------------------------
+--  ZAINI E BORSE: modello separato con posizioni fronte, retro, alto fronte,
+--  basso fronte (deciso da Giulio 2026-10-14). Assegnato in automatico a tutti
+--  i prodotti del catalogo con categoria "Borse…" che non hanno già un modello.
+-- ---------------------------------------------------------------------
+do $$
+declare v_b uuid;
+begin
+  select id into v_b from public.prodotti_config where nome = 'Stampa zaini e borse (modello)' limit 1;
+  if v_b is null then
+    insert into public.prodotti_config (nome, unita_calcolo, tipo, categoria, margine_pct, minimo,
+                                        giorni_lavorazione, attivo, solo_modello, note)
+    values ('Stampa zaini e borse (modello)', 'pz', 'gadget', 'Abbigliamento', 40, 10, 10, true, true,
+            'Modello di stampa per zaini e borse del catalogo fornitore. AREE e PREZZI PROVVISORI.')
+    returning id into v_b;
+    insert into public.prodotti_config_fasce (prodotto_id, da_quantita, sconto_pct, ordine) values
+      (v_b, 50, 5, 0), (v_b, 100, 10, 1);
+  end if;
+  insert into public.prodotti_config_stampe (prodotto_id, nome, area_cm, max_colori, prezzo_pz, setup, tecnica, ordine)
+  select v_b, x.nome, x.area, 4, x.pz, x.setup, 'Serigrafia', x.ord
+  from (values
+    ('Fronte',       '20 × 20', 1.00, 30, 0),
+    ('Retro',        '20 × 20', 1.00, 30, 1),
+    ('Alto fronte',  '15 × 8',  0.80, 25, 2),
+    ('Basso fronte', '15 × 8',  0.80, 25, 3)
+  ) as x(nome, area, pz, setup, ord)
+  where not exists (select 1 from public.prodotti_config_stampe s where s.prodotto_id = v_b and s.nome = x.nome);
+
+  update public.catalogo_fornitore_prodotti
+  set modello_stampa_id = v_b
+  where fornitore = 'newwave' and categoria ilike 'borse%' and modello_stampa_id is null;
+end $$;
+
+-- controllo zaini/borse: posizioni + quanti prodotti lo usano
+select s.ordine, s.nome, s.area_cm, s.prezzo_pz, s.setup,
+       (select count(*) from public.catalogo_fornitore_prodotti p where p.modello_stampa_id = s.prodotto_id) as prodotti_assegnati
+from public.prodotti_config_stampe s
+join public.prodotti_config c on c.id = s.prodotto_id
+where c.nome = 'Stampa zaini e borse (modello)'
+order by s.ordine;
+
 -- controllo: 8 posizioni serigrafia + 8 ricamo
 select s.ordine, s.nome, s.area_cm, s.max_colori, s.tecnica, s.prezzo_pz, s.setup   -- 16 righe
 from public.prodotti_config_stampe s

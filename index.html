@@ -4336,10 +4336,10 @@ function ModuloMagazzino({profilo,perm}){
                             <td className="muted" style={{textTransform:"capitalize"}}>{a.tipo||"—"}</td>
                             {a.materiale_tipo==="lastra" ? (()=>{ const pg=pezziGiac[a.id]||{n:0,mq:0};
                               return <>
-                                <td style={{textAlign:"right"}}><b>{pg.n}</b> <span className="muted" style={{fontSize:12}}>pannelli</span>
+                                <td style={{textAlign:"right"}}><b>{pg.n}</b> <span className="muted" style={{fontSize:12}}>lastre</span>
                                   <div className="muted" style={{fontSize:11}}>{Math.round(pg.mq*100)/100} mq a scaffale</div></td>
                                 <td style={{textAlign:"right"}} className="muted">—</td>
-                                <td style={{textAlign:"right",fontWeight:700,color:pg.n>0?"var(--ok)":"var(--danger)"}}>{pg.n} <span className="muted" style={{fontSize:11,fontWeight:400}}>pz</span></td>
+                                <td style={{textAlign:"right",fontWeight:700,color:pg.n>0?"var(--ok)":"var(--danger)"}}>{pg.n} <span className="muted" style={{fontSize:11,fontWeight:400}}>lastre</span></td>
                               </>; })() : <>
                             <td style={{textAlign:"right"}}>{gi}{a.unita?<span className="muted" style={{fontSize:12}}> {a.unita}</span>:null}
                               {mql>0 && <div className="muted" style={{fontSize:11}}>~{Math.round(gi/mql*10)/10} lastre</div>}</td>
@@ -4678,7 +4678,7 @@ function ModuloPezzi({profilo,perm}){
                     <tr key={p.id}>
                       <td className="rs" style={{fontFamily:"monospace"}}>{p.codice}</td>
                       <td>{p.nome_articolo||"—"}<div className="muted" style={{fontSize:12}}>{p.articolo_codice||""}</div></td>
-                      <td>{mis(p)?mis(p)+" mm":"—"}{p.spessore_mm?(" · "+p.spessore_mm+"mm"):""}</td>
+                      <td>{mis(p)?mis(p)+" mm":"—"}{p.spessore_mm?(" · "+p.spessore_mm+"mm"):""}{(Number(p.quantita)||1)>1?<b style={{marginLeft:6,color:"var(--brand)"}}>× {p.quantita}</b>:null}</td>
                       <td className="muted">{p.mq!=null?p.mq:"—"}</td>
                       <td><span style={{background:colStato(p.stato),color:"#fff",borderRadius:20,padding:"2px 9px",fontSize:12,fontWeight:700}}>{String(p.stato||"").replace("_"," ")}</span></td>
                       <td className="muted">{p.commessa_numero||"—"}</td>
@@ -4802,11 +4802,11 @@ function CaricoPannelliForm({profilo,onClose,onFatto}){
   if(fatti){
     return (
       <div className="overlay"><div className="modal" style={{maxWidth:460}} onClick={e=>e.stopPropagation()}>
-        <header><h2>✓ Caricati {fatti.length} pannelli</h2><button type="button" className="x" onClick={onFatto}>×</button></header>
+        <header><h2>✓ Caricate {n} lastre a scaffale</h2><button type="button" className="x" onClick={onFatto}>×</button></header>
         <div className="body">
-          <div className="banner ok">Creati a scaffale: <b>{art?art.nome_articolo:""}</b> — {Number(larg)}×{Number(alt)} cm{sp?(" · "+sp+" mm"):""} · {fatti.length} pz · {mqTot} mq{valore!=null?(" · "+Number(valore).toLocaleString("it-IT",{style:"currency",currency:"EUR"})):""}.</div>
-          <div className="muted" style={{fontSize:12.5,margin:"8px 0"}}>Codici: {fatti.join(", ")}</div>
-          <button type="button" className="btn" onClick={stampaEtichette}>🏷️ Stampa etichette ({fatti.length})</button>
+          <div className="banner ok"><b>{art?art.nome_articolo:""}</b> — {Number(larg)}×{Number(alt)} cm{sp?(" · "+sp+" mm"):""} · <b>{n} lastre</b> · {mqTot} mq{valore!=null?(" · "+Number(valore).toLocaleString("it-IT",{style:"currency",currency:"EUR"})):""}.</div>
+          <div className="muted" style={{fontSize:12.5,margin:"8px 0"}}>Le lastre intere non si etichettano una per una: l'etichetta nasce quando prelevi una lastra per una commessa. Qui sotto, se vuoi, stampi un'<b>etichetta di scaffale</b> per il mucchio (codice {fatti.join(", ")}).</div>
+          <button type="button" className="btn" onClick={stampaEtichette}>🏷️ Stampa etichetta scaffale</button>
         </div>
         <footer><button type="button" className="btn primary" style={{marginLeft:"auto"}} onClick={onFatto}>Chiudi</button></footer>
       </div></div>
@@ -5017,6 +5017,7 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
                           background:selezionato?"#e7f0ff":(ok?"#eafaef":"transparent"),borderLeft:"3px solid "+(selezionato?"var(--brand)":(ok?"#1f9c68":"transparent"))}}>
                           <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}>
                             <div><b style={{fontFamily:"monospace"}}>{p.codice}</b> <span style={{marginLeft:8}}>{(Number(p.larghezza_cm)||0)}×{(Number(p.altezza_cm)||0)} cm{p.spessore_mm?(" · "+p.spessore_mm+" mm"):""}</span>
+                              {(Number(p.quantita)||1)>1 && <span className="tag" style={{marginLeft:8,background:"#eef1f6",color:"#4a5568",fontSize:10.5}}>{p.quantita} disp.</span>}
                               {ok && <span className="tag" style={{marginLeft:8,background:"#e6f4ee",color:"#1f9c68",fontSize:10.5}}>✓ contiene</span>}</div>
                             <div className="muted" style={{fontSize:12,whiteSpace:"nowrap"}}>{p.mq!=null?p.mq+" mq":""}{p.ubicazione?(" · "+p.ubicazione):""}</div>
                           </div>

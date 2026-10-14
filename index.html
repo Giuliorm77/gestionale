@@ -4866,6 +4866,7 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
   const [pezzoSel,setPezzoSel]=useState(null);       // pannello scelto
   const [reqL,setReqL]=useState(""); const [reqH,setReqH]=useState("");  // misura richiesta (cm) per evidenziare
   const [scan,setScan]=useState("");                 // ricerca/scan per codice
+  const [qtaPrel,setQtaPrel]=useState(1);            // quante lastre prelevare dal mucchio (lavori grandi)
   const isLastra = !!(art && art.materiale_tipo==="lastra");
 
   useEffect(()=>{ (async()=>{
@@ -4900,13 +4901,14 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
   },[commessaId]);
 
   // carica i pannelli a scaffale quando scelgo una LASTRA
-  useEffect(()=>{ setPezzoSel(null); setScan(""); setReqL(""); setReqH("");
+  useEffect(()=>{ setPezzoSel(null); setScan(""); setReqL(""); setReqH(""); setQtaPrel(1);
     if(!(art && art.materiale_tipo==="lastra")){ setPezziDisp(null); return; }
     let vivo=true; setPezziDisp(null);
     sb.from("magazzino_pezzi_op").select("*").eq("articolo_id",art.id).eq("stato","in_magazzino").order("creato_il",{ascending:false})
       .then(({data})=>{ if(vivo) setPezziDisp(data||[]); });
     return ()=>{vivo=false;};
   },[art]);
+  useEffect(()=>{ setQtaPrel(1); },[pezzoSel]);
   // precompila la misura richiesta dalla commessa (config del prodotto): proponiamo le lastre adatte
   useEffect(()=>{ if(!(art && art.materiale_tipo==="lastra")) return;
     const m=matCommessa.find(x=>x.articolo_id===art.id);
@@ -4940,10 +4942,11 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
     if(isLastra){
       // LASTRA: consuma un pannello esistente a scaffale (non crea nuovo, non scarica sfuso)
       if(!pezzoSel){ setErr("Scegli il pannello da prelevare dalla lista."); setBusy(false); return; }
+      const nPrel=Math.max(1,Number(qtaPrel)||1);
       const {data,error}=await sb.rpc("preleva_pezzo_commessa",{
-        p_pezzo_id:pezzoSel.id, p_commessa_id:commessaId, p_pagato_intero:pagatoScelto, p_note:note||null });
+        p_pezzo_id:pezzoSel.id, p_commessa_id:commessaId, p_pagato_intero:pagatoScelto, p_note:note||null, p_quantita:nPrel });
       if(error){ setErr(error.message); setBusy(false); return; }
-      const mqL=(Number(pezzoSel.larghezza_cm)||0)*(Number(pezzoSel.altezza_cm)||0)/10000;
+      const mqL=(Number(pezzoSel.larghezza_cm)||0)*(Number(pezzoSel.altezza_cm)||0)/10000*nPrel;
       await segnaMaterialeExtra(mqL, data);
       setFatto({codice:data, articolo:art.nome_articolo, larghezza_cm:pezzoSel.larghezza_cm, altezza_cm:pezzoSel.altezza_cm, spessore_mm:pezzoSel.spessore_mm, commessa: com?("Commessa "+com.numero):""});
       setBusy(false); return;
@@ -5047,6 +5050,8 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
                   const prefill = mc && (Number(mc.L)>0||Number(mc.H)>0) && Number(reqL)===Number(mc.L) && Number(reqH)===Number(mc.H);
                   return prefill ? <div style={{fontSize:12,marginBottom:6,color:"#0a7d42",fontWeight:600}}>📐 Misura presa dalla commessa ({Number(mc.L)}×{Number(mc.H)} cm) — i pannelli adatti sono evidenziati in verde.</div> : null; })()}
                 {(Number(reqL)>0&&Number(reqH)>0) && <div className="muted" style={{fontSize:12,marginBottom:6}}>In verde i pannelli che contengono {Number(reqL)}×{Number(reqH)} cm (anche ruotati).</div>}
+                {(Number(reqL)>0&&Number(reqH)>0) && (pezziDisp||[]).length>0 && !pezziView.some(contiene) &&
+                  <div className="banner" style={{background:"#fff4e5",color:"#8a6d00",fontSize:12.5,marginBottom:6}}>⚠ Nessun pannello singolo contiene {Number(reqL)}×{Number(reqH)} cm: serve <b>più di una lastra</b>. Scegli il mucchio di lastre intere qui sotto e indica <b>quante lastre impegnare</b>.</div>}
                 {pezziDisp===null ? <div className="muted">Caricamento pannelli…</div>
                   : pezziDisp.length===0 ? <div className="card empty">Nessun pannello a scaffale per questo materiale. Caricane con “📥 Carico pannelli”.</div>
                   : <div className="card" style={{maxHeight:260,overflow:"auto",padding:0}}>
@@ -5061,7 +5066,14 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
                           </div>
                         </div>; })}
                     </div>}
-                {pezzoSel && <div className="banner info" style={{marginTop:8}}>Prelevi il pannello <b>{pezzoSel.codice}</b> ({(Number(pezzoSel.larghezza_cm)||0)}×{(Number(pezzoSel.altezza_cm)||0)} cm). L'avanzo lo registri col <b>Rientro</b> a fine lavoro.</div>}
+                {pezzoSel && <div className="banner info" style={{marginTop:8,display:"flex",flexWrap:"wrap",alignItems:"center",gap:10}}>
+                  <span>Prelevi <b>{pezzoSel.codice}</b> ({(Number(pezzoSel.larghezza_cm)||0)}×{(Number(pezzoSel.altezza_cm)||0)} cm){(Number(pezzoSel.quantita)||1)>1?(" · "+pezzoSel.quantita+" disponibili"):""}.</span>
+                  {(Number(pezzoSel.quantita)||1)>1 && <span style={{display:"inline-flex",alignItems:"center",gap:6,fontWeight:600}}>Lastre da impegnare:
+                    <input type="number" min="1" max={pezzoSel.quantita} value={qtaPrel}
+                      onChange={e=>setQtaPrel(Math.min(Number(pezzoSel.quantita)||1, Math.max(1, Number(e.target.value)||1)))}
+                      style={{width:70,padding:"5px 7px",border:"1px solid var(--line)",borderRadius:7}}/></span>}
+                  <span className="muted" style={{fontSize:12}}>L'avanzo lo registri col <b>Rientro</b> a fine lavoro.</span>
+                </div>}
               </div>
             : <>
               <div className="section">

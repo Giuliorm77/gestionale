@@ -63,6 +63,7 @@
   .nav-promo{display:inline-flex;align-items:center;}
   .nav-promo .ico{color:#C9A96B;}
   .cart-btn{margin-left:auto;position:relative;background:var(--blu);color:#fff;border:none;border-radius:9px;padding:9px 15px;font-weight:700;font-size:13px;}
+  .cart-imp{margin-left:8px;padding-left:8px;border-left:1px solid rgba(255,255,255,.35);font-weight:800;white-space:nowrap;}
   .cart-badge{position:absolute;top:-6px;right:-6px;background:var(--sand);color:#1a1300;border-radius:20px;font-size:11px;font-weight:800;min-width:18px;height:18px;display:grid;place-items:center;padding:0 4px;}
   .band-panna{height:10px;background:var(--paper);}
   @media(max-width:820px){.search{display:none;}}
@@ -651,7 +652,8 @@ function App(){
           </nav>
           <button className="aiuto-btn" onClick={()=>setAiutoOpen(true)}><Ico n="help" s={18} style={{marginRight:6}}/>Hai bisogno di aiuto?</button>
           <button className="cart-btn" onClick={()=>setVista("carrello")}><Ico n="cart" s={18} style={{marginRight:6}}/>Carrello
-            {nPezzi>0 && <span className="cart-badge">{nPezzi}</span>}</button>
+            {cart.length>0 && <span className="cart-imp">{eur(conIva(cart.reduce((t,r)=>t+(Number(r.prezzo_totale)||0),0),iva))}</span>}
+            {cart.length>0 && <span className="cart-badge" title={nPezzi+" pezzi in totale"}>{cart.length}</span>}</button>
         </div>
       </header>
       <div className="band-panna"></div>

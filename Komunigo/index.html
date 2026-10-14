@@ -91,6 +91,12 @@
   .cat h4{font-family:var(--disp);text-transform:uppercase;font-size:21px;margin:0 0 6px;letter-spacing:.01em;}
   .cat p{font-size:14px;color:var(--ink-soft);margin:0;line-height:1.4;}
   .pack-pg{max-width:1100px;margin:10px auto 40px;}
+  .consegna{display:inline-flex;flex-wrap:wrap;align-items:center;gap:0 4px;font-size:14px;color:var(--ink);}
+  .consegna b{color:var(--ink);}
+  .consegna-n{flex-basis:100%;font-size:12px;color:var(--ink-soft);margin-left:23px;}
+  .badge-verifica{display:flex;align-items:center;gap:9px;margin-top:12px;padding:9px 12px;border-radius:12px;background:#e8f6ee;border:1px solid #b9e2c9;color:#17663a;font-size:13px;line-height:1.35;}
+  .badge-verifica b{color:#0f5a30;}
+  .badge-verifica .ico{color:#1e8a4c;flex:0 0 auto;}
   .ph-ico{color:#b7a27a;opacity:.85;}
   .pack-ph{color:var(--blu);}
   .cat .ic{color:var(--blu);}
@@ -482,6 +488,16 @@ const sb=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_ANON_KEY);
 const IVA=0.22;
 const eur=n=>(Number(n)||0).toLocaleString("it-IT",{style:"currency",currency:"EUR"});
 // data stimata = oggi + N giorni LAVORATIVI (salta sabato e domenica)
+// consegna: giorni di lavorazione + corriere (giorni lavorativi)
+const GG_CORRIERE=2;
+function Consegna({g}){
+  const n=Number(g)||0; if(!(n>0)) return null;
+  return <span className="consegna"><Ico n="truck" s={17} className="ico-t"/>Ricevi entro <b>{dataStimata(n+GG_CORRIERE)}</b>
+    <span className="consegna-n">produzione {n} gg lavorativi + corriere {GG_CORRIERE} gg · se approvi la bozza oggi</span></span>;
+}
+function BadgeVerifica(){
+  return <div className="badge-verifica"><Ico n="ok" s={17} sw={1.9}/><span><b>Verifica file gratuita</b> — controlliamo il tuo file e ti mandiamo la bozza prima di stampare</span></div>;
+}
 const dataStimata=(giorni)=>{ let n=Math.max(0,Number(giorni)||0); const d=new Date(); while(n>0){ d.setDate(d.getDate()+1); const w=d.getDay(); if(w!==0&&w!==6) n--; } return d.toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"}); };
 
 const CART_KEY="komunigo_cart";
@@ -989,11 +1005,14 @@ function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureInizial
   const invalida=()=>{ setRighe(null); setStato(""); setErrMsg(""); };
   const body=q=>({prodotto_id:prod.id, variante_id:variante, quantita:Number(q), scatola:{A:Number(A),B:Number(B),H:Number(H),lati:Number(lati)}});
   const elenco=()=>{ const ql=Math.floor(Number(qtaLibera)||0); return [...new Set([...tiers,...(ql>0?[ql]:[])])].sort((a,b)=>a-b); };
+  const reqS=React.useRef(0);
   const calcola=async()=>{
-    setStato("calcolo"); setRighe(null); setErrMsg("");
+    const mio=++reqS.current;
+    setStato("calcolo"); setErrMsg("");
     try{
       const qs=elenco();
       const res=await Promise.all(qs.map(q=>sb.functions.invoke("hyper-endpoint",{body:body(q)}).then(r=>({q,data:r.data,error:r.error}))));
+      if(mio!==reqS.current) return;   // nel frattempo è cambiato qualcosa: vale il calcolo più recente
       const ok=res.filter(x=>!x.error && x.data && !x.data.error && Number(x.data.prezzo_totale)>0 && !x.data.sotto_costo);
       if(!ok.length){
         let msg="";
@@ -1005,6 +1024,12 @@ function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureInizial
       setStato("");
     }catch(e){ setErrMsg(e.message||String(e)); setStato("errore"); }
   };
+  // prezzo AUTOMATICO: ricalcola poco dopo ogni modifica (niente pulsante)
+  useEffect(()=>{
+    if(!variante || !(Number(A)>0&&Number(B)>0&&Number(H)>0)) return;
+    const tm=setTimeout(()=>{ calcola(); },550);
+    return ()=>clearTimeout(tm);
+  },[variante,A,B,H,lati,qtaLibera]);
   const sel=righe && righe.find(r=>r.q===Number(qta));
   const prezzo=sel&&sel.res;
   const unit0=righe&&righe.length? Number(righe[0].res.prezzo_unitario):0;
@@ -1072,17 +1097,18 @@ function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureInizial
           {stato==="errore" && <div className="warn" style={{marginTop:14}}><b>Prezzo non disponibile.</b> {errMsg}</div>}
           {prezzo && d && <div className="muted" style={{fontSize:12.5,marginTop:10}}>
             Foglio steso {d.sviluppo.map(s=>`${s.nome.toLowerCase()} ${s.l}×${s.h} mm`).join(" + ")} · {d.taglio==="fustella"?"taglio a fustella":"taglio a plotter"}</div>}
+          {prezzo && <BadgeVerifica/>}
           {prezzo && <div className="cart-tot" style={{marginTop:12}}>
             {Number(prezzo.sconto_pct)>0 && <div className="r" style={{color:"var(--blu)",fontWeight:700}}><span>Sconto riservato B2B</span><span>−{prezzo.sconto_pct}%</span></div>}
             <div className="r"><span>Prezzo a scatola</span><span>{eur(conIva(prezzo.prezzo_unitario,iva))}</span></div>
             <div className="r big"><span>Totale ({Number(qta).toLocaleString("it-IT")} pz) <span className="iva-tag">{ivaLbl(iva)}</span></span><span>{eur(conIva(prezzo.prezzo_totale,iva))}</span></div></div>}
-          {Number(prod.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}><Ico n="truck" s={16} className="ico-t"/>Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b></div>}
+          {Number(prod.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}><Consegna g={prod.giorni_lavorazione}/></div>}
           <div className="note" style={{marginTop:12}}><Ico n="ruler" s={16} className="ico-t"/>Scarica il <b>tracciato</b> con le tue misure, impagina la grafica (3 mm di abbondanza oltre il taglio) e caricala dopo l'ordine: ti mandiamo la <b>bozza da approvare</b> prima della produzione.</div>
         </div>
         <div className="mf">
           {prezzo
             ? <button className="btn" onClick={aggiungi}>Aggiungi al carrello</button>
-            : <button className="btn" onClick={calcola} disabled={stato==="calcolo"}>{stato==="calcolo"?"Calcolo…":"Calcola prezzi"}</button>}
+            : <button className="btn" onClick={calcola} disabled={stato==="calcolo"}>{stato==="calcolo"?"Calcolo…":"Aggiorna prezzo"}</button>}
           {righe && <button className="btn ghost" onClick={calcola}>Ricalcola</button>}
           <button className="btn ghost" onClick={chiudi}>Annulla</button>
         </div>
@@ -1669,9 +1695,10 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida, iva,
           </div>}
 
           {Number(prod.giorni_lavorazione)>0
-            ? <div className="muted" style={{fontSize:13,marginTop:10}}><Ico n="truck" s={16} className="ico-t"/>Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {prod.giorni_lavorazione} gg lavorativi + spedizione)</span></div>
+            ? <div className="muted" style={{fontSize:13,marginTop:10}}><Consegna g={prod.giorni_lavorazione}/></div>
             : (tipo==="articolo" && disp>0 && <div className="muted" style={{fontSize:13,marginTop:10}}><Ico n="truck" s={16} className="ico-t"/><b>Pronto</b> per la spedizione</div>)}
 
+          <BadgeVerifica/>
           <div style={{marginTop:14}}><BarraFiducia compact/></div>
 
           {scheda.template_path && <div className="pdp-template">
@@ -1839,7 +1866,8 @@ function AbbigliamentoDettaglio({capo, addCart, onBack, profilo, vaiGuida, iva, 
             <span className="muted" style={{fontSize:13}}>capo neutro · stampa a parte{capo.minimo?` · minimo ${capo.minimo} pz`:""}</span>
             <button className="add" disabled={!colori||!colori.length} onClick={()=>setCfgOpen(true)}>Personalizza e ordina</button>
           </div>
-          {Number(capo.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:10}}><Ico n="truck" s={16} className="ico-t"/>Spedizione stimata: <b>{dataStimata(capo.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {capo.giorni_lavorazione} gg lavorativi + spedizione)</span></div>}
+          {Number(capo.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:10}}><Consegna g={capo.giorni_lavorazione}/></div>}
+          <BadgeVerifica/>
           <div style={{marginTop:14}}><BarraFiducia compact/></div>
           {vaiGuida && <p className="muted" style={{fontSize:13,marginTop:12}}><Ico n="doc" s={16} className="ico-t"/>Come preparare il file? <button className="lnk" onClick={vaiGuida}>Leggi le linee guida di stampa →</button></p>}
         </div>
@@ -1878,15 +1906,24 @@ function ConfiguratoreAbbigliamento({capo, colori, colInit, chiudi, addCart, iva
   const stArr=()=>Object.keys(stSel).filter(id=>stSel[id]>0).map(id=>({stampa_id:id, colori:stSel[id]}));
   const cNome=(colori.find(c=>c.codice_colore===col)||{}).colore||col;
   const abbCfg=()=>({fornitore:capo.fornitore, codice:capo.codice, colore:col, colore_nome:cNome, taglie:righeT});
+  const reqA=React.useRef(0);
   const calcola=async()=>{
-    setStato("calcolo"); setPrezzo(null); setErrMsg("");
+    const mio=++reqA.current;
+    setStato("calcolo"); setErrMsg("");
     try{
       const {data,error}=await sb.functions.invoke("hyper-endpoint",{body:{prodotto_id:capo.modello_stampa_id, abbigliamento:abbCfg(), stampe:stArr()}});
+      if(mio!==reqA.current) return;
       if(error) throw error;
       if(!data || data.error) throw new Error((data&&data.error)||"Calcolo non riuscito");
       setPrezzo(data); setStato("");
     }catch(e){ setStato("errore"); setErrMsg(e.message||String(e)); }
   };
+  // prezzo AUTOMATICO all'ultimo passo, ricalcolato a ogni modifica di colore/taglie/stampa
+  useEffect(()=>{
+    if(step!==ultimo || !(N>0) || N<minimo) return;
+    const tm=setTimeout(()=>{ calcola(); },550);
+    return ()=>clearTimeout(tm);
+  },[step, col, JSON.stringify(qta), JSON.stringify(stSel)]);
   const prezzoOk=prezzo && Number(prezzo.prezzo_totale)>0 && !prezzo.sotto_costo;
   const aggiungi=()=>{
     if(!prezzoOk) return;
@@ -1950,9 +1987,10 @@ function ConfiguratoreAbbigliamento({capo, colori, colInit, chiudi, addCart, iva
               </div>); })}
           </div>; })()}
           {step===ultimo && <>
-            {Number(capo.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}><Ico n="truck" s={16} className="ico-t"/>Spedizione stimata: <b>{dataStimata(capo.giorni_lavorazione)}</b></div>}
+            {Number(capo.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}><Consegna g={capo.giorni_lavorazione}/></div>}
             <div className="note" style={{marginTop:12}}><Ico n="clip" s={16} className="ico-t"/>Dopo l'ordine carichi il logo e ricevi la <b>bozza di stampa da approvare</b> prima della produzione.</div>
             {stato==="errore" && <div className="warn" style={{marginTop:14}}><b>Prezzo non disponibile.</b> {errMsg} — scrivici a <a href="mailto:info@komunigo.it">info@komunigo.it</a>.</div>}
+            {prezzoOk && <BadgeVerifica/>}
             {prezzoOk && <div className="cart-tot" style={{marginTop:14}}>
               {d && <>
                 <div className="r"><span>Capi ({N} pz · {(d.taglie||[]).map(t=>t.taglia+"×"+t.qta).join(", ")})</span><span>{eur(conIva(d.prodotto,iva))}</span></div>
@@ -2018,12 +2056,15 @@ function Configuratore({prod,chiudi,addCart,iva,setIva}){
     : { prodotto_id:prod.id, variante_id:variante, larghezza_cm:Number(larg)/10, altezza_cm:Number(alt)/10, quantita:Number(q), opzioni:Object.keys(opzioni).filter(k=>opzioni[k]),
         ...(isStampa?{st_macchina:stMacchina, st_fmt:stFmt, st_colore:stColore, st_fr:stFr}:{}) };
 
+  const reqC=React.useRef(0);
   const calcola=async()=>{
-    setStato("calcolo"); setPrezzo(null); setTiers(null);
+    const mio=++reqC.current;
+    setStato("calcolo");
     try{
       if(shopQta.length){
         // calcola il prezzo per ogni scaglione e mostra la tabella (più ne ordini, meno costa)
         const res=await Promise.all(shopQta.map(q=>sb.functions.invoke("hyper-endpoint",{body:bodyFor(q)}).then(r=>({q,data:r.data,error:r.error})).catch(e=>({q,error:e}))));
+        if(mio!==reqC.current) return;
         const rows=res.filter(x=>!x.error && x.data && Number(x.data.prezzo_totale)>0 && !x.data.sotto_costo)
           .map(x=>({qta:x.q, res:x.data, unit:Number(x.data.prezzo_unitario)||0, tot:Number(x.data.prezzo_totale)||0}));
         if(!rows.length){ setStato("errore"); return; }
@@ -2034,6 +2075,7 @@ function Configuratore({prod,chiudi,addCart,iva,setIva}){
         setQta(sel.qta); setPrezzo(sel.res); setStato("");
       }else{
         const {data,error}=await sb.functions.invoke("hyper-endpoint",{body:bodyFor(qta)});
+        if(mio!==reqC.current) return;
         if(error) throw error;
         setPrezzo(data); setStato("");
       }
@@ -2045,6 +2087,14 @@ function Configuratore({prod,chiudi,addCart,iva,setIva}){
   const [step,setStep]=useState(1);
   const hasStampe = gadget && stampe.length>0;
   const nextStep=()=>setStep(s=> s===1? (hasStampe?2:3) : 3);
+  // prezzo AUTOMATICO: ricalcola poco dopo ogni modifica (per i gadget all'ultimo passo)
+  useEffect(()=>{
+    if(gadget && step!==3) return;
+    if(!gadget && !(Number(larg)>0 && Number(alt)>0)) return;
+    if(!shopQta.length && !(Number(qta)>0)) return;
+    const tm=setTimeout(()=>{ calcola(); },550);
+    return ()=>clearTimeout(tm);
+  },[step, variante, larg, alt, shopQta.length?0:qta, JSON.stringify(opzioni), JSON.stringify(stSel), stMacchina, stFmt, stColore, stFr]);
   const prevStep=()=>setStep(s=> s===3? (hasStampe?2:1) : 1);
 
   const prezzoOk = prezzo && Number(prezzo.prezzo_totale) > 0 && !prezzo.sotto_costo
@@ -2139,10 +2189,11 @@ function Configuratore({prod,chiudi,addCart,iva,setIva}){
             {voci.map(v=>(<label key={v.id}><input type="checkbox" checked={!!opzioni[v.id]}
               onChange={e=>{setOpzioni(o=>({...o,[v.id]:e.target.checked}));setPrezzo(null);}}/>{v.descrizione}</label>))}
           </div>}
-          {(!gadget||step===3) && Number(prod.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}><Ico n="truck" s={16} className="ico-t"/>Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {prod.giorni_lavorazione} gg lavorativi + spedizione)</span></div>}
+          {(!gadget||step===3) && Number(prod.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}><Consegna g={prod.giorni_lavorazione}/></div>}
           {(!gadget||step===3) && <div className="note" style={{marginTop:12}}><Ico n="clip" s={16} className="ico-t"/>Dopo l'ordine carichi il file grafico e ricevi la <b>bozza di stampa da approvare</b> prima della produzione.</div>}
           {stato==="errore" && <div className="warn" style={{marginTop:14}}>
             <b>Motore prezzi non ancora collegato.</b> Serve la Edge Function <code>prezzo-configuratore</code>. Fino ad allora il preventivo si fa dal gestionale.</div>}
+          {(!gadget||step===3) && prezzoOk && <BadgeVerifica/>}
           {(!gadget||step===3) && prezzoOk && <div className="cart-tot" style={{marginTop:14}}>
             {Number(prezzo.sconto_pct)>0 && <>
               <div className="r"><span>Prezzo di listino</span><span className="listino-old" style={{marginLeft:0}}>{eur(conIva(prezzo.prezzo_listino_totale,iva))}</span></div>

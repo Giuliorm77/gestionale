@@ -8080,19 +8080,10 @@ function DDTEditor({ddt,commessaId,profilo,perm,onClose,onSalvato}){
     await sb.from("ddt_righe").delete().eq("ddt_id",ddtId);
     if(righe.length){ const rr=righe.map((r,idx)=>({ddt_id:ddtId,ordine:idx,descrizione:r.descrizione||"",articolo_id:r.articolo_id||null,quantita:Number(r.quantita)||0,unita:r.unita||"",commessa_riga_id:r.commessa_riga_id||null}));
       const {error}=await sb.from("ddt_righe").insert(rr); if(error){ setErr(error.message); setBusy(false); return; } }
-    // all'EMISSIONE (solo la prima volta): segna consegnate le righe di commessa spedite
+    // all'EMISSIONE (solo la prima volta): segna consegnate le righe di commessa spedite.
+    // NB: il DDT NON scarica la giacenza — la merce è già uscita dal magazzino al PRELIEVO.
     if(emesso && (!ddt || ddt.stato!=="emesso")){
-      // tipo materiale degli articoli spediti (le LASTRE non scaricano la giacenza sfusa: sono a pezzi)
-      let matTipo={};
-      try{ const aids=[...new Set(righe.map(r=>r.articolo_id).filter(Boolean))];
-        if(aids.length){ const {data:aa}=await sb.from("articoli_magazzino").select("id,materiale_tipo").in("id",aids);
-          (aa||[]).forEach(a=>matTipo[a.id]=a.materiale_tipo||""); } }catch(e){}
       for(const r of righe){
-        // SCARICO giacenza della merce spedita (prodotti a pezzo, non lastre)
-        if(r.articolo_id && (Number(r.quantita)||0)>0 && matTipo[r.articolo_id]!=="lastra"){
-          try{ await sb.from("movimenti_magazzino").insert({articolo_id:r.articolo_id, tipo:"scarico",
-            quantita:Number(r.quantita)||0, causale:"Consegna (DDT)", riferimento:"DDT "+(f.numero||""), creato_da:profilo.id}); }catch(e){}
-        }
         if(!r.commessa_riga_id) continue;
         const {data:cr}=await sb.from("commesse_righe").select("quantita,quantita_consegnata").eq("id",r.commessa_riga_id).maybeSingle();
         if(cr){ const nc=(Number(cr.quantita_consegnata)||0)+(Number(r.quantita)||0), tot=Number(cr.quantita)||0;
@@ -12196,6 +12187,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     setConsumi(p=>{ const esistenti=new Set(p.map(c=>c.articolo_id)); return [...p, ...sugg.filter(s=>!esistenti.has(s.articolo_id))]; });
   }
   const daScaricare=consumi.filter(c=>!c.scaricato && c.articolo_id && (Number(c.quantita)||0)>0);
+  // quanto è stato PRELEVATO (scaricato) dal magazzino per ogni articolo → per il WIP "in produzione"
+  const prelevatoByArt=React.useMemo(()=>{ const m={}; (consumi||[]).forEach(c=>{ if(c.articolo_id && c.scaricato) m[c.articolo_id]=(m[c.articolo_id]||0)+(Number(c.quantita)||0); }); return m; },[consumi]);
 
   async function scaricaMagazzino(){
     if(nuova || !commessa?.id){ setErr("Salva prima la commessa, poi scarica i materiali."); return; }
@@ -12747,10 +12740,16 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                       <td><input type="number" step="0.01" value={r.quantita} onChange={e=>setRiga(i,"quantita",e.target.value)}
                         style={{width:72,padding:"6px",border:"1px solid var(--line)",borderRadius:7,textAlign:"right"}}/>
                         {(()=>{ const qT=Number(r.quantita)||0, qC=Number(r.quantita_consegnata)||0, qR=Math.round((qT-qC)*100)/100;
-                          if(qC<=0) return null;
-                          return qR>0.0001
-                            ? <div style={{fontSize:11,marginTop:3,color:"#b26a00",fontWeight:600,whiteSpace:"nowrap"}} title="Consegnato finora / ancora da consegnare (aggiornato dai DDT)">✔ {qC} · ⏳ mancano {qR}</div>
-                            : <div style={{fontSize:11,marginTop:3,color:"#127a3e",fontWeight:600,whiteSpace:"nowrap"}} title="Interamente consegnato">✔ consegnato tutto</div>;
+                          const qP=r.articolo_id?(Number(prelevatoByArt[r.articolo_id])||0):0;   // prelevato dal magazzino
+                          const inProd=Math.round(Math.max(0,qP-qC)*100)/100;                     // prelevato ma non consegnato
+                          const daPrel=Math.round(Math.max(0,qT-qP)*100)/100;                     // ancora da prelevare (riservato)
+                          if(qC<=0 && qP<=0) return null;
+                          return <div style={{fontSize:11,marginTop:3,whiteSpace:"nowrap"}}>
+                            {qR>0.0001
+                              ? <div style={{color:"#b26a00",fontWeight:600}} title="Consegnato finora / ancora da consegnare (dai DDT)">✔ {qC} · ⏳ mancano {qR}</div>
+                              : <div style={{color:"#127a3e",fontWeight:600}} title="Interamente consegnato">✔ consegnato tutto</div>}
+                            {qP>0 && <div className="muted" style={{fontWeight:500}} title="Prelevato dal magazzino · in produzione (prelevato−consegnato) · da prelevare (ordinato−prelevato)">⬇ prel. {Math.round(qP*100)/100}{inProd>0?` · 🏭 in prod. ${inProd}`:""}{daPrel>0?` · 📦 da prel. ${daPrel}`:""}</div>}
+                          </div>;
                         })()}</td>
                       <td><input value={r.unita||""} onChange={e=>setRiga(i,"unita",e.target.value)}
                         style={{width:72,padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></td>

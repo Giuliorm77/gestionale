@@ -9961,6 +9961,53 @@ function OrdineShopDettaglio({ordine,righe,files,commessa,perm,profilo,stati,onS
     setUrls(m);
   })(); },[ordine.id, files.length]);
 
+  // ---- ABBIGLIAMENTO dal catalogo fornitore: ordine dei capi NEUTRI a New Wave ----
+  // Un solo ordine fornitore (bozza) con una riga per SKU (colore+taglia), quantità sommate
+  // su tutte le righe dell'ordine, prezzo = netto del catalogo fornitore.
+  const righeAbb=(righe||[]).filter(r=>r.config && r.config.abbigliamento && Array.isArray(r.config.abbigliamento.taglie));
+  const [ofBusy,setOfBusy]=useState(false);
+  const [ofMsg,setOfMsg]=useState("");
+  async function generaOrdineNewWave(){
+    setOfBusy(true); setOfMsg("");
+    try{
+      const rif="Ordine Komunigo "+ordine.numero;
+      const {data:esist}=await sb.from("ordini_fornitore").select("numero").eq("riferimento",rif);
+      if(esist&&esist.length && !window.confirm("Per questo ordine esiste già l'ordine fornitore "+esist.map(x=>x.numero).join(", ")+". Crearne un altro?")){ setOfBusy(false); return; }
+      const m=new Map();
+      righeAbb.forEach(r=>{ const a=r.config.abbigliamento;
+        (a.taglie||[]).forEach(t=>{ const k=(a.fornitore||"newwave")+"|"+t.sku;
+          const x=m.get(k)||{fornitore:a.fornitore||"newwave", sku:t.sku, codice:a.codice, colore:a.colore_nome||a.colore||"", taglia:t.taglia||"", qta:0};
+          x.qta+=Number(t.qta)||0; m.set(k,x); }); });
+      const items=[...m.values()].filter(x=>x.qta>0);
+      if(!items.length) throw new Error("Nessuna taglia da ordinare.");
+      const [sk,pp,fs,tutti]=await Promise.all([
+        sb.from("catalogo_fornitore_sku").select("sku,prezzo_netto,ean").eq("fornitore","newwave").in("sku",items.map(x=>x.sku)),
+        sb.from("catalogo_fornitore_prodotti").select("codice,nome").eq("fornitore","newwave").in("codice",[...new Set(items.map(x=>x.codice))]),
+        sb.from("fornitori").select("id,ragione_sociale").ilike("ragione_sociale","%new wave%").limit(1),
+        sb.from("ordini_fornitore").select("numero"),
+      ]);
+      const skMap={}; (sk.data||[]).forEach(x=>skMap[x.sku]=x);
+      const nomi={}; (pp.data||[]).forEach(x=>nomi[x.codice]=x.nome);
+      const forn=(fs.data||[])[0]||null;
+      const totale=Math.round(items.reduce((t,x)=>t+x.qta*(Number(skMap[x.sku]&&skMap[x.sku].prezzo_netto)||0),0)*100)/100;
+      const rec={numero:prossimoNumeroOF(tutti.data||[]), fornitore_id:forn?forn.id:null, fornitore_nome:forn?forn.ragione_sociale:"New Wave Italia s.r.l.",
+        data:new Date().toISOString().slice(0,10), data_prevista:null, stato:"bozza", riferimento:rif, commessa_id:ordine.commessa_id||null,
+        note:"Capi NEUTRI per l'ordine Komunigo "+ordine.numero+" ("+(ordine.cliente_nome||"cliente e-commerce")+"). Codici = SKU New Wave.",
+        totale, creato_da:profilo.id, aggiornato_il:new Date().toISOString()};
+      const {data:of,error}=await sb.from("ordini_fornitore").insert(rec).select("id,numero").single();
+      if(error) throw error;
+      const rows=items.map((x,i)=>{ const k=skMap[x.sku]||{};
+        return {ordine_id:of.id, ordine:i, articolo_id:null,
+          descrizione:x.sku+" · "+(nomi[x.codice]||x.codice)+" · "+x.colore+" · taglia "+x.taglia,
+          quantita:x.qta, unita:"pz", prezzo_unitario:Number(k.prezzo_netto)||0, prezzo_verificato:k.prezzo_netto!=null,
+          quantita_ricevuta:0, note:(k.ean?"EAN "+k.ean:"")}; });
+      const {error:e2}=await sb.from("ordini_fornitore_righe").insert(rows);
+      if(e2) throw e2;
+      setOfMsg("✅ Ordine fornitore "+of.numero+" creato in bozza: "+items.length+" righe ("+items.reduce((t,x)=>t+x.qta,0)+" capi, "+eur(totale)+" netti)"+(forn?"":" — ⚠ New Wave non trovato in anagrafica fornitori: collegalo nell'ordine")+". Aprilo in «🛒 Ordini fornitori» per controllarlo e inviarlo.");
+    }catch(ex){ setOfMsg("Errore: "+(ex.message||ex)); }
+    setOfBusy(false);
+  }
+
   async function generaCommessa(){
     if(commFatta && !window.confirm("Questo ordine ha già una commessa collegata. Vuoi generarne un'altra?")) return;
     if(ordine.bozza_stato && ordine.bozza_stato!=="approvata"){ setGenMsg("Prima serve l'approvazione della bozza grafica dal cliente."); return; }
@@ -10070,6 +10117,12 @@ function OrdineShopDettaglio({ordine,righe,files,commessa,perm,profilo,stati,onS
                 </div>}
               </>}
           {genMsg && <div className={"banner "+(genMsg.startsWith("Errore")?"err":"info")} style={{marginTop:8}}>{genMsg}</div>}
+          {righeAbb.length>0 && perm.scrivi && <div style={{marginTop:12,padding:14,borderRadius:10,background:"#f6f1ff",border:"1px solid #d8c8f5",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+            <div style={{flex:1,minWidth:220,fontSize:13}}>👕 <b>Capi da ordinare a New Wave</b> (neutri):{" "}
+              {righeAbb.map(r=>{ const a=r.config.abbigliamento; return (a.colore_nome||a.colore)+" "+(a.taglie||[]).map(t=>t.taglia+"×"+t.qta).join(", "); }).join(" · ")}</div>
+            <button type="button" className="btn primary" disabled={ofBusy} onClick={generaOrdineNewWave}>{ofBusy?"Creo…":"🚚 Ordine a New Wave"}</button>
+          </div>}
+          {ofMsg && <div className={"banner "+(ofMsg.startsWith("Errore")?"err":"info")} style={{marginTop:8}}>{ofMsg}</div>}
 
           <div className="section">
             <h3>Prodotti e file caricati</h3>

@@ -10,6 +10,11 @@ il testo della tecnica corrispondente.
 
 Stato: raccolta in corso (Giulio fornisce i testi, uno alla volta).
 
+**Sul negozio (2026-10-14):** i testi sono in `Komunigo/index.html` → `TECNICHE_INFO` (versione con refusi corretti:
+"un'incisione", "Questa", "Con l'utilizzo di telai…"). "Punciatura" è il termine tecnico corretto del
+ricamo, NON un refuso. Accanto al badge della tecnica nel configuratore compare "ⓘ Cos'è?".
+Se si cambia un testo qui, aggiornarlo anche lì.
+
 ---
 
 ## Stampa digitale

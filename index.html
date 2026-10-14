@@ -1538,7 +1538,7 @@ function DettaglioLavorazioneOp({commessa,onClose}){
   useEffect(()=>{ let vivo=true;
     Promise.all([
       sb.from("commesse").select("numero,cliente_nome,data_consegna,priorita,riferimento,note,prodotto,stato,avviso_produzione,avviso_il, commesse_righe(*), commesse_fasi(*)").eq("id",commessa.id).maybeSingle(),
-      sb.from("magazzino_pezzi_op").select("codice,nome_articolo,larghezza_cm,altezza_cm,spessore_mm,mq,stato,ubicazione").eq("commessa_id",commessa.id).order("codice"),
+      sb.from("magazzino_pezzi_op").select("codice,articolo_id,nome_articolo,larghezza_cm,altezza_cm,spessore_mm,mq,stato,ubicazione").eq("commessa_id",commessa.id).order("codice"),
       sb.from("imballi").select("*, imballi_voci(*)"),
     ]).then(async ([cm,pz,imb])=>{ if(!vivo) return; if(cm.error){setErr(cm.error.message);return;} setC(cm.data); setPezzi(pz.data||[]); setImballi((imb&&imb.data)||[]);
       const ids=[...new Set((cm.data&&cm.data.commesse_righe||[]).map(r=>r.articolo_id).filter(Boolean))];
@@ -1553,6 +1553,7 @@ function DettaglioLavorazioneOp({commessa,onClose}){
   const mis=r=>{ const m=r&&r.config&&r.config.mis; return m&&(m.L||m.H)?[m.L,m.H].filter(Boolean).map(_mm).join("×")+" mm":""; };
   const misP=p=>[p.larghezza_cm,p.altezza_cm].filter(v=>v!=null&&v!=="").map(_mm).join("×");
   const STLP={uscito:"in lavorazione",in_magazzino:"a magazzino",consumato:"consumato",perso:"perso"};
+  const preparatiSet=new Set((pezzi||[]).filter(p=>["uscito","rientrato"].includes(p.stato)).map(p=>p.articolo_id).filter(Boolean));
   async function stampaScheda(){
     if(!c) return; let az={};
     try{ const {data}=await sb.from("impostazioni").select("azienda_nome").eq("id",1).maybeSingle(); az=data||{}; }catch(e){}
@@ -1570,6 +1571,12 @@ function DettaglioLavorazioneOp({commessa,onClose}){
         {!c ? <div className="empty">Caricamento…</div>
           : <>
               <div className="muted" style={{fontSize:13,marginBottom:10}}>📅 Consegna: <b>{fmt(c.data_consegna)}</b>{c.riferimento?" · rif. "+c.riferimento:""}</div>
+              {(()=>{ const mr=(c.commesse_righe||[]).filter(r=>r.articolo_id); if(!mr.length) return null;
+                const pronti=mr.filter(r=>preparatiSet.has(r.articolo_id)).length; const manca=mr.length-pronti;
+                return <div style={{margin:"0 0 10px",padding:"8px 12px",borderRadius:8,border:"1px solid "+(manca>0?"#f0d8a8":"#bfe6cd"),background:manca>0?"#fff8ec":"#f1faf4",fontSize:13}}>
+                  📦 <b>Materiale dal magazzino:</b> {pronti}/{mr.length} pronti{manca>0?<span style={{color:"#8a6d00",fontWeight:700}}> · ⏳ {manca} ancora da preparare</span>:<span style={{color:"#127a3e",fontWeight:700}}> · tutto pronto ✓</span>}
+                  {manca>0 && <div className="muted" style={{fontSize:12,marginTop:2}}>Gli articoli "in attesa" non sono ancora stati preparati dal magazzino — vedi la colonna <b>Materiale</b> qui sotto (non serve chiedere al magazzino).</div>}
+                </div>; })()}
               {(c.avviso_produzione||"").trim() && <div style={{margin:"0 0 10px",padding:"10px 12px",background:"#fdecec",border:"2px solid #e3342f",borderRadius:9}}>
                 <div style={{fontWeight:800,color:"#c0392b",fontSize:14,marginBottom:3}}>🚨 VARIAZIONE / DISDETTA — leggere prima di produrre</div>
                 <div style={{whiteSpace:"pre-wrap",fontSize:13}}>{c.avviso_produzione}</div></div>}
@@ -1579,7 +1586,7 @@ function DettaglioLavorazioneOp({commessa,onClose}){
               </div>
               <h3 style={{margin:"6px 0"}}>Articoli da produrre</h3>
               {(c.commesse_righe||[]).length===0 ? <div className="muted" style={{fontSize:13}}>Nessun articolo indicato.</div>
-                : <div style={{overflowX:"auto"}}><table><thead><tr><th>Descrizione</th><th>Q.tà</th><th>Misure</th><th>Consegna</th><th>Stato</th></tr></thead>
+                : <div style={{overflowX:"auto"}}><table><thead><tr><th>Descrizione</th><th>Q.tà</th><th>Misure</th><th>Materiale</th><th>Consegna</th><th>Stato</th></tr></thead>
                     <tbody>{(c.commesse_righe||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0)).map(r=><tr key={r.id}>
                       <td className="rs"><div style={{display:"flex",alignItems:"center",gap:8}}>
                         {fotoMap[r.articolo_id] && <img src={fotoMap[r.articolo_id]} alt="" style={{width:40,height:40,borderRadius:6,objectFit:"cover",border:"1px solid var(--line)",flexShrink:0,cursor:"pointer"}} onClick={()=>window.open(fotoMap[r.articolo_id],"_blank")}/>}
@@ -1587,6 +1594,10 @@ function DettaglioLavorazioneOp({commessa,onClose}){
                       </div></td>
                       <td>{r.quantita}{r.unita?" "+r.unita:""}</td>
                       <td>{mis(r)||"—"}</td>
+                      <td>{!r.articolo_id ? <span className="muted">—</span>
+                        : preparatiSet.has(r.articolo_id)
+                          ? <span className="tag" style={{background:"#e6f4ee",color:"#127a3e",fontWeight:700}}>✓ pronto</span>
+                          : <span className="tag" style={{background:"#fff4e5",color:"#8a6d00",fontWeight:700}}>⏳ in attesa</span>}</td>
                       <td className="muted">{fmt(r.data_consegna)}</td>
                       <td>{String(r.stato||"").replace("_"," ")||"—"}</td>
                     </tr>)}</tbody></table></div>}
@@ -4861,6 +4872,7 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
   const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
   const [fatto,setFatto]=useState(null);
   const [matCommessa,setMatCommessa]=useState([]);   // materiali della commessa scelta
+  const [preparati,setPreparati]=useState(new Set()); // articolo_id già prelevati per questa commessa
   // --- modalità LASTRA: scelta del pannello fisico a scaffale ---
   const [pezziDisp,setPezziDisp]=useState(null);     // pannelli in_magazzino dell'articolo
   const [pezzoSel,setPezzoSel]=useState(null);       // pannello scelto
@@ -4897,6 +4909,9 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
         (pr||[]).forEach(daRiga);
       }
       if(!vivo) return;
+      // articoli GIÀ preparati per questa commessa (pezzi usciti/rientrati) → chip verde, evita doppioni
+      const {data:pz}=await sb.from("magazzino_pezzi_op").select("articolo_id,stato").eq("commessa_id",commessaId);
+      if(vivo) setPreparati(new Set((pz||[]).filter(p=>["uscito","rientrato"].includes(p.stato)).map(p=>p.articolo_id)));
       const ids=new Map();
       (Array.isArray(data.consumi)?data.consumi:[]).forEach(c=>{ if(c&&c.articolo_id) ids.set(c.articolo_id, {descrizione:c.descrizione||"", pagato_intero:c.pagato_intero!==false}); });
       (data.commesse_righe||[]).forEach(r=>{ if(r.articolo_id && !ids.has(r.articolo_id)) ids.set(r.articolo_id, {descrizione:r.descrizione||"", pagato_intero:true}); });
@@ -5020,6 +5035,7 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
                   <div><b>{art.nome_articolo}</b> <span className="muted">{art.codice}</span></div>
                   <button type="button" className="btn small" onClick={()=>{setArt(null);setQ("");}}>Cambia</button>
                 </div></div>
+                {preparati.has(art.id) && <div className="banner" style={{background:"#fff4e5",color:"#8a6d00",fontSize:12.5}}>⚠ Questo materiale risulta <b>già preparato</b> per questa commessa: prepararlo di nuovo crea un doppione. Procedi solo se ne serve dell'altro.</div>}
                 {matSel && <div className="banner" style={{background:pagatoScelto?"#e7f6ec":"#fdecec",color:pagatoScelto?"#127a3e":"#c0392b",fontSize:12.5}}>
                   {pagatoScelto
                     ? "💶 Deciso nel preventivo: il cliente paga l'intera lastra → l'eventuale avanzo tornerà a €0."
@@ -5031,9 +5047,13 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
                       ? <div style={{marginBottom:10}}>
                           <label style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:.03,color:"var(--muted)"}}>Materiali di questa commessa</label>
                           <div style={{display:"flex",flexWrap:"wrap",gap:6,margin:"6px 0 4px"}}>
-                            {chips.map(a=><button type="button" key={a.id} className="btn small" onClick={()=>{setArt(a);setQ("");}}>{a.nome_articolo} <span className="muted">{a.codice}</span></button>)}
+                            {chips.map(a=>{ const pronto=preparati.has(a.id);
+                              return <button type="button" key={a.id} className="btn small" onClick={()=>{setArt(a);setQ("");}}
+                                title={pronto?"Già preparato per questa commessa":"Da preparare"}
+                                style={pronto?{background:"#e6f4ee",borderColor:"#bfe6cd",color:"#127a3e",fontWeight:600}:null}>
+                                {pronto?"✓ ":""}{a.nome_articolo} <span className="muted" style={pronto?{color:"#2f9c68"}:null}>{a.codice}</span></button>; })}
                           </div>
-                          <div className="muted" style={{fontSize:12}}>oppure cerca in tutto il magazzino:</div>
+                          <div className="muted" style={{fontSize:12}}><span style={{color:"#127a3e",fontWeight:600}}>✓ verde</span> = già preparato (non rifarlo). oppure cerca in tutto il magazzino:</div>
                         </div>
                       : <div className="muted" style={{fontSize:12.5,marginBottom:8}}>Questa commessa non ha materiali di magazzino agganciati: cercalo qui sotto.</div>; })()}
                   <div className="field"><label>Cerca materiale (nome o codice)</label>

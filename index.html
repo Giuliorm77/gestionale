@@ -4883,13 +4883,18 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
     (async()=>{
       const {data}=await sb.from("commesse").select("preventivo_id, consumi, commesse_righe(articolo_id,descrizione,config)").eq("id",commessaId).maybeSingle();
       if(!vivo||!data) return;
-      // mappa articolo_id -> misura richiesta (config.mis del prodotto), da commessa e preventivo
+      // mappa articolo_id -> misura richiesta (cm). Fonti in ordine: config.mis del prodotto;
+      // ripiego: misura "LxH" scritta nella descrizione (es. "... · 500×200 cm").
       const misMap={};
-      const addMis=(aid,cfg)=>{ const m=cfg&&cfg.mis; if(aid && m && (Number(m.L)>0||Number(m.H)>0) && !misMap[aid]) misMap[aid]={L:m.L,H:m.H}; };
-      (data.commesse_righe||[]).forEach(r=>{ addMis(r.articolo_id,r.config); addMis(r.config&&r.config.articolo_id,r.config); });
+      const setMis=(aid,mis)=>{ if(aid && mis && (Number(mis.L)>0||Number(mis.H)>0) && !misMap[aid]) misMap[aid]={L:Number(mis.L)||0,H:Number(mis.H)||0}; };
+      const parseMis=(txt)=>{ const m=String(txt||"").match(/(\d+(?:[.,]\d+)?)\s*[×xX]\s*(\d+(?:[.,]\d+)?)/); if(!m) return null;
+        const L=parseFloat(m[1].replace(",",".")), H=parseFloat(m[2].replace(",",".")); return (L>0&&H>0)?{L,H}:null; };
+      const daRiga=(r)=>{ setMis(r.articolo_id,(r.config&&r.config.mis)||parseMis(r.descrizione)); setMis(r.config&&r.config.articolo_id,(r.config&&r.config.mis)); };
+      (data.commesse_righe||[]).forEach(daRiga);
+      (Array.isArray(data.consumi)?data.consumi:[]).forEach(c=>{ setMis(c.articolo_id, parseMis(c.descrizione)); });
       if(data.preventivo_id){
-        const {data:pr}=await sb.from("preventivi_righe").select("articolo_id,config").eq("preventivo_id",data.preventivo_id);
-        (pr||[]).forEach(r=>{ addMis(r.articolo_id,r.config); addMis(r.config&&r.config.articolo_id,r.config); });
+        const {data:pr}=await sb.from("preventivi_righe").select("articolo_id,descrizione,config").eq("preventivo_id",data.preventivo_id);
+        (pr||[]).forEach(daRiga);
       }
       if(!vivo) return;
       const ids=new Map();
@@ -8775,7 +8780,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     else if(cgSel.cont==="mtl"&&lung) misTxt=" · "+lung+" cm";
     else if(cgSel.cont==="tempo"&&Number(cg.min)) misTxt=" · "+Number(cg.min)+" min";
     if(cgSel.kind==="articolo"){ const a=cgSel.item;
-      aggiungiRigaInGruppo({tipo:"materiale",descrizione:a.nome_articolo+misTxt,articolo_id:a.id,lavorazione:"",quantita:q,unita:a.unita||"",costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:pc.sconto,gruppo:gruppoCorr});
+      const cfgMis=(L>0||H>0)?{mis:{L:L||lung||0,H:H||0}}:(lung>0?{mis:{L:lung,H:0}}:null);
+      aggiungiRigaInGruppo({tipo:"materiale",descrizione:a.nome_articolo+misTxt,articolo_id:a.id,lavorazione:"",quantita:q,unita:a.unita||"",costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:pc.sconto,gruppo:gruppoCorr,config:cfgMis});
     } else { const t=cgSel.item; const o=(cgSel.cont==="tempo"&&cg.op)?(operatori||[]).find(x=>x.id===cg.op):null;
       aggiungiRigaInGruppo({tipo:"manodopera",descrizione:("Manodopera "+t.lavorazione)+(o?" · "+o.nome:"")+misTxt,lavorazione:t.lavorazione,quantita:q,unita:(t.modo==="ora"?"ora":(t.modo||"")),costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:0,operatore_id:o?o.id:null,operatore_nome:o?o.nome:"",gruppo:gruppoCorr});
     }

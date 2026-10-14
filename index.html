@@ -10194,6 +10194,133 @@ function ModuloOrdiniShop({profilo,perm}){
 }
 
 /* ---- dettaglio ordine e-commerce con download file ---- */
+// =====================================================================
+//  TRACCIATO FUSTELLA delle scatole (Fase 2) — JS puro, condiviso tra
+//  negozio Komunigo e gestionale (stesso codice nei due file).
+//  Geometria in mm, origine in alto a sinistra. Ogni pezzo:
+//  {nome, w, h, cut:[[x1,y1,x2,y2]...], fold:[...], label:[{x,y,t}]}
+//  Coerente con sviluppoScatola() del motore prezzi (colla/linguette 15 mm).
+//  ⚠ Prima stesura: da verificare su un campione reale prima della produzione.
+// =====================================================================
+const TRACCIATO_MODELLI={astuccio:"Astuccio con alette a incastro",fondo_automatico:"Astuccio con fondo automatico",fondo_coperchio:"Scatola fondo e coperchio",americana:"Scatola americana (FEFCO 0201)"};
+function tracciatoScatola(modello,A,B,H,t){
+  A=Number(A)||0; B=Number(B)||0; H=Number(H)||0; t=Number(t)||0;
+  const r1=n=>Math.round(n*10)/10;
+  const nuovo=nome=>({nome,w:0,h:0,cut:[],fold:[],label:[]});
+  const seg=(arr,a,b)=>arr.push([r1(a[0]),r1(a[1]),r1(b[0]),r1(b[1])]);
+  const pl=(arr,pts)=>{ for(let i=0;i<pts.length-1;i++) seg(arr,pts[i],pts[i+1]); };
+  const lab=(p,x,y,s)=>p.label.push({x:r1(x),y:r1(y),t:s});
+
+  // ---- astucci (alette a incastro / fondo automatico) ----
+  if(modello==="astuccio"||modello==="fondo_automatico"){
+    const p=nuovo("Astuccio");
+    const Ap=A+t, Bp=B+t, Hp=H+2*t, g=15, L=15, c=4, d=Math.max(8,Math.round(Bp*0.55));
+    const X0=g, X1=X0+Ap, X2=X1+Bp, X3=X2+Ap, X4=X3+Bp, Yt=Bp+L, Yb=Yt+Hp;
+    const dust=(xa,xb,y,dir)=>{ pl(p.cut,[[xa,y],[xa+2,y+dir*(d-c)],[xa+2+c,y+dir*d],[xb-3*c,y+dir*d],[xb,y+dir*Math.round(d*0.35)],[xb,y]]); seg(p.fold,[xa,y],[xb,y]); };
+    const lid=(xa,xb,y,dir)=>{ pl(p.cut,[[xa,y],[xa,y+dir*Bp],[xa+c,y+dir*(Bp+L)],[xb-c,y+dir*(Bp+L)],[xb,y+dir*Bp],[xb,y]]); seg(p.fold,[xa,y],[xb,y]); seg(p.fold,[xa,y+dir*Bp],[xb,y+dir*Bp]); };
+    // aletta colla + pieghe verticali + bordo destro
+    pl(p.cut,[[X0,Yt],[0,Yt+8],[0,Yb-8],[X0,Yb]]);
+    [X0,X1,X2,X3].forEach(x=>seg(p.fold,[x,Yt],[x,Yb]));
+    seg(p.cut,[X4,Yt],[X4,Yb]);
+    // sopra: coperchio a incastro sul fronte (pannello 3) + alette antipolvere sui lati
+    seg(p.cut,[X0,Yt],[X1,Yt]); dust(X1,X2,Yt,-1); lid(X2,X3,Yt,-1); dust(X3,X4,Yt,-1);
+    let hTot=Yb+Bp+L;
+    if(modello==="astuccio"){   // sotto: incastro sul retro (alette alternate)
+      lid(X0,X1,Yb,1); dust(X1,X2,Yb,1); seg(p.cut,[X2,Yb],[X3,Yb]); dust(X3,X4,Yb,1);
+      lab(p,(X0+X1)/2,Yb+Bp/2,"FONDO");
+    }else{                      // sotto: fondo automatico (crash-lock) su tutti e 4 i pannelli
+      const dA=Math.round(Bp*0.75)+10, dB=Math.max(8,Math.round(Bp*0.5));
+      [[X0,X1],[X2,X3]].forEach(([xa,xb])=>{ pl(p.cut,[[xa,Yb],[xa+3,Yb+dA],[xb-3,Yb+dA],[xb,Yb]]); seg(p.fold,[xa,Yb],[xb,Yb]);
+        seg(p.fold,[xa+Math.min(Ap,Bp)*0.15,Yb],[xa+Math.min(Ap*0.5,dA),Yb+Math.min(dA,Ap*0.5)]); });
+      [[X1,X2],[X3,X4]].forEach(([xa,xb])=>{ pl(p.cut,[[xa,Yb],[xa+3,Yb+dB],[xb-dB*0.6,Yb+dB],[xb,Yb+dB*0.4],[xb,Yb]]); seg(p.fold,[xa,Yb],[xb,Yb]);
+        seg(p.fold,[xa,Yb],[xa+Math.min(Bp*0.8,dB*0.9),Yb+dB*0.9]); });
+      hTot=Yb+dA;
+      lab(p,(X0+X1)/2,Yb+dA/2,"FONDO AUTOMATICO");
+    }
+    lab(p,X0/2,(Yt+Yb)/2,"COLLA"); lab(p,(X0+X1)/2,(Yt+Yb)/2,"RETRO"); lab(p,(X1+X2)/2,(Yt+Yb)/2,"LATO");
+    lab(p,(X2+X3)/2,(Yt+Yb)/2,"FRONTE"); lab(p,(X3+X4)/2,(Yt+Yb)/2,"LATO"); lab(p,(X2+X3)/2,Yt-Bp/2,"COPERCHIO");
+    p.w=r1(X4); p.h=r1(hTot);
+    return [p];
+  }
+  // ---- americana FEFCO 0201 ----
+  if(modello==="americana"){
+    const p=nuovo("Scatola");
+    const Ap=A+t, Bp=B+t, Hp=H+2*t, g=35, f=Math.round(Bp/2);
+    const X0=g, X1=X0+Ap, X2=X1+Bp, X3=X2+Ap, X4=X3+Bp, Yt=f, Yb=Yt+Hp, Ht=Yb+f;
+    pl(p.cut,[[X0,Yt],[0,Yt+10],[0,Yb-10],[X0,Yb]]);
+    pl(p.cut,[[X0,Yt],[X0,0],[X4,0],[X4,Ht],[X0,Ht],[X0,Yb]]);
+    [X1,X2,X3].forEach(x=>{ seg(p.cut,[x,0],[x,Yt]); seg(p.cut,[x,Yb],[x,Ht]); });   // fessure tra le patelle
+    [X0,X1,X2,X3].forEach(x=>seg(p.fold,[x,Yt],[x,Yb]));
+    seg(p.fold,[X0,Yt],[X4,Yt]); seg(p.fold,[X0,Yb],[X4,Yb]);
+    lab(p,X0/2,(Yt+Yb)/2,"COLLA"); ["FRONTE","LATO","RETRO","LATO"].forEach((s,i)=>{ const xs=[X0,X1,X2,X3,X4]; lab(p,(xs[i]+xs[i+1])/2,(Yt+Yb)/2,s); lab(p,(xs[i]+xs[i+1])/2,Yt/2,"PATELLA"); lab(p,(xs[i]+xs[i+1])/2,Yb+f/2,"PATELLA"); });
+    p.w=r1(X4); p.h=r1(Ht);
+    return [p];
+  }
+  // ---- fondo e coperchio: due vassoi ----
+  const vassoio=(nome,a,b,h)=>{
+    const p=nuovo(nome), L=15;
+    const W=2*h+a, Ht=2*L+2*h+b, yA=L+h, yB=L+h+b;
+    pl(p.cut,[[h,0],[h+a,0],[h+a,L],[W-3,L+5],[W-3,yA],[W,yA],[W,yB],[W-3,yB],[W-3,yB+h-5],[h+a,yB+h],[h+a,Ht],[h,Ht],[h,yB+h],[3,yB+h-5],[3,yB],[0,yB],[0,yA],[3,yA],[3,L+5],[h,L],[h,0]]);
+    seg(p.cut,[0,yA],[h,yA]); seg(p.cut,[0,yB],[h,yB]); seg(p.cut,[h+a,yA],[W,yA]); seg(p.cut,[h+a,yB],[W,yB]);   // tagli che separano le alette d'angolo
+    pl(p.fold,[[h,yA],[h+a,yA],[h+a,yB],[h,yB],[h,yA]]);                    // fondo del vassoio
+    seg(p.fold,[h,L],[h+a,L]); seg(p.fold,[h,yB+h],[h+a,yB+h]);             // bordini ripiegati
+    seg(p.fold,[h,L],[h,yA]); seg(p.fold,[h+a,L],[h+a,yA]); seg(p.fold,[h,yB],[h,yB+h]); seg(p.fold,[h+a,yB],[h+a,yB+h]);   // alette d'angolo
+    lab(p,h+a/2,(yA+yB)/2,nome.toUpperCase()); lab(p,h/2,(yA+yB)/2,"FIANCO"); lab(p,h+a+h/2,(yA+yB)/2,"FIANCO");
+    lab(p,h+a/2,L+h/2,"TESTATA"); lab(p,h+a/2,yB+h/2,"TESTATA");
+    p.w=r1(W); p.h=r1(Ht); return p;
+  };
+  const hc=Math.max(15,Math.round(H*0.75));
+  return [vassoio("Fondo",A+t,B+t,H+t), vassoio("Coperchio",A+3*t+2,B+3*t+2,hc)];
+}
+// PDF vettoriale (1 pagina, pezzi affiancati), senza librerie. Testo solo ASCII.
+function pdfTracciato(pezzi, righe){
+  const mm=72/25.4, M=15, GAP=20, HEAD=26, FOOT=14;
+  const Wmm=pezzi.reduce((s,p)=>s+p.w,0)+GAP*(pezzi.length-1)+2*M;
+  const Hmm=Math.max(...pezzi.map(p=>p.h))+2*M+HEAD+FOOT;
+  const PW=(Wmm*mm).toFixed(2), PH=(Hmm*mm).toFixed(2);
+  const asc=s=>String(s).replace(/[×]/g,"x").replace(/[àá]/g,"a").replace(/[èé]/g,"e").replace(/[ìí]/g,"i").replace(/[òó]/g,"o").replace(/[ùú]/g,"u").replace(/[^\x20-\x7E]/g,"").replace(/([()\\])/g,"\\$1");
+  const X=x=>(x*mm).toFixed(2), Y=y=>((Hmm-y)*mm).toFixed(2);
+  const ops=[];
+  const testo=(x,y,s,sz,col,centro)=>{ const w=centro? asc(s).length*sz*0.27 : 0;
+    ops.push(`BT /F1 ${sz} Tf ${col} rg ${(x*mm-w).toFixed(2)} ${Y(y)} Td (${asc(s)}) Tj ET`); };
+  (righe||[]).forEach((r,i)=>testo(M,M+5+i*6,r,i===0?13:9,i===0?"0.1 0.1 0.1":"0.3 0.3 0.3",false));
+  let ox=M; const oy=M+HEAD;
+  pezzi.forEach(p=>{
+    ops.push("1 J 1 j");
+    ops.push("0.85 0 0.1 RG 0.6 w [] 0 d");
+    p.cut.forEach(([x1,y1,x2,y2])=>ops.push(`${X(ox+x1)} ${Y(oy+y1)} m ${X(ox+x2)} ${Y(oy+y2)} l S`));
+    ops.push("0 0.45 0.85 RG 0.6 w [4 3] 0 d");
+    p.fold.forEach(([x1,y1,x2,y2])=>ops.push(`${X(ox+x1)} ${Y(oy+y1)} m ${X(ox+x2)} ${Y(oy+y2)} l S`));
+    ops.push("[] 0 d");
+    p.label.forEach(l=>testo(ox+l.x,oy+l.y+1.5,l.t,7,"0.55 0.55 0.55",true));
+    testo(ox+p.w/2,oy+p.h+8,`${p.nome}: ${p.w} x ${p.h} mm`,8,"0.25 0.25 0.25",true);
+    ox+=p.w+GAP;
+  });
+  // legenda
+  const ly=Hmm-M+2;
+  ops.push(`0.85 0 0.1 RG 0.8 w [] 0 d ${X(M)} ${Y(ly)} m ${X(M+12)} ${Y(ly)} l S`); testo(M+14,ly+1.2,"TAGLIO",7,"0.3 0.3 0.3",false);
+  ops.push(`0 0.45 0.85 RG 0.8 w [4 3] 0 d ${X(M+40)} ${Y(ly)} m ${X(M+52)} ${Y(ly)} l S [] 0 d`); testo(M+54,ly+1.2,"PIEGA / CORDONATURA",7,"0.3 0.3 0.3",false);
+  testo(M+100,ly+1.2,"Tracciato indicativo generato da komunigo.it - abbondanza grafica consigliata 3 mm oltre il taglio",7,"0.45 0.45 0.45",false);
+  const stream=ops.join("\n");
+  const objs=["<< /Type /Catalog /Pages 2 0 R >>","<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>`,
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"];
+  let out="%PDF-1.4\n"; const off=[];
+  objs.forEach((o,i)=>{ off.push(out.length); out+=`${i+1} 0 obj\n${o}\nendobj\n`; });
+  const xr=out.length;
+  out+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`+off.map(o=>String(o).padStart(10,"0")+" 00000 n \n").join("")+`trailer\n<< /Size ${objs.length+1} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`;
+  return new Blob([out],{type:"application/pdf"});
+}
+function scaricaTracciato(modello,A,B,H,t,materiale){
+  const pezzi=tracciatoScatola(modello,A,B,H,t);
+  const righe=[`${TRACCIATO_MODELLI[modello]||"Scatola"} - interno ${A} x ${B} x ${H} mm`,
+    `Materiale: ${materiale||"-"} (spessore ${t} mm)  -  Steso: ${pezzi.map(p=>p.nome+" "+p.w+" x "+p.h+" mm").join("  +  ")}`];
+  const blob=pdfTracciato(pezzi,righe);
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=`tracciato-${modello}-${A}x${B}x${H}.pdf`; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+}
+
 function OrdineShopDettaglio({ordine,righe,files,commessa,perm,profilo,stati,onStato,onChanged,onClose}){
   const [urls,setUrls]=useState({});
   const [genBusy,setGenBusy]=useState(false);
@@ -10379,6 +10506,9 @@ function OrdineShopDettaglio({ordine,righe,files,commessa,perm,profilo,stati,onS
               <div key={r.id} className="card" style={{padding:12,marginBottom:10,background:"#fafbfc"}}>
                 <div style={{display:"flex",justifyContent:"space-between",gap:10}}>
                   <b>{r.descrizione}</b><span className="muted">{r.quantita} pz · {eur(r.prezzo_totale)}</span></div>
+                {r.config && r.config.scatola && <div style={{marginTop:4}}><button type="button" className="btn small" onClick={async()=>{ const c=r.config.scatola; let mod=c.modello, sp=c.spessore, mat=c.materiale;
+                    if(!mod){ try{ const {data:pc}=await sb.from("prodotti_config").select("scatola, prodotti_config_varianti(id,nome,spessore)").eq("id",r.prodotto_config_id).maybeSingle(); mod=(pc&&pc.scatola&&pc.scatola.modello)||"astuccio"; const v=((pc&&pc.prodotti_config_varianti)||[]).find(x=>x.id===(r.config&&r.config.variante_id)); if(v){ sp=v.spessore; mat=v.nome; } }catch(e){} }
+                    scaricaTracciato(mod,c.A,c.B,c.H,Number(sp)||0,mat||""); }}>📐 Tracciato PDF ({c.A}×{c.B}×{c.H} mm)</button></div>}
                 {r.config && (r.config.larghezza_cm||r.config.variante_id) &&
                   <div className="muted" style={{fontSize:12,marginTop:2}}>{r.config.larghezza_cm?`${Math.round(Number(r.config.larghezza_cm)*10*100)/100}×${Math.round(Number(r.config.altezza_cm)*10*100)/100} mm`:""}</div>}
                 <div style={{marginTop:8}}>

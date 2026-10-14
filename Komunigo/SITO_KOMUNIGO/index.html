@@ -92,7 +92,17 @@
   .cat p{font-size:14px;color:var(--ink-soft);margin:0;line-height:1.4;}
   .pack-pg{max-width:1100px;margin:10px auto 40px;}
   .scatola-top{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;}
-  .scatola-svg{width:260px;flex:0 0 260px;background:#fff;border:1px solid var(--line);border-radius:12px;}
+  .scatola-vis{flex:0 0 280px;display:flex;flex-direction:column;gap:6px;}
+  .scatola-tabs{display:flex;gap:4px;}
+  .scatola-tabs button{flex:1;border:1.5px solid var(--line);background:var(--surface,#fff);border-radius:8px;padding:5px 8px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--ink-soft);}
+  .scatola-tabs button.on{border-color:var(--blu);color:var(--blu);background:var(--blu-wash);}
+  .tracciato-svg{width:100%;height:230px;background:#fff;border:1px solid var(--line);border-radius:12px;}
+  .tr-cut{stroke:#d9002b;stroke-width:1.4;vector-effect:non-scaling-stroke;}
+  .tr-fold{stroke:#0073d9;stroke-width:1.2;stroke-dasharray:4 3;vector-effect:non-scaling-stroke;}
+  .tr-lab{fill:#9aa3b0;font-family:inherit;font-weight:600;}
+  .tracciato-dl{border:1.5px dashed var(--blu);background:transparent;color:var(--blu);border-radius:10px;padding:8px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+  .tracciato-dl:disabled{opacity:.5;cursor:default;}
+  .scatola-svg{width:100%;flex:0 0 auto;background:#fff;border:1px solid var(--line);border-radius:12px;}
   .sf-ql{font-size:10.5px;fill:#fff;font-weight:700;font-family:inherit;}
   .sc-mis{display:flex;flex-direction:column;align-items:center;gap:4px;}
   .sc-box{display:flex;align-items:center;gap:6px;border:2px solid var(--c);border-radius:22px;padding:6px 14px;background:var(--surface,#fff);width:100%;}
@@ -738,6 +748,151 @@ function FooterKomunigo({vai}){
 }
 
 // =====================================================================
+//  TRACCIATO FUSTELLA delle scatole (Fase 2) — JS puro, condiviso tra
+//  negozio Komunigo e gestionale (stesso codice nei due file).
+//  Geometria in mm, origine in alto a sinistra. Ogni pezzo:
+//  {nome, w, h, cut:[[x1,y1,x2,y2]...], fold:[...], label:[{x,y,t}]}
+//  Coerente con sviluppoScatola() del motore prezzi (colla/linguette 15 mm).
+//  ⚠ Prima stesura: da verificare su un campione reale prima della produzione.
+// =====================================================================
+const TRACCIATO_MODELLI={astuccio:"Astuccio con alette a incastro",fondo_automatico:"Astuccio con fondo automatico",fondo_coperchio:"Scatola fondo e coperchio",americana:"Scatola americana (FEFCO 0201)"};
+function tracciatoScatola(modello,A,B,H,t){
+  A=Number(A)||0; B=Number(B)||0; H=Number(H)||0; t=Number(t)||0;
+  const r1=n=>Math.round(n*10)/10;
+  const nuovo=nome=>({nome,w:0,h:0,cut:[],fold:[],label:[]});
+  const seg=(arr,a,b)=>arr.push([r1(a[0]),r1(a[1]),r1(b[0]),r1(b[1])]);
+  const pl=(arr,pts)=>{ for(let i=0;i<pts.length-1;i++) seg(arr,pts[i],pts[i+1]); };
+  const lab=(p,x,y,s)=>p.label.push({x:r1(x),y:r1(y),t:s});
+
+  // ---- astucci (alette a incastro / fondo automatico) ----
+  if(modello==="astuccio"||modello==="fondo_automatico"){
+    const p=nuovo("Astuccio");
+    const Ap=A+t, Bp=B+t, Hp=H+2*t, g=15, L=15, c=4, d=Math.max(8,Math.round(Bp*0.55));
+    const X0=g, X1=X0+Ap, X2=X1+Bp, X3=X2+Ap, X4=X3+Bp, Yt=Bp+L, Yb=Yt+Hp;
+    const dust=(xa,xb,y,dir)=>{ pl(p.cut,[[xa,y],[xa+2,y+dir*(d-c)],[xa+2+c,y+dir*d],[xb-3*c,y+dir*d],[xb,y+dir*Math.round(d*0.35)],[xb,y]]); seg(p.fold,[xa,y],[xb,y]); };
+    const lid=(xa,xb,y,dir)=>{ pl(p.cut,[[xa,y],[xa,y+dir*Bp],[xa+c,y+dir*(Bp+L)],[xb-c,y+dir*(Bp+L)],[xb,y+dir*Bp],[xb,y]]); seg(p.fold,[xa,y],[xb,y]); seg(p.fold,[xa,y+dir*Bp],[xb,y+dir*Bp]); };
+    // aletta colla + pieghe verticali + bordo destro
+    pl(p.cut,[[X0,Yt],[0,Yt+8],[0,Yb-8],[X0,Yb]]);
+    [X0,X1,X2,X3].forEach(x=>seg(p.fold,[x,Yt],[x,Yb]));
+    seg(p.cut,[X4,Yt],[X4,Yb]);
+    // sopra: coperchio a incastro sul fronte (pannello 3) + alette antipolvere sui lati
+    seg(p.cut,[X0,Yt],[X1,Yt]); dust(X1,X2,Yt,-1); lid(X2,X3,Yt,-1); dust(X3,X4,Yt,-1);
+    let hTot=Yb+Bp+L;
+    if(modello==="astuccio"){   // sotto: incastro sul retro (alette alternate)
+      lid(X0,X1,Yb,1); dust(X1,X2,Yb,1); seg(p.cut,[X2,Yb],[X3,Yb]); dust(X3,X4,Yb,1);
+      lab(p,(X0+X1)/2,Yb+Bp/2,"FONDO");
+    }else{                      // sotto: fondo automatico (crash-lock) su tutti e 4 i pannelli
+      const dA=Math.round(Bp*0.75)+10, dB=Math.max(8,Math.round(Bp*0.5));
+      [[X0,X1],[X2,X3]].forEach(([xa,xb])=>{ pl(p.cut,[[xa,Yb],[xa+3,Yb+dA],[xb-3,Yb+dA],[xb,Yb]]); seg(p.fold,[xa,Yb],[xb,Yb]);
+        seg(p.fold,[xa+Math.min(Ap,Bp)*0.15,Yb],[xa+Math.min(Ap*0.5,dA),Yb+Math.min(dA,Ap*0.5)]); });
+      [[X1,X2],[X3,X4]].forEach(([xa,xb])=>{ pl(p.cut,[[xa,Yb],[xa+3,Yb+dB],[xb-dB*0.6,Yb+dB],[xb,Yb+dB*0.4],[xb,Yb]]); seg(p.fold,[xa,Yb],[xb,Yb]);
+        seg(p.fold,[xa,Yb],[xa+Math.min(Bp*0.8,dB*0.9),Yb+dB*0.9]); });
+      hTot=Yb+dA;
+      lab(p,(X0+X1)/2,Yb+dA/2,"FONDO AUTOMATICO");
+    }
+    lab(p,X0/2,(Yt+Yb)/2,"COLLA"); lab(p,(X0+X1)/2,(Yt+Yb)/2,"RETRO"); lab(p,(X1+X2)/2,(Yt+Yb)/2,"LATO");
+    lab(p,(X2+X3)/2,(Yt+Yb)/2,"FRONTE"); lab(p,(X3+X4)/2,(Yt+Yb)/2,"LATO"); lab(p,(X2+X3)/2,Yt-Bp/2,"COPERCHIO");
+    p.w=r1(X4); p.h=r1(hTot);
+    return [p];
+  }
+  // ---- americana FEFCO 0201 ----
+  if(modello==="americana"){
+    const p=nuovo("Scatola");
+    const Ap=A+t, Bp=B+t, Hp=H+2*t, g=35, f=Math.round(Bp/2);
+    const X0=g, X1=X0+Ap, X2=X1+Bp, X3=X2+Ap, X4=X3+Bp, Yt=f, Yb=Yt+Hp, Ht=Yb+f;
+    pl(p.cut,[[X0,Yt],[0,Yt+10],[0,Yb-10],[X0,Yb]]);
+    pl(p.cut,[[X0,Yt],[X0,0],[X4,0],[X4,Ht],[X0,Ht],[X0,Yb]]);
+    [X1,X2,X3].forEach(x=>{ seg(p.cut,[x,0],[x,Yt]); seg(p.cut,[x,Yb],[x,Ht]); });   // fessure tra le patelle
+    [X0,X1,X2,X3].forEach(x=>seg(p.fold,[x,Yt],[x,Yb]));
+    seg(p.fold,[X0,Yt],[X4,Yt]); seg(p.fold,[X0,Yb],[X4,Yb]);
+    lab(p,X0/2,(Yt+Yb)/2,"COLLA"); ["FRONTE","LATO","RETRO","LATO"].forEach((s,i)=>{ const xs=[X0,X1,X2,X3,X4]; lab(p,(xs[i]+xs[i+1])/2,(Yt+Yb)/2,s); lab(p,(xs[i]+xs[i+1])/2,Yt/2,"PATELLA"); lab(p,(xs[i]+xs[i+1])/2,Yb+f/2,"PATELLA"); });
+    p.w=r1(X4); p.h=r1(Ht);
+    return [p];
+  }
+  // ---- fondo e coperchio: due vassoi ----
+  const vassoio=(nome,a,b,h)=>{
+    const p=nuovo(nome), L=15;
+    const W=2*h+a, Ht=2*L+2*h+b, yA=L+h, yB=L+h+b;
+    pl(p.cut,[[h,0],[h+a,0],[h+a,L],[W-3,L+5],[W-3,yA],[W,yA],[W,yB],[W-3,yB],[W-3,yB+h-5],[h+a,yB+h],[h+a,Ht],[h,Ht],[h,yB+h],[3,yB+h-5],[3,yB],[0,yB],[0,yA],[3,yA],[3,L+5],[h,L],[h,0]]);
+    seg(p.cut,[0,yA],[h,yA]); seg(p.cut,[0,yB],[h,yB]); seg(p.cut,[h+a,yA],[W,yA]); seg(p.cut,[h+a,yB],[W,yB]);   // tagli che separano le alette d'angolo
+    pl(p.fold,[[h,yA],[h+a,yA],[h+a,yB],[h,yB],[h,yA]]);                    // fondo del vassoio
+    seg(p.fold,[h,L],[h+a,L]); seg(p.fold,[h,yB+h],[h+a,yB+h]);             // bordini ripiegati
+    seg(p.fold,[h,L],[h,yA]); seg(p.fold,[h+a,L],[h+a,yA]); seg(p.fold,[h,yB],[h,yB+h]); seg(p.fold,[h+a,yB],[h+a,yB+h]);   // alette d'angolo
+    lab(p,h+a/2,(yA+yB)/2,nome.toUpperCase()); lab(p,h/2,(yA+yB)/2,"FIANCO"); lab(p,h+a+h/2,(yA+yB)/2,"FIANCO");
+    lab(p,h+a/2,L+h/2,"TESTATA"); lab(p,h+a/2,yB+h/2,"TESTATA");
+    p.w=r1(W); p.h=r1(Ht); return p;
+  };
+  const hc=Math.max(15,Math.round(H*0.75));
+  return [vassoio("Fondo",A+t,B+t,H+t), vassoio("Coperchio",A+3*t+2,B+3*t+2,hc)];
+}
+// PDF vettoriale (1 pagina, pezzi affiancati), senza librerie. Testo solo ASCII.
+function pdfTracciato(pezzi, righe){
+  const mm=72/25.4, M=15, GAP=20, HEAD=26, FOOT=14;
+  const Wmm=pezzi.reduce((s,p)=>s+p.w,0)+GAP*(pezzi.length-1)+2*M;
+  const Hmm=Math.max(...pezzi.map(p=>p.h))+2*M+HEAD+FOOT;
+  const PW=(Wmm*mm).toFixed(2), PH=(Hmm*mm).toFixed(2);
+  const asc=s=>String(s).replace(/[×]/g,"x").replace(/[àá]/g,"a").replace(/[èé]/g,"e").replace(/[ìí]/g,"i").replace(/[òó]/g,"o").replace(/[ùú]/g,"u").replace(/[^\x20-\x7E]/g,"").replace(/([()\\])/g,"\\$1");
+  const X=x=>(x*mm).toFixed(2), Y=y=>((Hmm-y)*mm).toFixed(2);
+  const ops=[];
+  const testo=(x,y,s,sz,col,centro)=>{ const w=centro? asc(s).length*sz*0.27 : 0;
+    ops.push(`BT /F1 ${sz} Tf ${col} rg ${(x*mm-w).toFixed(2)} ${Y(y)} Td (${asc(s)}) Tj ET`); };
+  (righe||[]).forEach((r,i)=>testo(M,M+5+i*6,r,i===0?13:9,i===0?"0.1 0.1 0.1":"0.3 0.3 0.3",false));
+  let ox=M; const oy=M+HEAD;
+  pezzi.forEach(p=>{
+    ops.push("1 J 1 j");
+    ops.push("0.85 0 0.1 RG 0.6 w [] 0 d");
+    p.cut.forEach(([x1,y1,x2,y2])=>ops.push(`${X(ox+x1)} ${Y(oy+y1)} m ${X(ox+x2)} ${Y(oy+y2)} l S`));
+    ops.push("0 0.45 0.85 RG 0.6 w [4 3] 0 d");
+    p.fold.forEach(([x1,y1,x2,y2])=>ops.push(`${X(ox+x1)} ${Y(oy+y1)} m ${X(ox+x2)} ${Y(oy+y2)} l S`));
+    ops.push("[] 0 d");
+    p.label.forEach(l=>testo(ox+l.x,oy+l.y+1.5,l.t,7,"0.55 0.55 0.55",true));
+    testo(ox+p.w/2,oy+p.h+8,`${p.nome}: ${p.w} x ${p.h} mm`,8,"0.25 0.25 0.25",true);
+    ox+=p.w+GAP;
+  });
+  // legenda
+  const ly=Hmm-M+2;
+  ops.push(`0.85 0 0.1 RG 0.8 w [] 0 d ${X(M)} ${Y(ly)} m ${X(M+12)} ${Y(ly)} l S`); testo(M+14,ly+1.2,"TAGLIO",7,"0.3 0.3 0.3",false);
+  ops.push(`0 0.45 0.85 RG 0.8 w [4 3] 0 d ${X(M+40)} ${Y(ly)} m ${X(M+52)} ${Y(ly)} l S [] 0 d`); testo(M+54,ly+1.2,"PIEGA / CORDONATURA",7,"0.3 0.3 0.3",false);
+  testo(M+100,ly+1.2,"Tracciato indicativo generato da komunigo.it - abbondanza grafica consigliata 3 mm oltre il taglio",7,"0.45 0.45 0.45",false);
+  const stream=ops.join("\n");
+  const objs=["<< /Type /Catalog /Pages 2 0 R >>","<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>`,
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"];
+  let out="%PDF-1.4\n"; const off=[];
+  objs.forEach((o,i)=>{ off.push(out.length); out+=`${i+1} 0 obj\n${o}\nendobj\n`; });
+  const xr=out.length;
+  out+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`+off.map(o=>String(o).padStart(10,"0")+" 00000 n \n").join("")+`trailer\n<< /Size ${objs.length+1} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`;
+  return new Blob([out],{type:"application/pdf"});
+}
+function scaricaTracciato(modello,A,B,H,t,materiale){
+  const pezzi=tracciatoScatola(modello,A,B,H,t);
+  const righe=[`${TRACCIATO_MODELLI[modello]||"Scatola"} - interno ${A} x ${B} x ${H} mm`,
+    `Materiale: ${materiale||"-"} (spessore ${t} mm)  -  Steso: ${pezzi.map(p=>p.nome+" "+p.w+" x "+p.h+" mm").join("  +  ")}`];
+  const blob=pdfTracciato(pezzi,righe);
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=`tracciato-${modello}-${A}x${B}x${H}.pdf`; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+}
+
+// anteprima del tracciato (stessa geometria del PDF)
+function TracciatoSvg({modello,A,B,H,t}){
+  const pezzi=tracciatoScatola(modello,A,B,H,t);
+  const GAP=20, W=pezzi.reduce((s,p)=>s+p.w,0)+GAP*(pezzi.length-1), Hm=Math.max(...pezzi.map(p=>p.h));
+  let ox=0;
+  return (
+    <svg viewBox={`-8 -8 ${W+16} ${Hm+16}`} className="tracciato-svg" role="img" aria-label="Tracciato della scatola">
+      {pezzi.map((p,i)=>{ const x=ox; ox+=p.w+GAP; return (
+        <g key={i} transform={`translate(${x},0)`}>
+          {p.cut.map((l,j)=><line key={"c"+j} x1={l[0]} y1={l[1]} x2={l[2]} y2={l[3]} className="tr-cut"/>)}
+          {p.fold.map((l,j)=><line key={"f"+j} x1={l[0]} y1={l[1]} x2={l[2]} y2={l[3]} className="tr-fold"/>)}
+          {p.label.map((l,j)=><text key={"t"+j} x={l.x} y={l.y} textAnchor="middle" className="tr-lab" style={{fontSize:Math.max(6,Math.min(W,Hm)/28)}}>{l.t}</text>)}
+        </g>); })}
+    </svg>);
+}
+// modello della scatola: dalla vista (v21) o, se manca, dal nome del prodotto
+const modelloScatola=p=> p.scatola_modello || (/americana/i.test(p.nome)?"americana":/coperchio/i.test(p.nome)?"fondo_coperchio":/automatico/i.test(p.nome)?"fondo_automatico":"astuccio");
+
+// =====================================================================
 //  SCATOLE (tipo 'scatola', v20): configuratore stile "modello + misure".
 //  Il prezzo (foglio steso, pose, fogli, taglio plotter/fustella) lo calcola
 //  SOLO il server (hyper-endpoint con {scatola:{A,B,H,lati}}).
@@ -789,6 +944,8 @@ function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureInizial
   const [qtaLibera,setQtaLibera]=useState("");
   const [righe,setRighe]=useState(null);   // [{q,res}]
   const [stato,setStato]=useState(""); const [errMsg,setErrMsg]=useState("");
+  const [vistaDis,setVistaDis]=useState("scatola");   // scatola | tracciato
+  const modello=modelloScatola(prod);
   useEffect(()=>{ (async()=>{
     const {data}=await sb.from("komunigo_configuratori_varianti").select("*").eq("prodotto_id",prod.id).order("ordine");
     setVarianti(data||[]); if((data||[]).length) setVariante(data[0].id);
@@ -820,7 +977,7 @@ function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureInizial
     if(!prezzo) return;
     const descr=`${prod.nome} · interno ${A}×${B}×${H} mm${va?" · "+va.nome:""} · ${SCATOLA_STAMPA.find(x=>x[0]===Number(lati))[1].toLowerCase()} · ${qta} pz`;
     addCart({tipo:"configurabile", prodotto_config_id:prod.id, descrizione:descr,
-      config:{variante_id:variante, quantita:Number(qta), scatola:{A:Number(A),B:Number(B),H:Number(H),lati:Number(lati)}, unita_calcolo:"pz"},
+      config:{variante_id:variante, quantita:Number(qta), scatola:{A:Number(A),B:Number(B),H:Number(H),lati:Number(lati),modello,spessore:Number(va&&va.spessore)||0,materiale:va?va.nome:""}, unita_calcolo:"pz"},
       quantita:Number(qta), prezzo_unitario:Number(prezzo.prezzo_unitario)||0, prezzo_totale:Number(prezzo.prezzo_totale)||0});
     chiudi();
   };
@@ -835,7 +992,15 @@ function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureInizial
           <button className="x" onClick={chiudi}>×</button></div>
         <div className="mb">
           <div className="scatola-top">
-            <ScatolaDisegno A={A} B={B} H={H}/>
+            <div className="scatola-vis">
+              <div className="scatola-tabs">
+                <button type="button" className={vistaDis==="scatola"?"on":""} onClick={()=>setVistaDis("scatola")}>Scatola</button>
+                <button type="button" className={vistaDis==="tracciato"?"on":""} onClick={()=>setVistaDis("tracciato")}>Tracciato</button></div>
+              {vistaDis==="scatola" ? <ScatolaDisegno A={A} B={B} H={H}/> : <TracciatoSvg modello={modello} A={Number(A)} B={Number(B)} H={Number(H)} t={Number(va&&va.spessore)||0}/>}
+              <button type="button" className="tracciato-dl" disabled={!(Number(A)>0&&Number(B)>0&&Number(H)>0)}
+                onClick={()=>scaricaTracciato(modello,Number(A),Number(B),Number(H),Number(va&&va.spessore)||0,va?va.nome:"")}>📐 Scarica il tracciato (PDF)</button>
+              {vistaDis==="tracciato" && <div className="muted" style={{fontSize:11.5,marginTop:4}}><span style={{color:"#d9002b"}}>━</span> taglio · <span style={{color:"#0073d9"}}>┅</span> piega</div>}
+            </div>
             <div style={{flex:1,minWidth:240}}>
               <label className="fld">Misure interne (mm)</label>
               <div className="scatola-mis">
@@ -876,7 +1041,7 @@ function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureInizial
             <div className="r"><span>Prezzo a scatola</span><span>{eur(conIva(prezzo.prezzo_unitario,iva))}</span></div>
             <div className="r big"><span>Totale ({Number(qta).toLocaleString("it-IT")} pz) <span className="iva-tag">{ivaLbl(iva)}</span></span><span>{eur(conIva(prezzo.prezzo_totale,iva))}</span></div></div>}
           {Number(prod.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}>📦 Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b></div>}
-          <div className="note" style={{marginTop:12}}>📐 Dopo l'ordine ti mandiamo il <b>tracciato</b> della tua scatola su cui impaginare la grafica e la <b>bozza da approvare</b> prima della produzione.</div>
+          <div className="note" style={{marginTop:12}}>📐 Scarica il <b>tracciato</b> con le tue misure, impagina la grafica (3 mm di abbondanza oltre il taglio) e caricala dopo l'ordine: ti mandiamo la <b>bozza da approvare</b> prima della produzione.</div>
         </div>
         <div className="mf">
           {prezzo
@@ -2164,7 +2329,9 @@ function OrdinePagina({token, vaiCatalogo}){
         {(dati.righe||[]).map(r=>{ const files=fileDiRiga(r.id); return (
           <div className="ord-riga" key={r.id}>
             <div className="ord-riga-h">
-              <div><b>{r.descrizione}</b><div className="muted" style={{fontSize:12.5}}>{r.quantita} pz · {eur(r.prezzo_totale)}</div></div>
+              <div><b>{r.descrizione}</b><div className="muted" style={{fontSize:12.5}}>{r.quantita} pz · {eur(r.prezzo_totale)}</div>
+                {r.config && r.config.scatola && r.config.scatola.modello && <button type="button" className="lnk" style={{fontSize:13,marginTop:4}}
+                  onClick={()=>{ const c=r.config.scatola; scaricaTracciato(c.modello,c.A,c.B,c.H,c.spessore||0,c.materiale||""); }}>📐 Scarica il tracciato della scatola (PDF)</button>}</div>
             </div>
             <div className="ord-files">
               {files.map(f=>(

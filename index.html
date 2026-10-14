@@ -7106,13 +7106,13 @@ function htmlEtichetta(p){
     '@page{size:70mm 40mm;margin:3mm;} *{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;} body{margin:0;}'+
     '.lab{width:64mm;text-align:center;} .art{font-size:11px;font-weight:bold;margin:0 0 2px;}'+
     '.mis{font-size:10px;color:#333;margin:0 0 3px;} .cod{font-family:Consolas,monospace;font-size:13px;letter-spacing:1px;margin:2px 0 0;}'+
-    '.com{font-size:9px;color:#555;margin:3px 0 0;} svg{max-width:100%;}'+
+    '.com{font-size:11px;font-weight:bold;color:#000;margin:3px 0 0;padding-top:2px;border-top:1px solid #ccc;} svg{max-width:100%;}'+
     '</style></head><body><div class="lab">'+
     '<div class="art">'+escHtml(p.articolo||"")+'</div>'+
     '<div class="mis">'+(mis?escHtml(mis)+" mm":"")+escHtml(sp)+'</div>'+
     code128SVG(p.codice,2,56)+
     '<div class="cod">'+escHtml(p.codice||"")+'</div>'+
-    '<div class="com">'+escHtml(p.commessa||"")+'</div>'+
+    (p.commessa?('<div class="com">📋 '+escHtml(p.commessa)+'</div>'):"")+
     '</div></body></html>';
 }
 function htmlPreventivo(prev, righe, az, cli, tot, destinazione, opts){

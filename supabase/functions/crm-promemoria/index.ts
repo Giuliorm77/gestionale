@@ -70,11 +70,23 @@ Deno.serve(async (req) => {
     for (const r of righe) {
       const quando = new Date(r.promemoria_il).toLocaleString("it-IT",
         { dateStyle: "full", timeStyle: "short", timeZone: "Europe/Rome" });
+
+      // --- blocco RIFERIMENTI: con chi è e come contattarlo (azione rapida) ---
+      const rif: string[] = [];
+      if (r.contatto)  rif.push(`<div style="margin:1px 0">🏢 <b>${esc(r.contatto)}</b></div>`);
+      if (r.referente) rif.push(`<div style="margin:1px 0">👤 Referente: <b>${esc(r.referente)}</b></div>`);
+      if (r.telefono)  rif.push(`<div style="margin:1px 0">📞 <a href="tel:${esc(String(r.telefono).replace(/\s+/g, ""))}" style="color:#00a7aa;text-decoration:none">${esc(r.telefono)}</a></div>`);
+      if (r.email_rif) rif.push(`<div style="margin:1px 0">✉️ <a href="mailto:${esc(r.email_rif)}" style="color:#00a7aa;text-decoration:none">${esc(r.email_rif)}</a></div>`);
+      const rifHtml = rif.length
+        ? `<div style="background:#eef7f7;border:1px solid #cdeaea;padding:10px 12px;border-radius:8px;margin:0 0 12px;font-size:14px">${rif.join("")}</div>`
+        : "";
+
       const html =
         `<div style="font-family:Arial,Helvetica,sans-serif;color:#1d2430">
           <h2 style="color:#00a7aa;margin:0 0 8px">⏰ Promemoria CRM</h2>
           <p style="margin:0 0 4px"><b>${esc(r.titolo || "Promemoria")}</b></p>
           <p style="margin:0 0 12px;color:#5b6773">${esc(quando)}</p>
+          ${rifHtml}
           ${r.note ? `<p style="white-space:pre-line;background:#f4f6f8;padding:10px 12px;border-radius:8px;margin:0 0 12px">${esc(r.note)}</p>` : ""}
           <p style="margin:14px 0 0"><a href="https://gestionale.creatiogroup.it" style="background:#00a7aa;color:#fff;text-decoration:none;padding:9px 16px;border-radius:8px;font-weight:700">Apri il gestionale</a></p>
           <p style="margin:16px 0 0;font-size:12px;color:#8b95a1">Ciao ${esc(r.nome || "")}, questo è un promemoria automatico del CRM.</p>

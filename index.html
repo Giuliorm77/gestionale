@@ -12476,7 +12476,13 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                           </div>}
                         </div>}</td>
                       <td><input type="number" step="0.01" value={r.quantita} onChange={e=>setRiga(i,"quantita",e.target.value)}
-                        style={{width:72,padding:"6px",border:"1px solid var(--line)",borderRadius:7,textAlign:"right"}}/></td>
+                        style={{width:72,padding:"6px",border:"1px solid var(--line)",borderRadius:7,textAlign:"right"}}/>
+                        {(()=>{ const qT=Number(r.quantita)||0, qC=Number(r.quantita_consegnata)||0, qR=Math.round((qT-qC)*100)/100;
+                          if(qC<=0) return null;
+                          return qR>0.0001
+                            ? <div style={{fontSize:11,marginTop:3,color:"#b26a00",fontWeight:600,whiteSpace:"nowrap"}} title="Consegnato finora / ancora da consegnare (aggiornato dai DDT)">✔ {qC} · ⏳ mancano {qR}</div>
+                            : <div style={{fontSize:11,marginTop:3,color:"#127a3e",fontWeight:600,whiteSpace:"nowrap"}} title="Interamente consegnato">✔ consegnato tutto</div>;
+                        })()}</td>
                       <td><input value={r.unita||""} onChange={e=>setRiga(i,"unita",e.target.value)}
                         style={{width:72,padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/></td>
                       {hasSedi && <td><select value={r.sede_id||""} onChange={e=>setRiga(i,"sede_id",e.target.value||null)}

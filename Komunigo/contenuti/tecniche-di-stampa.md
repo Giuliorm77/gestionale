@@ -55,3 +55,18 @@ morbido in silicone che preleva l'inchiostro da una lastra incisa (cliché) e lo
 deposita sull'oggetto, ideale per personalizzare gadget, oggettistica, penne o
 portachiavi grazie alla sua precisione e versatilità anche su piccole superfici,
 con alta definizione di testi e piccoli dettagli.
+
+---
+
+## Ricamo
+
+Il **ricamo** personalizzato è l'arte di decorare tessuti e altri materiali con
+fili colorati (**fino a 12 colori**) per creare disegni, loghi o scritte uniche, su
+richiesta del cliente, offrendo alta qualità, eleganza e durabilità, ed è ideale
+per abbigliamento aziendale, divise e gadget di pregio. questa tecnica, che può
+includere anche patch applicabili (patch ricamate), si adatta a diverse superfici,
+conferendo prestigio e resistenza nel tempo, a differenza di altre tecniche di
+stampa. La **ricamatura** viene effettuata da una macchina che riceve il logo
+attraverso un software. Il macchinario stesso prepara la punciatura dell'immagine
+che consentirà un ricamo punto a punto. Il logo ricamato è resistente ai lavaggi e
+nel tempo e si adatta ad ogni tipo di tessuto.

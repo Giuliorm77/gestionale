@@ -4163,21 +4163,32 @@ function ModuloMagazzino({profilo,perm}){
     const q=cercaDeb.trim().replace(/[,()*]/g," ");
     // il filtro "solo materiali a magazzino" vale per la vista di default; quando CERCHI
     // qualcosa vuoi trovarlo comunque (anche un articolo nuovo a giacenza 0), quindi non lo applico.
-    if(soloMag && !q) qy=qy.or("giacenza.neq.0,impegnato.neq.0,scorta_minima.gt.0,materiale_tipo.not.is.null");
+    if(soloMag && !q) qy=qy.or("giacenza.neq.0,impegnato.neq.0,scorta_minima.gt.0");
     if(q) qy=qy.or("nome_articolo.ilike.*"+q+"*,codice.ilike.*"+q+"*,tipo.ilike.*"+q+"*");
     const a=await qy;
     if(a.error){ setErr(a.error.message); return; }
-    setArticoli(a.data||[]); setTroncato((a.data||[]).length>=LIM);
+    let lista=a.data||[];
+    // le LASTRE/BOBINE (materiale a formati) compaiono sempre nella vista di default,
+    // anche a giacenza sfusa 0 (lo stock delle lastre è nei pannelli-pezzo).
+    if(soloMag && !q){
+      const fm=await sb.from("articoli_magazzino")
+        .select("id,codice,nome_articolo,unita,tipo,giacenza,impegnato,scorta_minima,mq_per_lastra,materiale_tipo")
+        .not("materiale_tipo","is",null).order("nome_articolo").limit(500);
+      if(!fm.error && fm.data){ const have=new Set(lista.map(x=>x.id));
+        fm.data.forEach(x=>{ if(!have.has(x.id)) lista.push(x); });
+        lista.sort((x,y)=>String(x.nome_articolo||"").localeCompare(String(y.nome_articolo||""))); }
+    }
+    setArticoli(lista); setTroncato((a.data||[]).length>=LIM);
     // giacenza "a pezzi" per le lastre: somma dei pannelli a scaffale
     try{
-      const lids=(a.data||[]).filter(x=>x.materiale_tipo==="lastra").map(x=>x.id);
+      const lids=lista.filter(x=>x.materiale_tipo==="lastra").map(x=>x.id);
       if(lids.length){ const {data:gp}=await sb.rpc("giacenza_pezzi",{p_ids:lids});
         const gm={}; (gp||[]).forEach(r=>{ gm[r.articolo_id]={n:Number(r.n_pezzi)||0,mq:Number(r.mq)||0}; }); setPezziGiac(gm); }
       else setPezziGiac({});
     }catch(e){ setPezziGiac({}); }
     // VALORIZZAZIONE (solo economici): costi per riga + totale su TUTTO il magazzino via RPC
     if(perm.economici){
-      const ids=(a.data||[]).map(x=>x.id);
+      const ids=lista.map(x=>x.id);
       if(ids.length){ const c=await sb.from("articoli").select("id,costo").in("id",ids);
         const cm={}; (c.data||[]).forEach(x=>{ cm[x.id]=Number(x.costo)||0; }); setCosti(cm); }
       else setCosti({});

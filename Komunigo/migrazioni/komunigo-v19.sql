@@ -18,6 +18,17 @@
 --  Supabase -> SQL Editor -> Run. Sicura da ri-eseguire.
 -- =====================================================================
 
+-- LISTINO DI ACQUISTO della stampa, per tecnica, sul modello di stampa.
+-- Formato (jsonb), es.:
+--   {"serigrafia": {"impianto_per_colore": 30,
+--                   "righe": [{"da": 10,  "prezzi": {"1": 0.90, "2": 1.40}},
+--                             {"da": 100, "prezzi": {"1": 0.56, "2": 1.01}}, ...]}}
+-- Prezzi = ACQUISTO a capo per UNA posizione, impianto escluso. Il motore prezzi
+-- prende la riga con "da" più alto ≤ pezzi, × colori scelti, + impianto × colori,
+-- poi applica il margine del modello e gli sconti quantità.
+-- Se per una tecnica il listino manca, resta il calcolo semplice (prezzo_pz/setup).
+alter table public.prodotti_config add column if not exists listino_stampa jsonb;
+
 do $$
 declare v_mod uuid;
 begin
@@ -34,16 +45,22 @@ begin
   insert into public.prodotti_config_stampe (prodotto_id, nome, area_cm, max_colori, prezzo_pz, setup, tecnica, ordine)
   select v_mod, x.nome, x.area, x.maxc, x.pz, x.setup, 'Serigrafia', x.ord
   from (values
-    ('Lato cuore',          '10 × 10', 4, 0.60, 25, 0),
-    ('Lato destro',         '10 × 10', 4, 0.60, 25, 1),
-    ('Centro fronte',       '30 × 40', 4, 1.20, 35, 2),
-    ('Centro retro',        '30 × 40', 4, 1.20, 35, 3),
-    ('Manica sinistra',     '8 × 8',   2, 0.60, 25, 4),
-    ('Manica destra',       '8 × 8',   2, 0.60, 25, 5),
-    ('Centro collo fronte', '8 × 4',   2, 0.60, 25, 6),
-    ('Centro collo retro',  '8 × 4',   2, 0.60, 25, 7)
+    ('Lato cuore',          '8 × 8',   4, 0.60, 25, 0),
+    ('Lato destro',         '8 × 8',   4, 0.60, 25, 1),
+    ('Centro fronte',       '28 × 40', 4, 1.20, 35, 2),
+    ('Centro retro',        '28 × 40', 4, 1.20, 35, 3),
+    ('Manica sinistra',     '8 × 5',   2, 0.60, 25, 4),
+    ('Manica destra',       '8 × 5',   2, 0.60, 25, 5),
+    ('Centro collo fronte', '10 × 6',  2, 0.60, 25, 6),
+    ('Centro collo retro',  '10 × 6',  2, 0.60, 25, 7)
   ) as x(nome, area, maxc, pz, setup, ord)
   where not exists (select 1 from public.prodotti_config_stampe s where s.prodotto_id = v_mod and s.nome = x.nome);
+
+  -- aree dalla tabella del fornitore di stampa (mm → cm) anche sulle posizioni rinominate
+  update public.prodotti_config_stampe s set area_cm = x.area
+  from (values ('Lato cuore','8 × 8'),('Lato destro','8 × 8'),('Centro fronte','28 × 40'),('Centro retro','28 × 40'),
+               ('Manica sinistra','8 × 5'),('Manica destra','8 × 5'),('Centro collo fronte','10 × 6'),('Centro collo retro','10 × 6')) as x(nome, area)
+  where s.prodotto_id = v_mod and s.nome = x.nome;
 
   -- 2b) RICAMO: stesse posizioni, fino a 12 colori, prezzo a pezzo (provvisorio)
   insert into public.prodotti_config_stampe (prodotto_id, nome, area_cm, max_colori, prezzo_pz, setup, tecnica, ordine)

@@ -90,6 +90,30 @@ function calcStampa(prod: any, va: any, L: number, H: number, N: number, opts: a
   return { costo: costoCarta + costoStampa, pose, perStock, fogliMacchina, fogliAcq, fmtNome, grande, valido: pose > 0 };
 }
 
+// ---- COSTO DI UNA POSIZIONE DI STAMPA (acquisto) ------------------------------
+// Se il modello ha il LISTINO di acquisto per la tecnica (prodotti_config.listino_stampa,
+// migrazione v19): prezzo a capo della riga con "da" più alto ≤ pezzi, per il numero di
+// colori scelto, + impianto × colori. Altrimenti calcolo semplice: prezzo_pz × colori
+// (ricamo: a pezzo, non per colore) + setup. IDENTICA in hyper-endpoint e komunigo-ordine.
+function costoPosizioneStampa(prod: any, st: any, colori: number, N: number) {
+  const tec = String(st.tecnica || "").trim().toLowerCase();
+  // ricamo: la griglia ha le FASCE DI PUNTI come colonne (non i colori) → non ancora collegata
+  const L = !/ricamo/i.test(tec) && prod?.listino_stampa && typeof prod.listino_stampa === "object" ? prod.listino_stampa[tec] : null;
+  const righe = Array.isArray(L?.righe) ? L.righe.filter((r: any) => r && r.prezzi).slice()
+    .sort((a: any, b: any) => (Number(a.da) || 0) - (Number(b.da) || 0)) : [];
+  if (righe.length) {
+    // sotto il primo scaglione vale il primo; poi la riga con "da" più alto ≤ N
+    let riga = righe[0];
+    for (const r of righe) if (N >= (Number(r.da) || 0)) riga = r;
+    const pz = Number(riga.prezzi[String(colori)]);
+    if (!(pz > 0)) throw new Error(`Stampa "${st.nome}" non disponibile a ${colori} colori`);
+    const imp = Number(L.impianto_per_colore) || 0;
+    return { costo: pz * N, setup: imp * colori };
+  }
+  const perColore = !/ricamo/i.test(tec);
+  return { costo: (Number(st.prezzo_pz) || 0) * (perColore ? colori : 1) * N, setup: Number(st.setup) || 0 };
+}
+
 // ---- ABBIGLIAMENTO dal catalogo fornitore (v16/v17) ----------------------
 // capo = netto × (1+ricarico) per taglia; stampa = posizioni del MODELLO
 // (prod = prodotti_config solo_modello) con il suo margine; fasce del modello
@@ -132,9 +156,9 @@ async function calcAbbigliamento(admin: any, prod: any, abb: any, stampeSel: any
     if (!st) continue;
     const colori = Math.max(1, Math.min(Number(sc.colori) || 1, Number(st.max_colori) || 4));
     // RICAMO: prezzo a pezzo, NON per colore (i colori servono solo alla produzione)
-    const perColore = !/ricamo/i.test(String(st.tecnica || ""));
-    stCost.push({ nome: st.nome, colori, costo: (Number(st.prezzo_pz) || 0) * (perColore ? colori : 1) * N });
-    costoSetup += Number(st.setup) || 0;
+    const cp = costoPosizioneStampa(prod, st, colori, N);
+    stCost.push({ nome: st.nome, colori, costo: cp.costo });
+    costoSetup += cp.setup;
   }
   const mg = Number(prod.margine_pct) || 0;
   const mF = mg > 0 && mg < 100 ? 1 / (1 - mg / 100) : 1;

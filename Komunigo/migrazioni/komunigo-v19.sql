@@ -179,6 +179,32 @@ begin
   where not exists (select 1 from public.prodotti_config_stampe s where s.prodotto_id = v_a and s.nome = x.nome);
 end $$;
 
+-- ---------------------------------------------------------------------
+--  SHOPPER: fronte, retro (deciso da Giulio 2026-10-14). Serigrafia.
+--  AREE e PREZZI PROVVISORI.
+-- ---------------------------------------------------------------------
+do $$
+declare v_s uuid;
+begin
+  select id into v_s from public.prodotti_config where nome = 'Stampa shopper (modello)' limit 1;
+  if v_s is null then
+    insert into public.prodotti_config (nome, unita_calcolo, tipo, categoria, margine_pct, minimo,
+                                        giorni_lavorazione, attivo, solo_modello, note)
+    values ('Stampa shopper (modello)', 'pz', 'gadget', 'Gadget', 40, 50, 10, true, true,
+            'Modello di stampa per shopper. AREE e PREZZI PROVVISORI.')
+    returning id into v_s;
+    insert into public.prodotti_config_fasce (prodotto_id, da_quantita, sconto_pct, ordine) values
+      (v_s, 250, 5, 0), (v_s, 500, 10, 1);
+  end if;
+  insert into public.prodotti_config_stampe (prodotto_id, nome, area_cm, max_colori, prezzo_pz, setup, tecnica, ordine)
+  select v_s, x.nome, x.area, 4, x.pz, x.setup, 'Serigrafia', x.ord
+  from (values
+    ('Fronte', '25 × 30', 0.50, 30, 0),
+    ('Retro',  '25 × 30', 0.50, 30, 1)
+  ) as x(nome, area, pz, setup, ord)
+  where not exists (select 1 from public.prodotti_config_stampe s where s.prodotto_id = v_s and s.nome = x.nome);
+end $$;
+
 -- penna di esempio: nomi standard
 update public.prodotti_config_stampe s set nome = 'Fusto'
 from public.prodotti_config p where p.id = s.prodotto_id and p.nome = 'Penna personalizzata (esempio)' and s.nome = 'Sul fusto';

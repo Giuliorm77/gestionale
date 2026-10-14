@@ -4754,16 +4754,23 @@ function CaricoPannelliForm({profilo,onClose,onFatto}){
   const [articoli,setArticoli]=useState([]);
   const [q,setQ]=useState(""); const [art,setArt]=useState(null);
   const [larg,setLarg]=useState(""); const [alt,setAlt]=useState(""); const [sp,setSp]=useState("");
-  const [qta,setQta]=useState(1); const [costo,setCosto]=useState(""); const [ubic,setUbic]=useState(""); const [note,setNote]=useState("");
+  const [qta,setQta]=useState(1); const [ubic,setUbic]=useState(""); const [note,setNote]=useState("");
+  const [artCosto,setArtCosto]=useState(null);   // costo €/mq dell'articolo (per valorizzare i pannelli)
   const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
   const [fatti,setFatti]=useState(null);   // codici creati
   useEffect(()=>{ caricaArticoliTutti("id,codice,nome_articolo,unita,materiale_tipo",{tabella:"articoli_magazzino"}).then(a=>setArticoli(a||[])); },[]);
+  // costo dell'articolo (€/mq) → serve a valorizzare i pannelli senza doverlo digitare
+  useEffect(()=>{ setArtCosto(null); if(!art) return; let vivo=true;
+    sb.from("articoli").select("costo").eq("id",art.id).maybeSingle().then(({data})=>{ if(vivo) setArtCosto(data?Number(data.costo)||0:0); });
+    return ()=>{vivo=false;};
+  },[art]);
   const ris=useMemo(()=>{ const s=q.trim().toLowerCase(); if(!s) return [];
     return articoli.filter(a=>[a.nome_articolo,a.codice].join(" ").toLowerCase().includes(s)).slice(0,12); },[q,articoli]);
   const mqPezzo=(Number(larg)||0)*(Number(alt)||0)/10000;
   const n=Math.max(1,Number(qta)||1);
   const mqTot=Math.round(mqPezzo*n*1000)/1000;
-  const valore=costo!==""?Math.round((Number(costo)||0)*n*100)/100:null;
+  const costoPezzo=artCosto!=null ? Math.round(artCosto*mqPezzo*100)/100 : null;   // costo per pannello = €/mq × mq
+  const valore=costoPezzo!=null?Math.round(costoPezzo*n*100)/100:null;
   async function carica(e){
     e.preventDefault();
     if(!art){ setErr("Scegli il materiale (pannello/lastra)."); return; }
@@ -4772,7 +4779,7 @@ function CaricoPannelliForm({profilo,onClose,onFatto}){
     const {data,error}=await sb.rpc("carica_pannelli",{
       p_articolo_id:art.id, p_larghezza:Number(larg), p_altezza:Number(alt),
       p_spessore:sp===""?null:Number(sp), p_quantita:n,
-      p_costo_unitario:costo===""?null:Number(costo), p_ubicazione:ubic||"", p_note:note||"",
+      p_costo_unitario:costoPezzo, p_ubicazione:ubic||"", p_note:note||"",
     });
     if(error){ setErr(error.message); setBusy(false); return; }
     setFatti(data||[]); setBusy(false);
@@ -4816,7 +4823,6 @@ function CaricoPannelliForm({profilo,onClose,onFatto}){
         </div>
         <div className="row">
           <div className="field" style={{maxWidth:130}}><label>Quantità (pz)</label><input type="number" step="1" min="1" value={qta} onChange={e=>setQta(e.target.value)}/></div>
-          <div className="field" style={{maxWidth:170}}><label>Costo unitario € <span className="muted" style={{textTransform:"none",fontWeight:400}}>(per pannello)</span></label><input type="text" inputMode="decimal" value={costo} onChange={e=>setCosto(e.target.value.replace(",","."))} placeholder="es. 18,50"/></div>
           <div className="field"><label>Ubicazione</label><input value={ubic} onChange={e=>setUbic(e.target.value)} placeholder="es. scaffale A3"/></div>
         </div>
         <div className="field"><label>Note</label><input value={note} onChange={e=>setNote(e.target.value)} placeholder="facoltative"/></div>

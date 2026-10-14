@@ -216,6 +216,20 @@ async function prezzoConfigurabile(admin: any, prodotto_id: string, config: any)
   const N = Number(config?.quantita) || 0;
 
   // ---- GADGET: variante colore + posizioni di stampa ----
+  // ---- SCATOLA (identico a hyper-endpoint) ----
+  if (prod.tipo === "scatola") {
+    const r2 = (x: number) => Math.round(x * 100) / 100;
+    const sc = config?.scatola || {};
+    const r: any = calcScatola(prod, va, costoMat, Number(sc.A), Number(sc.B), Number(sc.H), Number(sc.lati), N);
+    if (!r.valido) throw new Error(r.motivo);
+    const mg = Number(prod.margine_pct) || 0;
+    const mF = mg > 0 && mg < 100 ? 1 / (1 - mg / 100) : 1;
+    const fasceS = (prod.prodotti_config_fasce || []).slice().sort((a: any, b: any) => (Number(b.da_quantita) || 0) - (Number(a.da_quantita) || 0));
+    const faS = fasceS.find((x: any) => N >= (Number(x.da_quantita) || 0));
+    const totS = r2(r.costo * mF * (faS ? (1 - (Number(faS.sconto_pct) || 0) / 100) : 1));
+    return { prezzo_unitario: N > 0 ? Math.round(totS / N * 10000) / 10000 : totS, prezzo_totale: totS, sotto_costo: totS < r2(r.costo), costo_totale: r2(r.costo), categoria: prod.categoria || "", nome: prod.nome, quantita: N, unita_calcolo: "pz" };
+  }
+
   if (prod.tipo === "gadget") {
     const r2 = (x: number) => Math.round(x * 100) / 100;
     const costoBase = costoMat * N * (1 + (Number(va.sfrido_pct) || 0) / 100);
@@ -420,6 +434,64 @@ async function generaOrdiniFornitore(admin: any, ordineId: string, origine: stri
   }
   await admin.from("komunigo_ordini").update({ ordini_fornitore_il: oggi }).eq("id", ord.id);
   return { creati, interne };
+}
+
+// ---- SCATOLE (tipo 'scatola', migrazione komunigo-v20) ------------------------
+// Foglio steso (mm) di ogni modello dalle misure INTERNE A×B×H e dallo spessore t.
+// Formule standard semplificate: colla 15 mm, linguette a incastro 15 mm.
+// IDENTICO in hyper-endpoint (prezzo-configuratore) e komunigo-ordine.
+function sviluppoScatola(modello: string, A: number, B: number, H: number, t: number) {
+  const colla = 15, ling = 15, k = 4 * t;
+  if (modello === "fondo_automatico")   // coperchio a incastro + fondo automatico (crash-lock)
+    return [{ nome: "Astuccio", l: 2 * (A + B) + colla + k, h: H + (B + ling) + Math.round(B * 0.75) + 10 + 2 * t }];
+  if (modello === "fondo_coperchio") {   // due vassoi: fondo + coperchio (alto 3/4, più largo di 2t+2 mm)
+    const hc = Math.max(15, Math.round(H * 0.75)), Ac = A + 2 * t + 2, Bc = B + 2 * t + 2;
+    return [
+      { nome: "Fondo", l: A + 2 * H + 2 * t, h: B + 2 * H + 2 * ling },
+      { nome: "Coperchio", l: Ac + 2 * hc + 2 * t, h: Bc + 2 * hc + 2 * ling },
+    ];
+  }
+  if (modello === "americana")           // FEFCO 0201: patelle superiori/inferiori lunghe B/2
+    return [{ nome: "Scatola", l: 2 * (A + B) + 35 + k, h: H + B + 2 * t }];
+  // "astuccio": alette a incastro sopra e sotto (tuck end)
+  return [{ nome: "Astuccio", l: 2 * (A + B) + colla + k, h: H + 2 * (B + ling) + 2 * t }];
+}
+function poseFoglio(sw: number, sh: number, a: number, b: number) {
+  if (!(sw > 0 && sh > 0 && a > 0 && b > 0)) return 0;
+  return Math.max(Math.floor(sw / a) * Math.floor(sh / b), Math.floor(sw / b) * Math.floor(sh / a));
+}
+// costo (acquisto) di N scatole; lati = 0 senza stampa, 1 esterna, 2 esterna+interna
+function calcScatola(prod: any, va: any, costoMat: number, A: number, B: number, H: number, lati: number, N: number) {
+  const p = prod?.scatola || {};
+  if (!(A > 0 && B > 0 && H > 0)) return { valido: false, motivo: "Inserisci le tre misure interne" };
+  if (!(N > 0)) return { valido: false, motivo: "Inserisci la quantità" };
+  const t = Number(va?.spessore) || 0;
+  const pezzi = sviluppoScatola(String(p.modello || "astuccio"), A, B, H, t);
+  const marg = Number(prod?.stampa_margine_mm) || 0, dist = p.distanza_mm != null ? Number(p.distanza_mm) : 5;
+  const fl = (Number(va?.foglio_l_cm) || 0), fh = (Number(va?.foglio_h_cm) || 0);
+  const sw = fl * 10 - 2 * marg, sh = fh * 10 - 2 * marg;
+  let fogli = 0;
+  const sviluppo: any[] = [];
+  for (const pz of pezzi) {
+    const pose = poseFoglio(sw, sh, pz.l + dist, pz.h + dist);
+    if (!pose) return { valido: false, motivo: `Scatola troppo grande per il foglio ${fl}×${fh} cm (steso ${Math.round(pz.l)}×${Math.round(pz.h)} mm)` };
+    const f = Math.ceil(N / pose);
+    fogli += f;
+    sviluppo.push({ nome: pz.nome, l: Math.round(pz.l), h: Math.round(pz.h), pose, fogli: f });
+  }
+  const areaFoglio = (fl / 100) * (fh / 100);
+  const materiale = fogli * costoMat * (1 + (Number(va?.sfrido_pct) || 0) / 100);
+  const lt = Math.max(0, Math.min(2, Math.floor(Number(lati) || 0)));
+  const stampa = lt > 0 ? fogli * areaFoglio * (Number(prod?.stampa_prezzo_mq) || 0) * lt + (Number(prod?.stampa_avviamento) || 0) : 0;
+  const plotter = fogli * (Number(p.plotter_foglio) || 0);
+  const fmL = Number(p.fustella_max_l_cm) || 120, fmH = Number(p.fustella_max_h_cm) || 160;
+  const fustOk = (fl <= fmL && fh <= fmH) || (fl <= fmH && fh <= fmL);
+  const fustella = fustOk ? pezzi.length * (Number(p.fustella_costo) || 0) + fogli * (Number(p.fustella_foglio) || 0) : Infinity;
+  const taglio = Math.min(plotter, fustella);
+  const incollaggio = N * (Number(p.incollaggio_pz) || 0);
+  const avviamento = Number(p.avviamento) || 0;
+  const costo = materiale + stampa + taglio + incollaggio + avviamento;
+  return { valido: true, costo, fogli, sviluppo, taglio: fustella < plotter ? "fustella" : "plotter", lati: lt };
 }
 
 Deno.serve(async (req) => {

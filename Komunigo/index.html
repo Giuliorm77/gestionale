@@ -91,6 +91,27 @@
   .cat h4{font-family:var(--disp);text-transform:uppercase;font-size:21px;margin:0 0 6px;letter-spacing:.01em;}
   .cat p{font-size:14px;color:var(--ink-soft);margin:0;line-height:1.4;}
   .pack-pg{max-width:1100px;margin:10px auto 40px;}
+  .scatola-top{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;}
+  .scatola-svg{width:220px;flex:0 0 220px;background:#fff;border:1px solid var(--line);border-radius:12px;}
+  .sf-top{fill:#E9D9B8;stroke:#8a6d3b;stroke-width:1.2;} .sf-front{fill:#D9C094;stroke:#8a6d3b;stroke-width:1.2;} .sf-side{fill:#C4A672;stroke:#8a6d3b;stroke-width:1.2;}
+  .sf-q{font-size:11px;fill:#5b6472;font-family:inherit;font-weight:600;}
+  .scatola-mis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .scatola-mis label{display:flex;flex-direction:column;font-size:12px;color:var(--ink-soft);gap:3px;}
+  .scatola-mis input{width:100%;}
+  .scatola-lati{display:flex;gap:6px;flex-wrap:wrap;}
+  .scatola-lati button{border:1.5px solid var(--line);background:var(--surface,#fff);border-radius:20px;padding:6px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink);}
+  .scatola-lati button.on{background:var(--blu);border-color:var(--blu);color:#fff;}
+  .boxfinder{margin:20px 0 6px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow);}
+  .bf-head{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:10px;font-size:15px;}
+  .bf-head .muted{font-size:13px;}
+  .bf-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .bf-row label{display:flex;flex-direction:column;font-size:12px;color:var(--ink-soft);gap:3px;}
+  .bf-row input{width:120px;}
+  .bf-modelli{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:14px;}
+  .bf-mod{display:flex;align-items:center;gap:10px;text-align:left;border:1.5px solid var(--line);background:var(--surface,#fff);border-radius:12px;padding:10px 12px;font:inherit;color:var(--ink);cursor:pointer;flex-wrap:wrap;}
+  .bf-mod:hover{border-color:var(--blu);}
+  .bf-ic{font-size:26px;}
+  .bf-go{flex-basis:100%;color:var(--blu);font-weight:700;font-size:12.5px;}
   .wrap.wrap-wide{max-width:1680px;}
   .cat-layout{display:grid;grid-template-columns:1fr;gap:26px;}
   .cat-side,.cat-rail{display:none;}
@@ -531,7 +552,7 @@ function App(){
         {vista==="account" && <AccountPagina account={account} sess={sess} onLogout={logout} vaiCatalogo={()=>vaiCat("")} apriOrdine={apriOrdine} onAccountChange={setAccount} riordina={riordina}/>}
         {vista==="guida" && <LineeGuida vaiCatalogo={()=>setVista("catalogo")}/>}
         {vista==="info" && <PaginaInfo slug={infoSlug} vaiCatalogo={()=>vaiCat("")}/>}
-        {vista==="packaging" && <PaginaPackaging vaiCatalogo={vaiCat}/>}
+        {vista==="packaging" && <PaginaPackaging vaiCatalogo={vaiCat} addCart={addCart} iva={iva} setIva={setIvaMode}/>}
       </div>}
 
       {authOpen && <AuthModal onClose={()=>setAuthOpen(false)}/>}
@@ -705,6 +726,166 @@ function FooterKomunigo({vai}){
     </footer>);
 }
 
+// =====================================================================
+//  SCATOLE (tipo 'scatola', v20): configuratore stile "modello + misure".
+//  Il prezzo (foglio steso, pose, fogli, taglio plotter/fustella) lo calcola
+//  SOLO il server (hyper-endpoint con {scatola:{A,B,H,lati}}).
+// =====================================================================
+const SCATOLA_STAMPA=[[0,"Senza stampa"],[1,"Stampa esterna"],[2,"Esterna e interna"]];
+// piccolo disegno isometrico della scatola con le misure (proporzionato)
+function ScatolaDisegno({A,B,H}){
+  const a=Math.max(1,Number(A)||1), b=Math.max(1,Number(B)||1), h=Math.max(1,Number(H)||1);
+  const k=120/Math.max(a+b*0.6, h+b*0.35);           // scala per stare nel riquadro
+  const W=a*k, D=b*k*0.6, Hh=h*k, dx=D, dy=D*0.55;
+  const x0=40, y0=30+dy;
+  const P=(pts)=>pts.map(p=>p.join(",")).join(" ");
+  return (
+    <svg viewBox="0 0 220 190" className="scatola-svg" role="img" aria-label={`Scatola ${a}×${b}×${h} mm`}>
+      <polygon points={P([[x0,y0],[x0+W,y0],[x0+W+dx,y0-dy],[x0+dx,y0-dy]])} className="sf-top"/>
+      <polygon points={P([[x0,y0],[x0+W,y0],[x0+W,y0+Hh],[x0,y0+Hh]])} className="sf-front"/>
+      <polygon points={P([[x0+W,y0],[x0+W+dx,y0-dy],[x0+W+dx,y0-dy+Hh],[x0+W,y0+Hh]])} className="sf-side"/>
+      <text x={x0+W/2} y={y0+Hh+16} textAnchor="middle" className="sf-q">A {a}</text>
+      <text x={x0+W+dx/2+6} y={y0-dy/2+Hh+14} textAnchor="start" className="sf-q">B {b}</text>
+      <text x={x0-6} y={y0+Hh/2} textAnchor="end" className="sf-q">H {h}</text>
+    </svg>);
+}
+function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureIniziali}){
+  const tiers=(Array.isArray(prod.shop_quantita)? prod.shop_quantita.map(Number).filter(n=>n>0) : [100,250,500,1000,2500,5000]);
+  const [varianti,setVarianti]=useState([]);
+  const [variante,setVariante]=useState("");
+  const [A,setA]=useState((misureIniziali&&misureIniziali.A)||80);
+  const [B,setB]=useState((misureIniziali&&misureIniziali.B)||80);
+  const [H,setH]=useState((misureIniziali&&misureIniziali.H)||150);
+  const [lati,setLati]=useState(1);
+  const [qta,setQta]=useState(tiers[0]||100);
+  const [qtaLibera,setQtaLibera]=useState("");
+  const [righe,setRighe]=useState(null);   // [{q,res}]
+  const [stato,setStato]=useState(""); const [errMsg,setErrMsg]=useState("");
+  useEffect(()=>{ (async()=>{
+    const {data}=await sb.from("komunigo_configuratori_varianti").select("*").eq("prodotto_id",prod.id).order("ordine");
+    setVarianti(data||[]); if((data||[]).length) setVariante(data[0].id);
+  })(); },[prod.id]);
+  const invalida=()=>{ setRighe(null); setStato(""); setErrMsg(""); };
+  const body=q=>({prodotto_id:prod.id, variante_id:variante, quantita:Number(q), scatola:{A:Number(A),B:Number(B),H:Number(H),lati:Number(lati)}});
+  const elenco=()=>{ const ql=Math.floor(Number(qtaLibera)||0); return [...new Set([...tiers,...(ql>0?[ql]:[])])].sort((a,b)=>a-b); };
+  const calcola=async()=>{
+    setStato("calcolo"); setRighe(null); setErrMsg("");
+    try{
+      const qs=elenco();
+      const res=await Promise.all(qs.map(q=>sb.functions.invoke("hyper-endpoint",{body:body(q)}).then(r=>({q,data:r.data,error:r.error}))));
+      const ok=res.filter(x=>!x.error && x.data && !x.data.error && Number(x.data.prezzo_totale)>0 && !x.data.sotto_costo);
+      if(!ok.length){
+        let msg="";
+        const e0=res.find(x=>x.error); if(e0){ try{ const j=await e0.error.context.json(); msg=j.error||""; }catch(e){ msg=e0.error.message||""; } }
+        setErrMsg(String(msg).replace(/^Error:\s*/,"")||"Configurazione non calcolabile."); setStato("errore"); return;
+      }
+      setRighe(ok.map(x=>({q:x.q,res:x.data})));
+      const ql=Math.floor(Number(qtaLibera)||0); setQta(ql>0? ql : (ok.find(x=>x.q===Number(qta))? Number(qta) : ok[0].q));
+      setStato("");
+    }catch(e){ setErrMsg(e.message||String(e)); setStato("errore"); }
+  };
+  const sel=righe && righe.find(r=>r.q===Number(qta));
+  const prezzo=sel&&sel.res;
+  const unit0=righe&&righe.length? Number(righe[0].res.prezzo_unitario):0;
+  const va=varianti.find(v=>v.id===variante);
+  const aggiungi=()=>{
+    if(!prezzo) return;
+    const descr=`${prod.nome} · interno ${A}×${B}×${H} mm${va?" · "+va.nome:""} · ${SCATOLA_STAMPA.find(x=>x[0]===Number(lati))[1].toLowerCase()} · ${qta} pz`;
+    addCart({tipo:"configurabile", prodotto_config_id:prod.id, descrizione:descr,
+      config:{variante_id:variante, quantita:Number(qta), scatola:{A:Number(A),B:Number(B),H:Number(H),lati:Number(lati)}, unita_calcolo:"pz"},
+      quantita:Number(qta), prezzo_unitario:Number(prezzo.prezzo_unitario)||0, prezzo_totale:Number(prezzo.prezzo_totale)||0});
+    chiudi();
+  };
+  const d=prezzo&&prezzo.dettaglio;
+  return (
+    <div className="overlay">
+      <div className="modal" style={{maxWidth:760}}>
+        <div className="mh"><h3>{prod.nome}</h3>
+          {setIva && <div className="iva-toggle sm">
+            <button className={iva==="escl"?"on":""} onClick={()=>setIva("escl")}>IVA escl.</button>
+            <button className={iva==="incl"?"on":""} onClick={()=>setIva("incl")}>IVA incl.</button></div>}
+          <button className="x" onClick={chiudi}>×</button></div>
+        <div className="mb">
+          <div className="scatola-top">
+            <ScatolaDisegno A={A} B={B} H={H}/>
+            <div style={{flex:1,minWidth:240}}>
+              <label className="fld">Misure interne (mm)</label>
+              <div className="scatola-mis">
+                {[["A","Larghezza",A,setA],["B","Profondità",B,setB],["H","Altezza",H,setH]].map(([k,l,v,s])=>(
+                  <label key={k}><span>{k} · {l}</span><input type="number" min="1" step="1" value={v} onChange={e=>{s(e.target.value);invalida();}}/></label>))}
+              </div>
+              <div className="muted" style={{fontSize:12,marginTop:4}}>Misura il tuo prodotto e indica lo spazio interno che deve avere la scatola.</div>
+              {varianti.length>0 && <><label className="fld" style={{marginTop:12}}>Materiale</label>
+                <select value={variante} onChange={e=>{setVariante(e.target.value);invalida();}}>
+                  {varianti.map(v=><option key={v.id} value={v.id}>{v.nome}{v.spessore?` (${v.spessore} mm)`:""}</option>)}
+                </select></>}
+              <label className="fld" style={{marginTop:12}}>Stampa</label>
+              <div className="scatola-lati">{SCATOLA_STAMPA.map(([n,l])=>(
+                <button type="button" key={n} className={Number(lati)===n?"on":""} onClick={()=>{setLati(n);invalida();}}>{l}</button>))}</div>
+            </div>
+          </div>
+          <label className="fld" style={{marginTop:14}}>Quantità</label>
+          {!righe
+            ? <div className="muted" style={{fontSize:13}}>Premi <b>Calcola prezzi</b>: ti mostriamo il prezzo per {tiers.join(", ")} pezzi{qtaLibera?` e ${qtaLibera}`:""}.</div>
+            : <div className="scaglioni">{righe.map(r=>{ const u=Number(r.res.prezzo_unitario)||0; const risp=unit0>0? Math.round((1-u/unit0)*100):0; return (
+                <button type="button" key={r.q} className={"tier"+(Number(qta)===r.q?" on":"")} onClick={()=>setQta(r.q)}>
+                  <span className="tq">{r.q.toLocaleString("it-IT")} pz</span>
+                  <span className="tu">{eur(conIva(u,iva))}/pz</span>
+                  <span className="tt">{eur(conIva(r.res.prezzo_totale,iva))}</span>
+                  {risp>0 && <span className="tr">−{risp}%</span>}
+                </button>); })}</div>}
+          <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,fontSize:13}}>
+            <span className="muted">Altra quantità:</span>
+            <input type="number" min="1" value={qtaLibera} placeholder="es. 750" style={{width:110}} onChange={e=>{setQtaLibera(e.target.value);invalida();}}/>
+          </div>
+          {stato==="errore" && <div className="warn" style={{marginTop:14}}><b>Prezzo non disponibile.</b> {errMsg}</div>}
+          {prezzo && d && <div className="muted" style={{fontSize:12.5,marginTop:10}}>
+            Foglio steso {d.sviluppo.map(s=>`${s.nome.toLowerCase()} ${s.l}×${s.h} mm`).join(" + ")} · {d.taglio==="fustella"?"taglio a fustella":"taglio a plotter"}</div>}
+          {prezzo && <div className="cart-tot" style={{marginTop:12}}>
+            {Number(prezzo.sconto_pct)>0 && <div className="r" style={{color:"var(--blu)",fontWeight:700}}><span>Sconto riservato B2B</span><span>−{prezzo.sconto_pct}%</span></div>}
+            <div className="r"><span>Prezzo a scatola</span><span>{eur(conIva(prezzo.prezzo_unitario,iva))}</span></div>
+            <div className="r big"><span>Totale ({Number(qta).toLocaleString("it-IT")} pz) <span className="iva-tag">{ivaLbl(iva)}</span></span><span>{eur(conIva(prezzo.prezzo_totale,iva))}</span></div></div>}
+          {Number(prod.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}>📦 Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b></div>}
+          <div className="note" style={{marginTop:12}}>📐 Dopo l'ordine ti mandiamo il <b>tracciato</b> della tua scatola su cui impaginare la grafica e la <b>bozza da approvare</b> prima della produzione.</div>
+        </div>
+        <div className="mf">
+          {prezzo
+            ? <button className="btn" onClick={aggiungi}>Aggiungi al carrello</button>
+            : <button className="btn" onClick={calcola} disabled={stato==="calcolo"}>{stato==="calcolo"?"Calcolo…":"Calcola prezzi"}</button>}
+          {righe && <button className="btn ghost" onClick={calcola}>Ricalcola</button>}
+          <button className="btn ghost" onClick={chiudi}>Annulla</button>
+        </div>
+      </div>
+    </div>);
+}
+// BoxFinder: misure del prodotto → modelli realizzabili, apre il configuratore
+function BoxFinder({addCart, iva, setIva}){
+  const [mod,setMod]=useState(null);
+  const [m,setM]=useState({A:"",B:"",H:""});
+  const [aperto,setAperto]=useState(null);
+  useEffect(()=>{ (async()=>{
+    const {data}=await sb.from("komunigo_configuratori").select("*").eq("tipo","scatola").order("nome");
+    setMod(data||[]);
+  })(); },[]);
+  if(!mod || !mod.length) return null;
+  const ok=Number(m.A)>0&&Number(m.B)>0&&Number(m.H)>0;
+  return (
+    <div className="boxfinder">
+      <div className="bf-head"><b>📐 Trova la scatola</b><span className="muted">Inserisci le misure del tuo prodotto (mm) e scegli il modello.</span></div>
+      <div className="bf-row">
+        {[["A","Larghezza"],["B","Profondità"],["H","Altezza"]].map(([k,l])=>(
+          <label key={k}><span>{l}</span><input type="number" min="1" value={m[k]} placeholder="mm" onChange={e=>setM(o=>({...o,[k]:e.target.value}))}/></label>))}
+      </div>
+      <div className="bf-modelli">{mod.map(p=>(
+        <button type="button" key={p.id} className="bf-mod" onClick={()=>setAperto(p)}>
+          <span className="bf-ic">📦</span><span><b>{p.nome}</b><br/><span className="muted" style={{fontSize:12}}>{p.categoria||""}</span></span>
+          <span className="bf-go">{ok?"Configura con queste misure →":"Configura →"}</span>
+        </button>))}</div>
+      {aperto && <ConfiguratoreScatola prod={aperto} chiudi={()=>setAperto(null)} addCart={addCart} iva={iva} setIva={setIva}
+        misureIniziali={ok?{A:Number(m.A),B:Number(m.B),H:Number(m.H)}:null}/>}
+    </div>);
+}
+
 // ---- "Non lo trovi? Lo facciamo su misura": in fondo a ogni categoria ----
 // Apre un'email precompilata a info@komunigo.it con la categoria e una traccia.
 function RichiestaSuMisura({categoria}){
@@ -743,12 +924,13 @@ const PACKAGING_SOTTO=[
   {ic:"📦", titolo:"Scatole in microonda", categoria:"Scatole in microonda",
    testo:"Scatole in cartone ondulato leggere e robuste, per spedizioni ed e-commerce. Stampate con il tuo marchio, trasformano il pacco in un biglietto da visita."},
 ];
-function PaginaPackaging({vaiCatalogo}){
+function PaginaPackaging({vaiCatalogo, addCart, iva, setIva}){
   return (
     <div className="pack-pg">
       <div className="muted" style={{fontSize:12.5,letterSpacing:".04em",textTransform:"uppercase"}}>Packaging</div>
       <h1 className="pdp-title">Packaging personalizzato</h1>
       <p className="pdp-sub">Confezioni su misura con la tua grafica: scegli la tipologia e scopri formati e prezzi.</p>
+      <BoxFinder addCart={addCart} iva={iva} setIva={setIva}/>
       <div className="pack-grid">
         {PACKAGING_SOTTO.map(p=>(
           <button key={p.titolo} className="pack-card" onClick={()=>vaiCatalogo(p.categoria)}>
@@ -1014,9 +1196,10 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
   const abbSubs = [...new Set(capiAll.map(x=>x.sottocategoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   const capi = capiAll.filter(x=>!abbSub || x.sottocategoria===abbSub);
   const gadget = conf.filter(c=>c.tipo==="gadget" && matchCat(c) && matchQ(c));
-  const misura = conf.filter(c=>c.tipo!=="gadget" && matchCat(c) && matchQ(c));
+  const misura = conf.filter(c=>c.tipo!=="gadget" && c.tipo!=="scatola" && matchCat(c) && matchQ(c));
+  const scatole = conf.filter(c=>c.tipo==="scatola" && matchCat(c) && matchQ(c));
   const stock  = prodotti.filter(x=>matchCat(x) && matchQ(x));
-  const nTot = gadget.length+misura.length+stock.length+capiAll.length;
+  const nTot = gadget.length+misura.length+stock.length+capiAll.length+scatole.length;
   const vuoto = nTot===0;
 
   const cardConf = (c,isGadget) => (
@@ -1086,6 +1269,19 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
         <h2 className="sec" style={{marginTop:capiAll.length?40:0}}>🎁 Gadget personalizzati</h2>
         <p className="sec-sub">Scegli colore, quantità e dove stampare: il prezzo lo calcola il sistema.</p>
         <div className="grid">{gadget.map(c=>cardConf(c,true))}</div>
+      </>}
+
+      {scatole.length>0 && <>
+        <h2 className="sec" style={{marginTop:(capiAll.length||gadget.length)?40:0}}>📦 Packaging su misura</h2>
+        <p className="sec-sub">Scegli il modello, scrivi le misure interne: prezzo per quantità calcolato subito.</p>
+        <div className="grid">{scatole.map(c=>(
+          <div className="card" key={c.id} style={{cursor:"pointer"}} onClick={()=>setDettaglio({tipo:"configuratore",prod:c})}>
+            <div className="ph">📦</div>
+            <div className="bd"><span className="tag-conf">Su misura</span>{c.categoria && <span className="cat-l" style={{marginLeft:6}}>{c.categoria}</span>}<h3>{c.nome}</h3>
+              <div className="desc">{c.note && !/COSTI FINTI/i.test(c.note)? c.note : "Dimensioni libere, stampa UV, taglio e incollaggio nel nostro laboratorio."}</div>
+              <div className="row"><span className="muted">{Number(c.giorni_lavorazione)>0?`pronto in ~${c.giorni_lavorazione} gg lav.`:"prezzo su configurazione"}</span></div>
+              <button className="add" onClick={e=>{e.stopPropagation();setDettaglio({tipo:"configuratore",prod:c});}}>Configura</button></div>
+          </div>))}</div>
       </>}
 
       {misura.length>0 && <>
@@ -1194,7 +1390,9 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida, iva,
           <tr key={i}><th>{c.label}</th><td>{c.valore}</td></tr>)}</tbody></table>
       </div>}
 
-      {cfgOpen && <Configuratore prod={prod} chiudi={()=>setCfgOpen(false)} addCart={addCart} iva={iva} setIva={setIva}/>}
+      {cfgOpen && (prod.tipo==="scatola"
+        ? <ConfiguratoreScatola prod={prod} chiudi={()=>setCfgOpen(false)} addCart={addCart} iva={iva} setIva={setIva}/>
+        : <Configuratore prod={prod} chiudi={()=>setCfgOpen(false)} addCart={addCart} iva={iva} setIva={setIva}/>)}
     </div>
   );
 }

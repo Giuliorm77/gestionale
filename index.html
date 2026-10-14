@@ -11263,10 +11263,15 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
     shop_mis_min:prodotto?.shop_mis_min ?? "",
     shop_mis_max:prodotto?.shop_mis_max ?? "",
     shop_quantita:(Array.isArray(prodotto?.shop_quantita)?prodotto.shop_quantita.join(", "):""),
+    // parametri SCATOLA (komunigo-v20)
+    scatola:{modello:"astuccio", plotter_foglio:"", fustella_costo:"", fustella_foglio:"", fustella_max_l_cm:120, fustella_max_h_cm:160,
+      incollaggio_pz:"", avviamento:"", distanza_mm:5, ...((prodotto&&prodotto.scatola)||{})},
   }));
   const gadget = f.tipo==="gadget";
   const stampa = f.tipo==="stampa";
-  const uLabel = gadget?"pz":(stampa?"foglio":f.unita_calcolo);
+  const scatola = f.tipo==="scatola";
+  const setSc=(k,v)=>setF(p=>({...p,scatola:{...(p.scatola||{}),[k]:v}}));
+  const uLabel = gadget?"pz":((stampa||scatola)?"foglio":f.unita_calcolo);
   const ord=(arr)=>arr.slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0)).map(x=>({...x}));
   const [varianti,setVarianti]=useState(()=>{ const v=ord(prodotto?.prodotti_config_varianti||[]);
     return v.length? v : [{nome:"",spessore:"",costo_materiale:"",sfrido_pct:"",foglio_l_cm:"",foglio_h_cm:""}]; });
@@ -11312,7 +11317,9 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
     setBusy(true); setErr("");
     try{
       const rec={nome:f.nome,tipo:f.tipo,categoria:(f.categoria||"").trim(),giorni_lavorazione:Number(f.giorni_lavorazione)||0,
-        unita_calcolo:(gadget||stampa)?"pz":f.unita_calcolo,margine_pct:Number(f.margine_pct)||0,
+        unita_calcolo:(gadget||stampa||scatola)?"pz":f.unita_calcolo,margine_pct:Number(f.margine_pct)||0,
+        // colonna di komunigo-v20: solo per le scatole (o se il record l'ha già)
+        ...(scatola || (prodotto && "scatola" in prodotto && prodotto.scatola) ? {scatola: scatola ? (()=>{ const o={...f.scatola}; ["plotter_foglio","fustella_costo","fustella_foglio","fustella_max_l_cm","fustella_max_h_cm","incollaggio_pz","avviamento","distanza_mm"].forEach(k=>o[k]=Number(o[k])||0); return o; })() : prodotto.scatola} : {}),
         minimo:Number(f.minimo)||0,attivo:f.attivo,note:f.note,
         // colonna di komunigo-v17: la mando solo se esiste già (record caricato) o se è attivata
         ...((prodotto && "solo_modello" in prodotto) || f.solo_modello ? {solo_modello:!!f.solo_modello} : {}),
@@ -11367,8 +11374,9 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
                   <option value="misura">A misura (mq/mtl/pz)</option>
                   <option value="stampa">Stampa su carta (fogli / nesting)</option>
                   <option value="gadget">Gadget (colori + stampa)</option>
+                  <option value="scatola">Scatola (packaging su misura)</option>
                 </select></div>
-              {!gadget && !stampa && <div className="field" style={{maxWidth:200}}><label>Unità di calcolo</label>
+              {!gadget && !stampa && !scatola && <div className="field" style={{maxWidth:200}}><label>Unità di calcolo</label>
                 <select value={f.unita_calcolo} onChange={e=>set("unita_calcolo",e.target.value)}>
                   {UNITA_CALC.map(u=><option key={u.v} value={u.v}>{u.l}</option>)}
                 </select></div>}
@@ -11395,6 +11403,47 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
             {stampa && <div className="muted" style={{fontSize:12,marginTop:2}}>🖨️ <b>Stampa su carta:</b> il programma calcola le <b>pose per foglio</b> (con nesting) e i <b>fogli</b> necessari. Piccolo formato = stampa a passaggio (B/N o colore, ×2 fronte/retro) sui fogli macchina {FORMATI_STAMPA.map(F=>F.nome).join(" / ")} cm (scelti in automatico). Grande formato = stampa a mq sul foglio d'acquisto.</div>}
           </div>
 
+          {scatola && <div className="section">
+            <h3>📦 Scatola: modello, stampa e lavorazioni</h3>
+            <div className="muted" style={{fontSize:12,margin:"0 0 8px"}}>Il cliente scrive le misure interne A×B×H: il programma calcola il <b>foglio steso</b> del modello, le <b>pose</b> nel foglio del materiale, i <b>fogli</b>, poi stampa UV (€/m² del foglio, per lato), <b>taglio</b> (sceglie da solo plotter o fustella, il più economico), incollaggio e avviamenti. Tutti i valori sono COSTI: poi si applica il ricarico.</div>
+            <div className="row">
+              <div className="field" style={{maxWidth:260}}><label>Modello</label>
+                <select value={f.scatola.modello} onChange={e=>setSc("modello",e.target.value)}>
+                  <option value="astuccio">Astuccio con alette a incastro</option>
+                  <option value="fondo_automatico">Astuccio con fondo automatico</option>
+                  <option value="fondo_coperchio">Scatola fondo e coperchio</option>
+                  <option value="americana">Scatola americana (FEFCO 0201)</option>
+                </select></div>
+              <div className="field" style={{maxWidth:170}}><label>Margine foglio (mm/lato)</label>
+                <input type="number" step="1" value={f.stampa_margine_mm} onChange={e=>set("stampa_margine_mm",e.target.value)}/></div>
+              <div className="field" style={{maxWidth:170}}><label>Distanza tra pezzi (mm)</label>
+                <input type="number" step="1" value={f.scatola.distanza_mm} onChange={e=>setSc("distanza_mm",e.target.value)}/></div>
+            </div>
+            <div className="row">
+              <div className="field" style={{maxWidth:170}}><label>Stampa UV €/m² per lato</label>
+                <input type="number" step="0.01" value={f.stampa_prezzo_mq} onChange={e=>set("stampa_prezzo_mq",e.target.value)}/></div>
+              <div className="field" style={{maxWidth:170}}><label>Avviamento stampa €</label>
+                <input type="number" step="0.01" value={f.stampa_avviamento} onChange={e=>set("stampa_avviamento",e.target.value)}/></div>
+              <div className="field" style={{maxWidth:170}}><label>Avviamento lavoro €</label>
+                <input type="number" step="0.01" value={f.scatola.avviamento} onChange={e=>setSc("avviamento",e.target.value)}/></div>
+            </div>
+            <div className="row">
+              <div className="field" style={{maxWidth:170}}><label>Plotter €/foglio</label>
+                <input type="number" step="0.01" value={f.scatola.plotter_foglio} onChange={e=>setSc("plotter_foglio",e.target.value)}/></div>
+              <div className="field" style={{maxWidth:170}}><label>Fustella € (una tantum)</label>
+                <input type="number" step="0.01" value={f.scatola.fustella_costo} onChange={e=>setSc("fustella_costo",e.target.value)}/></div>
+              <div className="field" style={{maxWidth:170}}><label>Fustella €/foglio</label>
+                <input type="number" step="0.01" value={f.scatola.fustella_foglio} onChange={e=>setSc("fustella_foglio",e.target.value)}/></div>
+              <div className="field" style={{maxWidth:200}}><label>Fustella max (cm)</label>
+                <div style={{display:"flex",gap:4}}><input type="number" value={f.scatola.fustella_max_l_cm} onChange={e=>setSc("fustella_max_l_cm",e.target.value)}/>
+                <input type="number" value={f.scatola.fustella_max_h_cm} onChange={e=>setSc("fustella_max_h_cm",e.target.value)}/></div></div>
+            </div>
+            <div className="row">
+              <div className="field" style={{maxWidth:170}}><label>Incollaggio €/pezzo</label>
+                <input type="number" step="0.001" value={f.scatola.incollaggio_pz} onChange={e=>setSc("incollaggio_pz",e.target.value)}/></div>
+            </div>
+          </div>}
+
           {stampa && <div className="section">
             <h3>Parametri di stampa</h3>
             <div className="row">
@@ -11419,7 +11468,7 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
           </div>}
 
           <div className="section">
-            <h3>{gadget?"Colori disponibili":stampa?"Carta (formati d'acquisto)":"Varianti (materiale + spessore)"}</h3>
+            <h3>{gadget?"Colori disponibili":stampa?"Carta (formati d'acquisto)":scatola?"Materiali (fogli)":"Varianti (materiale + spessore)"}</h3>
             <div className="muted" style={{fontSize:12,marginBottom:8}}>{gadget?"Es. Bianco, Nero, Blu… ogni colore col suo costo per pezzo (o articolo di magazzino).":stampa?"Es. Patinata 300g 700×1000, Uso mano 1000×1400… ogni carta col suo formato d'acquisto (mm) e costo a foglio (o articolo di magazzino).":"Es. Forex 3mm, Forex 5mm, Alluminio 3mm… ognuna col suo costo materiale (€/"+f.unita_calcolo+")."}</div>
             {varianti.map((v,i)=>{
               const artSel=(articoli||[]).find(a=>a.id===v.articolo_id)||null;
@@ -11428,11 +11477,11 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
                 <div className="row">
                   <div className="field" style={{flex:2}}><label>{gadget?"Colore":stampa?"Nome carta":"Nome variante"}</label>
                     <input value={v.nome} onChange={e=>setVar(i,"nome",e.target.value)} placeholder={gadget?"es. Bianco":stampa?"es. Patinata 300g":"es. Forex 3mm"}/></div>
-                  {stampa && <><div className="field" style={{maxWidth:120}}><label>Foglio L (mm)</label>
+                  {(stampa||scatola) && <><div className="field" style={{maxWidth:120}}><label>Foglio L (mm)</label>
                     <input type="number" step="1" value={v.foglio_l_cm===""||v.foglio_l_cm==null?"":Math.round(Number(v.foglio_l_cm)*10*100)/100} onChange={e=>setVar(i,"foglio_l_cm",e.target.value===""?"":Number(e.target.value)/10)} placeholder="700"/></div>
                   <div className="field" style={{maxWidth:120}}><label>Foglio H (mm)</label>
                     <input type="number" step="1" value={v.foglio_h_cm===""||v.foglio_h_cm==null?"":Math.round(Number(v.foglio_h_cm)*10*100)/100} onChange={e=>setVar(i,"foglio_h_cm",e.target.value===""?"":Number(e.target.value)/10)} placeholder="1000"/></div></>}
-                  {!gadget && !stampa && <div className="field" style={{maxWidth:110}}><label>Spessore mm</label>
+                  {!gadget && (!stampa || scatola) && <div className="field" style={{maxWidth:110}}><label>Spessore mm</label>
                     <input type="number" step="0.1" value={v.spessore} onChange={e=>setVar(i,"spessore",e.target.value)}/></div>}
                   {!gadget && <div className="field" style={{maxWidth:100}}><label>Sfrido %</label>
                     <input type="number" step="0.1" value={v.sfrido_pct} onChange={e=>setVar(i,"sfrido_pct",e.target.value)}/></div>}
@@ -11485,7 +11534,7 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
             <button type="button" className="btn small" onClick={addStampa}>+ Posizione di stampa</button>
           </div>}
 
-          {!gadget && <div className="section">
+          {!gadget && !scatola && <div className="section">
             <h3>Lavorazioni e opzioni</h3>
             {voci.length===0 && <div className="muted" style={{marginBottom:8}}>Aggiungi le lavorazioni (es. stampa, sagomatura) e le opzioni (es. occhielli).</div>}
             {voci.map((v,i)=>
@@ -11521,7 +11570,7 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
             <h3>🛒 Vendita online (negozio Komunigo)</h3>
             <div className="muted" style={{fontSize:12,marginBottom:8}}>Cosa vede e sceglie il cliente sul sito. Il prezzo viene mostrato senza dati interni (fogli, formati macchina, costi).</div>
             <div className="row">
-              {!gadget && <><div className="field" style={{maxWidth:180}}><label>Misura min (mm/lato)</label>
+              {!gadget && !scatola && <><div className="field" style={{maxWidth:180}}><label>Misura min (mm/lato)</label>
                 <input type="number" step="1" value={f.shop_mis_min===""||f.shop_mis_min==null?"":Math.round(Number(f.shop_mis_min)*10*100)/100} onChange={e=>set("shop_mis_min",e.target.value===""?"":Number(e.target.value)/10)} placeholder="0 = nessun limite"/></div>
               <div className="field" style={{maxWidth:180}}><label>Misura max (mm/lato)</label>
                 <input type="number" step="1" value={f.shop_mis_max===""||f.shop_mis_max==null?"":Math.round(Number(f.shop_mis_max)*10*100)/100} onChange={e=>set("shop_mis_max",e.target.value===""?"":Number(e.target.value)/10)} placeholder="0 = nessun limite"/></div></>}

@@ -131,7 +131,9 @@ async function calcAbbigliamento(admin: any, prod: any, abb: any, stampeSel: any
     const st = allSt.find((x: any) => x.id === sc.stampa_id);
     if (!st) continue;
     const colori = Math.max(1, Math.min(Number(sc.colori) || 1, Number(st.max_colori) || 4));
-    stCost.push({ nome: st.nome, colori, costo: (Number(st.prezzo_pz) || 0) * colori * N });
+    // RICAMO: prezzo a pezzo, NON per colore (i colori servono solo alla produzione)
+    const perColore = !/ricamo/i.test(String(st.tecnica || ""));
+    stCost.push({ nome: st.nome, colori, costo: (Number(st.prezzo_pz) || 0) * (perColore ? colori : 1) * N });
     costoSetup += Number(st.setup) || 0;
   }
   const mg = Number(prod.margine_pct) || 0;

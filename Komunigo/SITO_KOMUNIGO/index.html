@@ -1013,7 +1013,7 @@ function ConfiguratoreAbbigliamento({capo, colori, colInit, chiudi, addCart, iva
                 <div className="stampa-area"><span className="area-rect">area</span>
                   <span className="area-lbl">Area di stampa{s.area_cm?` · ${s.area_cm} cm`:""}</span></div>
                 {c>0 && <div className="stampa-col">N° colori <input type="number" min="1" max={s.max_colori||4} value={c} style={{width:56,padding:"4px 6px"}}
-                  onChange={e=>{ const n=Math.max(1,Math.min(Number(e.target.value)||1, s.max_colori||4)); setStSel(o=>({...o,[s.id]:n})); invalida(); }}/> <span className="muted" style={{fontSize:12}}>(dal n° colori del tuo logo)</span></div>}
+                  onChange={e=>{ const n=Math.max(1,Math.min(Number(e.target.value)||1, s.max_colori||4)); setStSel(o=>({...o,[s.id]:n})); invalida(); }}/> <span className="muted" style={{fontSize:12}}>{/ricamo/i.test(s.tecnica||"")?"(fino a 12 colori, il prezzo non cambia)":"(dal n° colori del tuo logo)"}</span></div>}
               </div>); })}
           </div>}
           {step===ultimo && <>

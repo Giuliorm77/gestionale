@@ -14,14 +14,18 @@ with m as (
 update public.prodotti_config_stampe s
 set prezzo_pz = v.prezzo_pz, setup = v.setup
 from m, (values
-  ('Petto lato cuore', 0.40, 10),
-  ('Fronte grande',    0.50, 12),
-  ('Retro grande',     0.50, 12),
-  ('Manica',           0.40, 10)
+  ('Lato cuore',          0.40, 10),
+  ('Lato destro',         0.40, 10),
+  ('Centro fronte',       0.50, 12),
+  ('Centro retro',        0.50, 12),
+  ('Manica sinistra',     0.40, 10),
+  ('Manica destra',       0.40, 10),
+  ('Centro collo fronte', 0.40, 10),
+  ('Centro collo retro',  0.40, 10)
 ) as v(nome, prezzo_pz, setup)
 where s.prodotto_id = m.id and s.nome = v.nome;
 
--- controllo: deve mostrare le 4 posizioni con i nuovi valori
+-- controllo (posizioni di v19; il RICAMO non è toccato da questo script)
 select s.nome, s.prezzo_pz, s.setup, p.margine_pct, p.minimo
 from public.prodotti_config_stampe s
 join public.prodotti_config p on p.id = s.prodotto_id

@@ -281,6 +281,121 @@ async function ordineDaToken(admin: any, token: string) {
 }
 const safeName = (s: string) => String(s || "file").replace(/[^\w.\-]+/g, "_").slice(-80);
 
+// ---- ORDINI AI FORNITORI da un ordine Komunigo (migrazione v18) ----------
+// Divide le righe per FORNITORE e crea un ordine fornitore (bozza) per ciascuno:
+//  - abbigliamento dal catalogo fornitore → fornitore del catalogo (sync.fornitore_id),
+//    una riga per SKU (colore+taglia), prezzo = netto del catalogo;
+//  - prodotto configurabile con "fornitore del neutro" (prodotti_config.fornitore_id)
+//    → una riga col colore scelto, prezzo = costo della variante;
+//  - tutto il resto = produzione interna, nessun ordine.
+// Usata dal pulsante del gestionale (origine "manuale") e — quando ci sarà Nexi —
+// dal webhook di pagamento con CARTA (origine "auto").
+async function generaOrdiniFornitore(admin: any, ordineId: string, origine: string, utenteId: string | null) {
+  const r2 = (x: number) => Math.round(x * 100) / 100;
+  const { data: ord } = await admin.from("komunigo_ordini")
+    .select("id,numero,cliente_nome,commessa_id").eq("id", ordineId).maybeSingle();
+  if (!ord) throw new Error("Ordine non trovato");
+  const { data: righe } = await admin.from("komunigo_ordini_righe").select("*").eq("ordine_id", ordineId).order("ordine");
+  const { data: syncs } = await admin.from("catalogo_fornitore_sync").select("fornitore,nome,fornitore_id");
+
+  // gruppi per fornitore: chiave = fornitore_id (o nome se non collegato in anagrafica)
+  const gruppi = new Map<string, any>();
+  const aggiungi = (fid: string | null, fnome: string, riga: any) => {
+    const k = fid || ("nome:" + fnome);
+    const g = gruppi.get(k) || { fornitore_id: fid, fornitore_nome: fnome, righe: new Map<string, any>() };
+    const ex = g.righe.get(riga.chiave);
+    if (ex) ex.quantita += riga.quantita; else g.righe.set(riga.chiave, { ...riga });
+    gruppi.set(k, g);
+  };
+  let interne = 0;
+
+  for (const r of (righe || [])) {
+    const a = r.config?.abbigliamento;
+    if (a && Array.isArray(a.taglie)) {
+      const forn = String(a.fornitore || "newwave");
+      const sy = (syncs || []).find((s: any) => s.fornitore === forn) || { nome: forn, fornitore_id: null };
+      const skuList = a.taglie.map((t: any) => String(t.sku));
+      const [{ data: sk }, { data: cp }] = await Promise.all([
+        admin.from("catalogo_fornitore_sku").select("sku,prezzo_netto,ean").eq("fornitore", forn).in("sku", skuList),
+        admin.from("catalogo_fornitore_prodotti").select("nome").eq("fornitore", forn).eq("codice", a.codice).maybeSingle(),
+      ]);
+      for (const t of a.taglie) {
+        const k = (sk || []).find((x: any) => x.sku === String(t.sku)) || {};
+        const q = Number(t.qta) || 0; if (q <= 0) continue;
+        aggiungi(sy.fornitore_id || null, sy.nome || forn, {
+          chiave: "sku:" + t.sku,
+          descrizione: `${t.sku} · ${cp?.nome || a.codice} · ${a.colore_nome || a.colore || ""} · taglia ${t.taglia || ""}`,
+          quantita: q, prezzo: Number(k.prezzo_netto) || 0, verificato: k.prezzo_netto != null,
+          nota: k.ean ? "EAN " + k.ean : "",
+        });
+      }
+      continue;
+    }
+    if (r.tipo === "configurabile" && r.prodotto_config_id) {
+      const { data: prod } = await admin.from("prodotti_config")
+        .select("id,nome,fornitore_id,fornitore_codice,prodotti_config_varianti(*)").eq("id", r.prodotto_config_id).maybeSingle();
+      if (prod?.fornitore_id) {
+        const va = (prod.prodotti_config_varianti || []).find((v: any) => v.id === r.config?.variante_id) || null;
+        let costo = Number(va?.costo_materiale) || 0;
+        if (va?.articolo_id) {
+          const { data: art } = await admin.from("articoli").select("costo").eq("id", va.articolo_id).maybeSingle();
+          if (art && art.costo != null) costo = Number(art.costo) || 0;
+        }
+        aggiungi(prod.fornitore_id, "", {
+          chiave: "cfg:" + prod.id + "|" + (va?.id || ""),
+          descrizione: [prod.fornitore_codice, prod.nome, va?.nome].filter(Boolean).join(" · ") + " (neutro)",
+          quantita: Number(r.quantita) || 0, prezzo: costo, verificato: costo > 0, nota: "",
+        });
+        continue;
+      }
+    }
+    interne++;
+  }
+
+  if (!gruppi.size) return { creati: [], interne };
+
+  // nomi dei fornitori in anagrafica
+  const ids = [...gruppi.values()].map((g) => g.fornitore_id).filter(Boolean);
+  if (ids.length) {
+    const { data: ff } = await admin.from("fornitori").select("id,ragione_sociale").in("id", ids);
+    for (const g of gruppi.values()) {
+      const f = (ff || []).find((x: any) => x.id === g.fornitore_id);
+      if (f) g.fornitore_nome = f.ragione_sociale;
+    }
+  }
+
+  const anno = new Date().getFullYear();
+  // prossimo numero = il PIÙ ALTO esistente + 1 (contare le righe darebbe doppioni se ne manca qualcuno)
+  const { data: nums } = await admin.from("ordini_fornitore").select("numero").like("numero", `OF-${anno}-%`);
+  let seq = Math.max(0, ...(nums || []).map((x: any) => parseInt(String(x.numero).split("-")[2], 10) || 0));
+  const oggi = new Date().toISOString();
+  const creati: any[] = [];
+  for (const g of gruppi.values()) {
+    const items = [...g.righe.values()].filter((x: any) => x.quantita > 0);
+    if (!items.length) continue;
+    seq++;
+    const totale = r2(items.reduce((s: number, x: any) => s + x.quantita * x.prezzo, 0));
+    const { data: of, error } = await admin.from("ordini_fornitore").insert({
+      numero: `OF-${anno}-${String(seq).padStart(4, "0")}`,
+      fornitore_id: g.fornitore_id, fornitore_nome: g.fornitore_nome || "",
+      data: oggi.slice(0, 10), data_prevista: null, stato: "bozza",
+      riferimento: "Ordine Komunigo " + ord.numero, commessa_id: ord.commessa_id || null, komunigo_ordine_id: ord.id,
+      note: (origine === "auto" ? "Creato AUTOMATICAMENTE al pagamento con carta. " : "")
+        + "Neutri per l'ordine Komunigo " + ord.numero + " (" + (ord.cliente_nome || "cliente e-commerce") + "). Controllare e inviare.",
+      totale, creato_da: utenteId, aggiornato_il: oggi,
+    }).select("id,numero").single();
+    if (error) throw new Error("Creazione ordine fornitore: " + error.message);
+    const { error: e2 } = await admin.from("ordini_fornitore_righe").insert(items.map((x: any, i: number) => ({
+      ordine_id: of.id, ordine: i, articolo_id: null, descrizione: x.descrizione, quantita: x.quantita, unita: "pz",
+      prezzo_unitario: r2(x.prezzo), prezzo_verificato: !!x.verificato, quantita_ricevuta: 0, note: x.nota || "",
+    })));
+    if (e2) throw new Error("Righe ordine fornitore: " + e2.message);
+    creati.push({ numero: of.numero, fornitore: g.fornitore_nome || "(fornitore da collegare)", collegato: !!g.fornitore_id, righe: items.length, totale });
+  }
+  await admin.from("komunigo_ordini").update({ ordini_fornitore_il: oggi }).eq("id", ord.id);
+  return { creati, interne };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -315,6 +430,26 @@ Deno.serve(async (req) => {
       await admin.from("komunigo_account").delete().eq("id", target);
       try { await admin.auth.admin.deleteUser(target); } catch (_) { /* utente auth già assente: ok */ }
       return json({ ok: true });
+    }
+
+    // ------------------------------------------- ORDINI AI FORNITORI (staff)
+    // Pulsante del gestionale. Il pagamento con CARTA (webhook Nexi, da fare)
+    // chiamerà direttamente generaOrdiniFornitore(admin, id, "auto", null).
+    if (action === "ordini-fornitore") {
+      const authO = (req.headers.get("Authorization") || "").replace("Bearer ", "").trim();
+      let uidO: string | null = null;
+      if (authO) { try { const { data: u } = await admin.auth.getUser(authO); uidO = u?.user?.id || null; } catch (_) { /* */ } }
+      if (!uidO) return json({ error: "Non autenticato" }, 401);
+      const { data: profO } = await admin.from("profiles").select("ruolo").eq("id", uidO).maybeSingle();
+      if (!profO || !["amministratore", "commerciale"].includes(profO.ruolo)) return json({ error: "Non autorizzato" }, 403);
+      const oid = String(body.ordine_id || "");
+      if (!uuidRe.test(oid)) return json({ error: "ordine_id non valido" }, 400);
+      if (!body.forza) {
+        const { data: gia } = await admin.from("ordini_fornitore").select("numero").eq("komunigo_ordine_id", oid);
+        if (gia && gia.length) return json({ ok: false, gia: gia.map((x: any) => x.numero) });
+      }
+      const res = await generaOrdiniFornitore(admin, oid, "manuale", uidO);
+      return json({ ok: true, ...res });
     }
 
     // ---------------------------------------------------------------- CREA

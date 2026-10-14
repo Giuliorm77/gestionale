@@ -40,6 +40,10 @@ Deno.serve(async (req) => {
     // TODO 2: numero = prossimo "K-AAAA-NNNN"; insert in komunigo_ordini(+_righe) stato='nuovo'.
     // TODO 3: creare la sessione Nexi (importo, ordine, url di ritorno) -> redirect_url.
     // TODO 4: webhook Nexi "pagato" -> update stato, impegno magazzino, commessa/ordine fornitore.
+    //   ORDINI AI FORNITORI (deciso 2026-10-14): con pagamento CARTA partono SUBITO in automatico
+    //   → riusare generaOrdiniFornitore(admin, ordine_id, "auto", null) di komunigo-ordine
+    //   (crea un ordine fornitore in BOZZA per ogni fornitore; lo staff controlla e invia).
+    //   Bonifico / ritiro / conto aperto restano MANUALI (pulsante nel gestionale).
 
     return new Response(
       JSON.stringify({ _stub: true, messaggio: "Integrazione Nexi da completare", redirect_url: null }),

@@ -9961,50 +9961,36 @@ function OrdineShopDettaglio({ordine,righe,files,commessa,perm,profilo,stati,onS
     setUrls(m);
   })(); },[ordine.id, files.length]);
 
-  // ---- ABBIGLIAMENTO dal catalogo fornitore: ordine dei capi NEUTRI a New Wave ----
-  // Un solo ordine fornitore (bozza) con una riga per SKU (colore+taglia), quantità sommate
-  // su tutte le righe dell'ordine, prezzo = netto del catalogo fornitore.
+  // ---- ORDINI AI FORNITORI (v18): il SERVER divide le righe per fornitore e crea un
+  // ordine fornitore in bozza per ciascuno (capi dai cataloghi fornitore + gadget con
+  // "fornitore del neutro"). Carta di credito → partirà da solo al pagamento (Nexi);
+  // bonifico / ritiro / conto aperto → questo pulsante.
   const righeAbb=(righe||[]).filter(r=>r.config && r.config.abbigliamento && Array.isArray(r.config.abbigliamento.taglie));
   const [ofBusy,setOfBusy]=useState(false);
   const [ofMsg,setOfMsg]=useState("");
-  async function generaOrdineNewWave(){
+  const [ofEsist,setOfEsist]=useState(null);   // ordini fornitore già collegati a questo ordine
+  const caricaOfEsist=useCallback(async()=>{
+    const {data,error}=await sb.from("ordini_fornitore").select("numero,fornitore_nome,stato,totale").eq("komunigo_ordine_id",ordine.id).order("numero");
+    setOfEsist(error? null : (data||[]));
+  },[ordine.id]);
+  useEffect(()=>{ caricaOfEsist(); },[caricaOfEsist]);
+  async function generaOrdiniFornitore(forza){
     setOfBusy(true); setOfMsg("");
     try{
-      const rif="Ordine Komunigo "+ordine.numero;
-      const {data:esist}=await sb.from("ordini_fornitore").select("numero").eq("riferimento",rif);
-      if(esist&&esist.length && !window.confirm("Per questo ordine esiste già l'ordine fornitore "+esist.map(x=>x.numero).join(", ")+". Crearne un altro?")){ setOfBusy(false); return; }
-      const m=new Map();
-      righeAbb.forEach(r=>{ const a=r.config.abbigliamento;
-        (a.taglie||[]).forEach(t=>{ const k=(a.fornitore||"newwave")+"|"+t.sku;
-          const x=m.get(k)||{fornitore:a.fornitore||"newwave", sku:t.sku, codice:a.codice, colore:a.colore_nome||a.colore||"", taglia:t.taglia||"", qta:0};
-          x.qta+=Number(t.qta)||0; m.set(k,x); }); });
-      const items=[...m.values()].filter(x=>x.qta>0);
-      if(!items.length) throw new Error("Nessuna taglia da ordinare.");
-      const [sk,pp,fs,tutti]=await Promise.all([
-        sb.from("catalogo_fornitore_sku").select("sku,prezzo_netto,ean").eq("fornitore","newwave").in("sku",items.map(x=>x.sku)),
-        sb.from("catalogo_fornitore_prodotti").select("codice,nome").eq("fornitore","newwave").in("codice",[...new Set(items.map(x=>x.codice))]),
-        sb.from("fornitori").select("id,ragione_sociale").ilike("ragione_sociale","%new wave%").limit(1),
-        sb.from("ordini_fornitore").select("numero"),
-      ]);
-      const skMap={}; (sk.data||[]).forEach(x=>skMap[x.sku]=x);
-      const nomi={}; (pp.data||[]).forEach(x=>nomi[x.codice]=x.nome);
-      const forn=(fs.data||[])[0]||null;
-      const totale=Math.round(items.reduce((t,x)=>t+x.qta*(Number(skMap[x.sku]&&skMap[x.sku].prezzo_netto)||0),0)*100)/100;
-      const rec={numero:prossimoNumeroOF(tutti.data||[]), fornitore_id:forn?forn.id:null, fornitore_nome:forn?forn.ragione_sociale:"New Wave Italia s.r.l.",
-        data:new Date().toISOString().slice(0,10), data_prevista:null, stato:"bozza", riferimento:rif, commessa_id:ordine.commessa_id||null,
-        note:"Capi NEUTRI per l'ordine Komunigo "+ordine.numero+" ("+(ordine.cliente_nome||"cliente e-commerce")+"). Codici = SKU New Wave.",
-        totale, creato_da:profilo.id, aggiornato_il:new Date().toISOString()};
-      const {data:of,error}=await sb.from("ordini_fornitore").insert(rec).select("id,numero").single();
+      const {data,error}=await sb.functions.invoke("komunigo-ordine",{body:{action:"ordini-fornitore", ordine_id:ordine.id, forza:!!forza}});
       if(error) throw error;
-      const rows=items.map((x,i)=>{ const k=skMap[x.sku]||{};
-        return {ordine_id:of.id, ordine:i, articolo_id:null,
-          descrizione:x.sku+" · "+(nomi[x.codice]||x.codice)+" · "+x.colore+" · taglia "+x.taglia,
-          quantita:x.qta, unita:"pz", prezzo_unitario:Number(k.prezzo_netto)||0, prezzo_verificato:k.prezzo_netto!=null,
-          quantita_ricevuta:0, note:(k.ean?"EAN "+k.ean:"")}; });
-      const {error:e2}=await sb.from("ordini_fornitore_righe").insert(rows);
-      if(e2) throw e2;
-      setOfMsg("✅ Ordine fornitore "+of.numero+" creato in bozza: "+items.length+" righe ("+items.reduce((t,x)=>t+x.qta,0)+" capi, "+eur(totale)+" netti)"+(forn?"":" — ⚠ New Wave non trovato in anagrafica fornitori: collegalo nell'ordine")+". Aprilo in «🛒 Ordini fornitori» per controllarlo e inviarlo.");
-    }catch(ex){ setOfMsg("Errore: "+(ex.message||ex)); }
+      if(data && data.error) throw new Error(data.error);
+      if(data && data.ok===false && data.gia){
+        setOfBusy(false);
+        if(window.confirm("Per questo ordine esistono già gli ordini fornitore "+data.gia.join(", ")+". Crearne altri?")) return generaOrdiniFornitore(true);
+        return;
+      }
+      const cr=(data&&data.creati)||[];
+      setOfMsg(cr.length
+        ? "✅ Creati "+cr.length+" ordini fornitore in bozza: "+cr.map(c=>c.numero+" → "+c.fornitore+" ("+c.righe+" righe, "+eur(c.totale)+")"+(c.collegato?"":" ⚠ fornitore non collegato in anagrafica")).join(" · ")+". Controllali e inviali da «🛒 Ordini fornitori»."
+        : "Nessun prodotto da ordinare ai fornitori: tutto in produzione interna. (Per i gadget imposta il «fornitore del neutro» in 🧩 Prodotti config.)");
+      await caricaOfEsist();
+    }catch(ex){ setOfMsg("Errore: "+(ex.message||ex)+(String(ex.message||ex).includes("404")?" — ridistribuire la funzione komunigo-ordine":"")); }
     setOfBusy(false);
   }
 
@@ -10117,10 +10103,13 @@ function OrdineShopDettaglio({ordine,righe,files,commessa,perm,profilo,stati,onS
                 </div>}
               </>}
           {genMsg && <div className={"banner "+(genMsg.startsWith("Errore")?"err":"info")} style={{marginTop:8}}>{genMsg}</div>}
-          {righeAbb.length>0 && perm.scrivi && <div style={{marginTop:12,padding:14,borderRadius:10,background:"#f6f1ff",border:"1px solid #d8c8f5",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-            <div style={{flex:1,minWidth:220,fontSize:13}}>👕 <b>Capi da ordinare a New Wave</b> (neutri):{" "}
-              {righeAbb.map(r=>{ const a=r.config.abbigliamento; return (a.colore_nome||a.colore)+" "+(a.taglie||[]).map(t=>t.taglia+"×"+t.qta).join(", "); }).join(" · ")}</div>
-            <button type="button" className="btn primary" disabled={ofBusy} onClick={generaOrdineNewWave}>{ofBusy?"Creo…":"🚚 Ordine a New Wave"}</button>
+          {perm.scrivi && righe.some(r=>r.tipo==="configurabile") && <div style={{marginTop:12,padding:14,borderRadius:10,background:"#f6f1ff",border:"1px solid #d8c8f5",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+            <div style={{flex:1,minWidth:220,fontSize:13}}>🚚 <b>Ordini ai fornitori</b> (neutri da acquistare){righeAbb.length>0 && <> — capi: {righeAbb.map(r=>{ const a=r.config.abbigliamento; return (a.colore_nome||a.colore)+" "+(a.taglie||[]).map(t=>t.taglia+"×"+t.qta).join(", "); }).join(" · ")}</>}
+              <div className="muted" style={{fontSize:12,marginTop:3}}>{ordine.pagamento_metodo==="carta"
+                ? "Pagamento con carta: gli ordini ai fornitori partono da soli alla conferma del pagamento."
+                : "Un ordine in bozza per ogni fornitore; i prodotti senza fornitore restano in produzione interna."}</div>
+              {ofEsist && ofEsist.length>0 && <div style={{fontSize:12.5,marginTop:4}}>Già creati: {ofEsist.map(o=><span key={o.numero} className="tag" style={{marginRight:4}}>{o.numero} · {o.fornitore_nome||"—"} · {o.stato}</span>)}</div>}</div>
+            <button type="button" className="btn primary" disabled={ofBusy} onClick={()=>generaOrdiniFornitore(false)}>{ofBusy?"Creo…":(ofEsist&&ofEsist.length?"🚚 Rigenera ordini fornitori":"🚚 Crea ordini ai fornitori")}</button>
           </div>}
           {ofMsg && <div className={"banner "+(ofMsg.startsWith("Errore")?"err":"info")} style={{marginTop:8}}>{ofMsg}</div>}
 
@@ -10203,6 +10192,8 @@ function ModuloCatalogoFornitori({profilo,perm}){
   const [aperto,setAperto]=useState(null);   // codice prodotto aperto in scheda
   const [ricDef,setRicDef]=useState("");
   const [modelli,setModelli]=useState([]);   // prodotti config tipo gadget usabili come modello di stampa
+  const [fornAna,setFornAna]=useState([]);   // anagrafica fornitori (per collegare il catalogo)
+  useEffect(()=>{ sb.from("fornitori").select("id,ragione_sociale").order("ragione_sociale").then(({data})=>setFornAna(data||[])); },[]);
 
   const carica=useCallback(async()=>{
     setErr("");
@@ -10235,6 +10226,11 @@ function ModuloCatalogoFornitori({profilo,perm}){
     if(!Number.isFinite(v)||v<0){ setErr("Ricarico predefinito non valido."); return; }
     const {error}=await sb.from("catalogo_fornitore_sync").update({ricarico_default:v}).eq("fornitore",CATFOR_ID);
     if(error){ setErr(error.message); return; }
+    await carica();
+  }
+  async function salvaFornAna(id){
+    const {error}=await sb.from("catalogo_fornitore_sync").update({fornitore_id:id||null}).eq("fornitore",CATFOR_ID);
+    if(error){ setErr(error.message.includes("fornitore_id")? "Serve la migrazione Komunigo/migrazioni/komunigo-v18.sql." : error.message); return; }
     await carica();
   }
   async function salvaModelloDef(id){
@@ -10292,6 +10288,14 @@ function ModuloCatalogoFornitori({profilo,perm}){
               {modelli.map(m=><option key={m.id} value={m.id}>{m.nome}</option>)}
             </select>
             <span className="muted" style={{fontSize:12}}>Posizioni, prezzi di stampa, impianto, minimo e sconti quantità si modificano in <b>🧩 Prodotti config.</b> I capi con <b>Proponi</b> ✓ compaiono sul negozio Komunigo con questo modello.</span>
+          </div>}
+          {sync && "fornitore_id" in sync && <div style={{flexBasis:"100%",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+            <span><b>Fornitore in anagrafica</b> a cui ordinare i capi:</span>
+            <select value={sync.fornitore_id||""} disabled={!perm.scrivi} onChange={e=>salvaFornAna(e.target.value)}>
+              <option value="">— non collegato —</option>
+              {fornAna.map(f=><option key={f.id} value={f.id}>{f.ragione_sociale}</option>)}
+            </select>
+            {!sync.fornitore_id && <span style={{fontSize:12,color:"#c47a1e"}}>⚠ collegalo: gli ordini fornitore dei capi andranno a questo fornitore</span>}
           </div>}
         </div>
         <div className="toolbar" style={{flexWrap:"wrap"}}>
@@ -10959,6 +10963,21 @@ function ModuloProdottiConfig({profilo,perm}){
 }
 
 /* ------------------------------------------------ editor prodotto configurabile */
+// gadget comprato NEUTRO da un fornitore: da qui partono gli ordini fornitore dagli ordini Komunigo
+function ProdottoFornitoreNeutro({f,set}){
+  const [forn,setForn]=useState([]);
+  useEffect(()=>{ sb.from("fornitori").select("id,ragione_sociale").order("ragione_sociale").then(({data})=>setForn(data||[])); },[]);
+  return (
+    <div className="row" style={{alignItems:"flex-end"}}>
+      <div className="field" style={{flex:1}}><label>Fornitore del neutro <span className="muted" style={{textTransform:"none",fontWeight:400}}>(a chi ordinarlo quando arriva un ordine Komunigo; vuoto = lo produciamo noi)</span></label>
+        <select value={f.fornitore_id||""} onChange={e=>set("fornitore_id",e.target.value)}>
+          <option value="">— nessuno (produzione interna) —</option>
+          {forn.map(x=><option key={x.id} value={x.id}>{x.ragione_sociale}</option>)}
+        </select></div>
+      <div className="field" style={{maxWidth:200}}><label>Codice articolo fornitore</label>
+        <input value={f.fornitore_codice||""} onChange={e=>set("fornitore_codice",e.target.value)} placeholder="es. MO8813"/></div>
+    </div>);
+}
 function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplica}){
   const nuovo=!prodotto || !prodotto.id;   // duplicato = precompilato ma trattato come nuovo
   const [f,setF]=useState(()=>({
@@ -10972,6 +10991,8 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
     minimo:prodotto?.minimo ?? "",
     attivo:prodotto?.attivo!==false,
     solo_modello:!!prodotto?.solo_modello,
+    fornitore_id:prodotto?.fornitore_id||"",
+    fornitore_codice:prodotto?.fornitore_codice||"",
     note:prodotto?.note||"",
     stampa_vivo_mm:prodotto?.stampa_vivo_mm ?? 4,
     stampa_margine_mm:prodotto?.stampa_margine_mm ?? 8,
@@ -11035,6 +11056,8 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
         minimo:Number(f.minimo)||0,attivo:f.attivo,note:f.note,
         // colonna di komunigo-v17: la mando solo se esiste già (record caricato) o se è attivata
         ...((prodotto && "solo_modello" in prodotto) || f.solo_modello ? {solo_modello:!!f.solo_modello} : {}),
+        // colonne di komunigo-v18 (fornitore del neutro): solo se esistono già o se compilate
+        ...((prodotto && "fornitore_id" in prodotto) || f.fornitore_id ? {fornitore_id:f.fornitore_id||null, fornitore_codice:(f.fornitore_codice||"").trim()} : {}),
         stampa_vivo_mm:Number(f.stampa_vivo_mm)||0, stampa_margine_mm:Number(f.stampa_margine_mm)||0,
         stampa_prezzo_bn:Number(f.stampa_prezzo_bn)||0, stampa_prezzo_colore:Number(f.stampa_prezzo_colore)||0,
         stampa_avviamento:Number(f.stampa_avviamento)||0, stampa_prezzo_mq:Number(f.stampa_prezzo_mq)||0,
@@ -11104,6 +11127,7 @@ function ProdottoConfigEditor({prodotto,perm,articoli,onClose,onSalvato,onDuplic
               <div className="field" style={{maxWidth:200}}><label>Giorni di lavorazione <span className="muted" style={{textTransform:"none",fontWeight:400}}>(per la data stimata)</span></label>
                 <input type="number" min="0" value={f.giorni_lavorazione} onChange={e=>set("giorni_lavorazione",e.target.value)} placeholder="es. 5"/></div>
             </div>
+            {gadget && !f.solo_modello && <ProdottoFornitoreNeutro f={f} set={set}/>}
             {gadget && <label style={{display:"flex",gap:6,alignItems:"center",margin:"6px 0",fontSize:13}}>
               <input type="checkbox" checked={!!f.solo_modello} onChange={e=>set("solo_modello",e.target.checked)}/>
               <span>🧵 <b>Solo modello di stampa</b> per l'abbigliamento del catalogo fornitori (non compare come prodotto nel negozio)</span></label>}
@@ -12032,7 +12056,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       const {data:tutti}=await sb.from("ordini_fornitore").select("numero");
       const anno=new Date().getFullYear();
       // UN ORDINE FORNITORE SEPARATO PER OGNI RIGA (articolo/lavorazione), così viaggiano singolarmente.
-      let seq=(tutti||[]).filter(o=>String(o.numero||"").startsWith("OF-"+anno+"-")).length;
+      let seq=Math.max(0,...(tutti||[]).filter(o=>String(o.numero||"").startsWith("OF-"+anno+"-")).map(o=>parseInt(String(o.numero).split("-")[2],10)||0));   // il più alto, non il conteggio
       const creati=[];
       for(const r of fr){
         seq++;
@@ -12946,7 +12970,8 @@ const STATI_OF = {
   annullato:{l:"Annullato",bg:"#fdecea",c:"#c0392b"}};
 function prossimoNumeroOF(ordini){
   const anno=new Date().getFullYear();
-  const n=(ordini||[]).filter(o=>String(o.numero||"").startsWith("OF-"+anno+"-")).length+1;
+  // il PIÙ ALTO esistente + 1 (contarli darebbe doppioni se qualcuno è stato eliminato)
+  const n=Math.max(0,...(ordini||[]).filter(o=>String(o.numero||"").startsWith("OF-"+anno+"-")).map(o=>parseInt(String(o.numero).split("-")[2],10)||0))+1;
   return "OF-"+anno+"-"+String(n).padStart(4,"0");
 }
 function htmlOrdineFornitore(o, righe, az, forn){

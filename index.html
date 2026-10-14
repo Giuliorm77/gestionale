@@ -12040,8 +12040,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const realeFornC=(ofColl||[]).reduce((s,o)=>s+(o.ordini_fornitore_righe||[]).reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.prezzo_unitario)||0),0),0);
   const prevFornC=(righe||[]).filter(r=>r.fornitore_prezzo_id).reduce((s,r)=>s+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0);
   const scostFornC=(ofColl.length && prevFornC>0) ? Math.round((realeFornC-prevFornC)*100)/100 : 0;
-  // SPESE GENERALI (gestione): % sui costi diretti (materiali + manodopera), come nel preventivo
-  const speseGenC=Math.round((costoMateriali+scostFornC+costoManodopera)*(Number(sgPct)||0)/100*100)/100;
+  // SPESE GENERALI (gestione): % sui costi diretti (materiali + manodopera + lavorazioni esterne), come nel preventivo
+  const speseGenC=Math.round((costoMateriali+scostFornC+costoManodopera+costoEsterno)*(Number(sgPct)||0)/100*100)/100;
   const costiTot=costoOrig+costoInterventi+costoAiuti+costoPerdite+costoEsterno+costoStraordinario+costoExtra+costoProvvigione+scostFornC+speseGenC;
   const margineReale=ricaviTot-costiTot;
 
@@ -15424,9 +15424,10 @@ function ModuloReport({profilo,perm}){
       : (cliP && cliP.provvigione_pct!=null && (!c.agente_id || c.agente_id===cliP.agente_id)) ? Number(cliP.provvigione_pct) : (agP?Number(agP.provvigione_pct)||0:0);
     const baseProvv=(c.valore_prodotti!=null?Number(c.valore_prodotti):(Number(c.valore)||0));   // solo prodotti
     const costoProvv=baseProvv*pctP/100;
-    const speseGenR=(costoMat+scostForn+costoMdo)*(Number(impSg)||0)/100;   // spese generali (gestione)
+    const costoEsternoR=(c.commesse_fasi||[]).filter(fa=>fa.esterna).reduce((s,fa)=>s+(Number(fa.costo_reale)||0),0);   // lavorazioni conto terzi
+    const speseGenR=(costoMat+scostForn+costoMdo+costoEsternoR)*(Number(impSg)||0)/100;   // spese generali (gestione)
     const ricavi=(Number(c.valore)||0)+addeb+extraRic+addebExtraImprev;
-    const costi=costoMat+costoMdo+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos+costiExtraImprev+costoProvv+speseGenR;
+    const costi=costoMat+costoMdo+costoEsternoR+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos+costiExtraImprev+costoProvv+speseGenR;
     return {ricavi,costi,margine:ricavi-costi,scostForn,extraRic};
   },[artMap,opMap,intByComm,persiByComm,ofByComm,cliMap,agMap,impSg]);
 

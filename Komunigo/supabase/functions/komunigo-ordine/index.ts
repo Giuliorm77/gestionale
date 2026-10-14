@@ -120,7 +120,7 @@ function costoPosizioneStampa(prod: any, st: any, colori: number, N: number) {
     const imp = Number(L.impianto_per_colore) || 0;
     return { costo: pz * N, setup: imp * colori };
   }
-  const perColore = !/ricamo/i.test(tec);
+  const perColore = !/ricamo|digitale/i.test(tec);   // ricamo e stampa digitale: prezzo a pezzo, non per colore
   return { costo: (Number(st.prezzo_pz) || 0) * (perColore ? colori : 1) * N, setup: Number(st.setup) || 0 };
 }
 
@@ -227,7 +227,7 @@ async function prezzoConfigurabile(admin: any, prodotto_id: string, config: any)
       const st = allSt.find((x: any) => x.id === scc.stampa_id);
       if (!st) continue;
       const colori = Math.max(1, Math.min(Number(scc.colori) || 1, Number(st.max_colori) || 4));
-      stCost.push((Number(st.prezzo_pz) || 0) * colori * N);
+      stCost.push((Number(st.prezzo_pz) || 0) * (/ricamo|digitale/i.test(String(st.tecnica || "")) ? 1 : colori) * N);
       costoSetup += Number(st.setup) || 0;
     }
     const costo = costoBase + stCost.reduce((s, x) => s + x, 0) + costoSetup;

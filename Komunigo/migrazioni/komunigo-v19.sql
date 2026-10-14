@@ -205,6 +205,32 @@ begin
   where not exists (select 1 from public.prodotti_config_stampe s where s.prodotto_id = v_s and s.nome = x.nome);
 end $$;
 
+-- ---------------------------------------------------------------------
+--  BORRACCE: 360 gradi (stampa digitale 360°, colori illimitati, prezzo a pezzo)
+--  e fronte (deciso da Giulio 2026-10-14). AREE e PREZZI PROVVISORI.
+-- ---------------------------------------------------------------------
+do $$
+declare v_b2 uuid;
+begin
+  select id into v_b2 from public.prodotti_config where nome = 'Stampa borracce (modello)' limit 1;
+  if v_b2 is null then
+    insert into public.prodotti_config (nome, unita_calcolo, tipo, categoria, margine_pct, minimo,
+                                        giorni_lavorazione, attivo, solo_modello, note)
+    values ('Stampa borracce (modello)', 'pz', 'gadget', 'Gadget', 40, 25, 10, true, true,
+            'Modello di stampa per borracce. 360° = stampa digitale a colori illimitati. AREE e PREZZI PROVVISORI.')
+    returning id into v_b2;
+    insert into public.prodotti_config_fasce (prodotto_id, da_quantita, sconto_pct, ordine) values
+      (v_b2, 100, 5, 0), (v_b2, 250, 10, 1);
+  end if;
+  insert into public.prodotti_config_stampe (prodotto_id, nome, area_cm, max_colori, prezzo_pz, setup, tecnica, ordine)
+  select v_b2, x.nome, x.area, x.maxc, x.pz, x.setup, x.tec, x.ord
+  from (values
+    ('360 gradi', '22 × 8', 1, 2.00, 0,  'Stampa digitale 360°', 0),
+    ('Fronte',    '6 × 6',  4, 0.50, 30, 'Serigrafia',           1)
+  ) as x(nome, area, maxc, pz, setup, tec, ord)
+  where not exists (select 1 from public.prodotti_config_stampe s where s.prodotto_id = v_b2 and s.nome = x.nome);
+end $$;
+
 -- penna di esempio: nomi standard
 update public.prodotti_config_stampe s set nome = 'Fusto'
 from public.prodotti_config p where p.id = s.prodotto_id and p.nome = 'Penna personalizzata (esempio)' and s.nome = 'Sul fusto';

@@ -4871,7 +4871,7 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
 
   useEffect(()=>{ (async()=>{
     const [c,a]=await Promise.all([
-      sb.from("commesse").select("id,numero,cliente_nome,stato").in("stato",["aperta","in_produzione","pronta"]).order("data_consegna",{ascending:true}),
+      sb.from("commesse").select("id,numero,cliente_nome,stato").in("stato",["aperta","in_produzione","pronta"]).eq("rilasciata_produzione",true).order("data_consegna",{ascending:true}),
       caricaArticoliTutti("id,codice,nome_articolo,unita,materiale_tipo",{tabella:"articoli_magazzino"}),
     ]);
     setCommesse(c.data||[]); setArticoli(a);
@@ -4951,8 +4951,8 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
       const {data,error}=await sb.rpc("preleva_pezzo_commessa",{
         p_pezzo_id:pezzoSel.id, p_commessa_id:commessaId, p_pagato_intero:pagatoScelto, p_note:note||null, p_quantita:nPrel });
       if(error){ setErr(error.message); setBusy(false); return; }
-      const mqL=(Number(pezzoSel.larghezza_cm)||0)*(Number(pezzoSel.altezza_cm)||0)/10000*nPrel;
-      await segnaMaterialeExtra(mqL, data);
+      const dmis=(Number(pezzoSel.larghezza_cm)||0)+"×"+(Number(pezzoSel.altezza_cm)||0)+" cm";
+      await segnaMaterialeExtra(nPrel, "lastra", data, art.nome_articolo+" · "+dmis);
       setFatto({codice:data, articolo:art.nome_articolo, larghezza_cm:pezzoSel.larghezza_cm, altezza_cm:pezzoSel.altezza_cm, spessore_mm:pezzoSel.spessore_mm, commessa: com?("Commessa "+com.numero):""});
       setBusy(false); return;
     }
@@ -4963,21 +4963,23 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
       p_ubicazione:ubic, p_note:note, p_pagato_intero:pagatoScelto,
     });
     if(error){ setErr(error.message); setBusy(false); return; }
-    const mqC=((Number(larg)||0)/10)*((Number(alt)||0)/10)/10000*(Number(qta)||1);
-    await segnaMaterialeExtra(mqC, data);
+    await segnaMaterialeExtra(Number(qta)||1, art.unita||"", data, art.nome_articolo);
     setFatto({codice:data, articolo:art.nome_articolo, larghezza_cm:larg===""?"":Number(larg)/10, altezza_cm:alt===""?"":Number(alt)/10, spessore_mm:sp, commessa: com?("Commessa "+com.numero):""});
     setBusy(false);
   }
-  // se il materiale NON è tra quelli previsti nella commessa, lo segnala come "aggiunto in produzione"
-  async function segnaMaterialeExtra(mqCons, codice){
+  // Se il materiale NON è previsto nella commessa, lo aggiungo come RIGA "aggiunta in produzione"
+  // (fuori preventivo): porta quantità, prezzo (da impostare) e il badge "Aggiunto dopo il preventivo".
+  async function segnaMaterialeExtra(quantita, unita, codice, descr){
     const extra = commessaId && art && !matCommessa.some(m=>m.articolo_id===art.id);
     if(!extra) return;
     try{
-      const {data:cm}=await sb.from("commesse").select("consumi").eq("id",commessaId).maybeSingle();
-      const lista=Array.isArray(cm&&cm.consumi)?cm.consumi.map(x=>({...x})):[];
-      lista.push({articolo_id:art.id, descrizione:art.nome_articolo||"", quantita:Math.round((Number(mqCons)||0)*1000)/1000, unita:"mq",
-        scaricato:true, aggiunta_produzione:true, codice_pezzo:codice||"", data:new Date().toISOString().slice(0,10)});
-      await sb.from("commesse").update({consumi:lista, aggiornato_il:new Date().toISOString()}).eq("id",commessaId);
+      const {data:ex}=await sb.from("commesse_righe").select("ordine").eq("commessa_id",commessaId).order("ordine",{ascending:false}).limit(1);
+      const ord=((ex&&ex[0]&&Number(ex[0].ordine))||0)+1;
+      await sb.from("commesse_righe").insert({commessa_id:commessaId, ordine:ord,
+        descrizione:(descr||art.nome_articolo||""), articolo_id:art.id,
+        quantita:Math.round((Number(quantita)||0)*1000)/1000, unita:unita||"",
+        data_consegna:null, stato:"da_produrre", aggiunta:true,
+        config:{codice_pezzo:codice||"", da_produzione:true} });
     }catch(e){}
   }
 
@@ -5009,7 +5011,7 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
               <option value="">— scegli —</option>
               {commesse.map(c=><option key={c.id} value={c.id}>{c.numero} · {c.cliente_nome}</option>)}
             </select>
-            {commesse.length===0 && <div className="muted" style={{fontSize:13,marginTop:4}}>Nessuna commessa aperta/in produzione.</div>}
+            {commesse.length===0 && <div className="muted" style={{fontSize:13,marginTop:4}}>Nessuna commessa <b>rilasciata in produzione</b>. Il magazzino può preparare il materiale solo dopo che la commessa è completa (date di consegna, ecc.) ed è stata <b>rilasciata in produzione</b>.</div>}
           </div>
           <div className="section">
             <h3>Materiale (lastra neutra)</h3>
@@ -12700,8 +12702,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                       <td style={{minWidth:220}}><input value={r.descrizione} onChange={e=>setRiga(i,"descrizione",e.target.value)}
                         style={{width:"100%",padding:"6px",border:"1px solid "+(r.aggiunta?"#f59f00":"var(--line)"),borderRadius:7}}/>
                         {r.aggiunta && <div style={{marginTop:4}}>
-                          <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11.5,color:"#9a6b00"}}>
-                            <span>➕ <b>Aggiunto dopo il preventivo</b></span>
+                          <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11.5,color:"#9a6b00",flexWrap:"wrap"}}>
+                            <span>➕ <b>Aggiunto dopo il preventivo</b>{(r.config&&r.config.da_produzione)?" · dal magazzino/produzione":""}{(r.config&&r.config.codice_pezzo)?(" · "+r.config.codice_pezzo):""}</span>
                             <button type="button" className="btn small" style={{padding:"1px 7px"}} onClick={()=>setRiga(i,"aggiunta",false)} title="Segna come recepito: inserito nel preventivo (nuova revisione) o da fatturare">✓ Recepita</button>
                           </div>
                           {perm.economici && <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4,flexWrap:"wrap"}}>

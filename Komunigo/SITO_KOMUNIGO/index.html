@@ -91,6 +91,15 @@
   .cat h4{font-family:var(--disp);text-transform:uppercase;font-size:21px;margin:0 0 6px;letter-spacing:.01em;}
   .cat p{font-size:14px;color:var(--ink-soft);margin:0;line-height:1.4;}
   .pack-pg{max-width:1100px;margin:10px auto 40px;}
+  .ph-ico{color:#b7a27a;opacity:.85;}
+  .pack-ph{color:var(--blu);}
+  .cat .ic{color:var(--blu);}
+  .bf-ic{color:var(--blu);display:grid;place-items:center;}
+  .sumisura-ic{color:#C9A96B;}
+  .lg-ico{color:var(--blu);}
+  .auth-motivo{background:var(--blu-wash);border:1px solid var(--blu);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:13.5px;margin-bottom:12px;}
+  .consenso-box{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:13px;line-height:1.45;cursor:pointer;}
+  .consenso-box input{width:auto;margin-top:3px;flex:0 0 auto;}
   .scatola-top{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;}
   .scatola-vis{flex:0 0 280px;display:flex;flex-direction:column;gap:6px;}
   .scatola-tabs{display:flex;gap:4px;}
@@ -146,6 +155,12 @@
   .side-lett{font-size:11px;font-weight:800;color:var(--blu);letter-spacing:.08em;padding:10px 8px 2px;}
   .side-item{display:block;width:100%;text-align:left;background:none;border:none;font:inherit;font-size:13.5px;color:var(--ink);padding:5px 8px;border-radius:7px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .side-item:hover{background:var(--blu-wash);color:var(--blu);}
+  .side-item.on{background:var(--blu-wash);color:var(--blu);font-weight:700;}
+  .side-tutto{font-weight:700;margin:6px 0 2px;}
+  .side-gr{margin-top:8px;}
+  .side-gr-h{display:block;width:100%;text-align:left;background:none;border:none;font:inherit;font-family:var(--disp);text-transform:uppercase;letter-spacing:.04em;font-size:13px;font-weight:700;color:var(--ink);padding:6px 8px 3px;cursor:pointer;border-radius:7px;}
+  .side-gr-h:hover,.side-gr-h.on{color:var(--blu);}
+  .side-gr .side-item{padding-left:16px;}
   .foto-rail{position:sticky;top:90px;}
   .foto-rail-h{font-family:var(--disp);text-transform:uppercase;font-size:14px;letter-spacing:.06em;color:var(--ink-soft);margin:0 0 8px 2px;}
   .foto-rail-win{height:calc(100vh - 140px);max-height:900px;overflow:hidden;border-radius:14px;-webkit-mask-image:linear-gradient(transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(transparent,#000 8%,#000 92%,transparent);}
@@ -276,13 +291,24 @@
   .stampa-col{margin-top:8px;font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .campione-lnk{display:inline-block;margin-top:12px;font-size:13.5px;color:var(--blu);text-decoration:none;border:1px dashed var(--blu);border-radius:8px;padding:8px 12px;}
   .campione-lnk:hover{background:#eef4fb;}
-  .trust{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);}
-  .trust-i{display:flex;gap:10px;align-items:flex-start;}
-  .trust-ic{font-size:20px;line-height:1.2;}
-  .trust-tx{display:flex;flex-direction:column;}
-  .trust-tx b{font-size:13.5px;color:var(--ink);}
-  .trust-tx span{font-size:12px;color:var(--ink-soft);}
-  .trust-c{box-shadow:none;background:transparent;border:1px dashed var(--line);padding:12px;grid-template-columns:repeat(2,1fr);}
+  .trust{display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:6px;box-shadow:var(--shadow);}
+  @media(max-width:980px){.trust{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:560px){.trust{grid-template-columns:1fr;}}
+  .trust-i{display:flex;gap:14px;align-items:center;padding:16px 18px;border-radius:14px;transition:background .15s;}
+  .trust-i+.trust-i{border-left:1px solid var(--line);}
+  @media(max-width:980px){.trust-i+.trust-i{border-left:none;}}
+  .trust-i:hover{background:var(--blu-wash);}
+  .trust-ic{flex:0 0 52px;height:52px;border-radius:15px;display:grid;place-items:center;color:#fff;background:linear-gradient(140deg,var(--blu),#1C2A44);box-shadow:0 6px 16px rgba(46,111,176,.25);}
+  .trust-tx{display:flex;flex-direction:column;gap:3px;}
+  .trust-tx b{font-size:15.5px;color:var(--ink);font-family:var(--disp);letter-spacing:.01em;line-height:1.2;}
+  .trust-tx span{font-size:13.5px;color:var(--ink-soft);line-height:1.35;}
+  .trust-c{box-shadow:none;background:transparent;border:1px dashed var(--line);padding:4px;grid-template-columns:repeat(2,1fr);}
+  .trust-c .trust-i{padding:10px 12px;gap:10px;}
+  .trust-c .trust-i+.trust-i{border-left:none;}
+  .trust-c .trust-ic{flex-basis:38px;height:38px;border-radius:11px;}
+  .trust-c .trust-tx b{font-size:13.5px;} .trust-c .trust-tx span{font-size:12.5px;}
+  .ico{display:inline-block;vertical-align:-0.2em;flex:0 0 auto;}
+  .ico-t{margin-right:6px;color:var(--blu);}
   @media(max-width:720px){ .trust{grid-template-columns:repeat(2,1fr);} }
   .b2b-note{background:#eef4fb;border:1px solid #cfe0f2;color:#1C2A44;border-radius:10px;padding:10px 14px;font-size:14px;}
   .listino-old{text-decoration:line-through;color:var(--ink-soft,#8a8a8a);font-weight:600;font-size:.82em;margin-left:8px;}
@@ -506,6 +532,9 @@ function App(){
   const [sess,setSess]=useState(null);
   const [account,setAccount]=useState(null);
   const [authOpen,setAuthOpen]=useState(false);
+  const [authMotivo,setAuthMotivo]=useState("");
+  // download riservati (template, tracciati): servono agli altri componenti
+  useEffect(()=>{ window.KG_AUTH={ sess, chiedi:(motivo)=>{ setAuthMotivo(motivo||""); setAuthOpen(true); } }; },[sess]);
   useEffect(()=>{
     sb.auth.getSession().then(({data})=>setSess(data.session||null));
     const {data:sub}=sb.auth.onAuthStateChange((_e,s)=>setSess(s||null));
@@ -541,13 +570,13 @@ function App(){
 
   return (
     <div>
-      {window.KOMUNIGO_ANTEPRIMA && <div className="anteprima-band">🔒 ANTEPRIMA INTERNA — sito non pubblico. Il database è quello vero: gli ordini di prova compaiono nel gestionale (scrivi "TEST" nel nome).</div>}
+      {window.KOMUNIGO_ANTEPRIMA && <div className="anteprima-band"><Ico n="lock" s={15} style={{marginRight:6}}/>ANTEPRIMA INTERNA — sito non pubblico. Il database è quello vero: gli ordini di prova compaiono nel gestionale (scrivi "TEST" nel nome).</div>}
       <header className="top">
         <div className="topline"></div>
         <div className="top-in">
           <button className="brand" onClick={()=>setVista("home")}>Komuni<span className="go">go</span></button>
           <form className="search" onSubmit={e=>{e.preventDefault(); setVista("catalogo");}}>
-            <span>🔍</span>
+            <Ico n="search" s={18}/>
             <input value={ricerca} onChange={e=>cercaIn(e.target.value)} placeholder="Cerca prodotti, lavorazioni…"/>
             {ricerca && <button type="button" className="search-x" onClick={()=>setRicerca("")} aria-label="Pulisci">×</button>}
           </form>
@@ -556,10 +585,10 @@ function App(){
             <button className={vista==="catalogo"?"on":""} onClick={()=>vaiCat("")}>Catalogo</button>
             {(!sess && (ultimoOrd||ordineToken)) && <button className={vista==="ordine"?"on":""} onClick={()=>apriOrdine(ordineToken||ultimoOrd)}>I miei ordini</button>}
             {sess
-              ? <button className={vista==="account"?"on":""} onClick={()=>setVista("account")}>👤 {nomeAcc}</button>
+              ? <button className={vista==="account"?"on":""} onClick={()=>setVista("account")}><Ico n="user" s={17} className="ico-t" style={{color:"inherit"}}/>{nomeAcc}</button>
               : <button onClick={()=>setAuthOpen(true)}>Accedi</button>}
           </nav>
-          <button className="cart-btn" onClick={()=>setVista("carrello")}>🛒 Carrello
+          <button className="cart-btn" onClick={()=>setVista("carrello")}><Ico n="cart" s={18} style={{marginRight:6}}/>Carrello
             {nPezzi>0 && <span className="cart-badge">{nPezzi}</span>}</button>
         </div>
       </header>
@@ -576,7 +605,7 @@ function App(){
         {vista==="packaging" && <PaginaPackaging vaiCatalogo={vaiCat} addCart={addCart} iva={iva} setIva={setIvaMode}/>}
       </div>}
 
-      {authOpen && <AuthModal onClose={()=>setAuthOpen(false)}/>}
+      {authOpen && <AuthModal motivo={authMotivo} onClose={()=>{ setAuthOpen(false); setAuthMotivo(""); }}/>}
 
       <FooterKomunigo vai={k=>{
         if(k==="@guida") setVista("guida");
@@ -687,7 +716,8 @@ const PAGINE_INFO={
       {h:"Titolare", p:[DATI_AZIENDA.ragione+", "+DATI_AZIENDA.sedeLegale+" — "+DATI_AZIENDA.email+" — PEC "+DATI_AZIENDA.pec+"."]},
       {h:"Quali dati e perché", p:["Dati di contatto, fatturazione e spedizione, file caricati: li usiamo per gestire ordini, fatture, consegne e assistenza (esecuzione del contratto e obblighi di legge)."]},
       {h:"A chi li comunichiamo", p:["Solo a chi ci serve per evadere l'ordine: corrieri, provider di pagamento, consulenti fiscali e fornitori tecnici (hosting e database), nominati responsabili del trattamento."]},
-      {h:"Per quanto tempo", p:["Per la durata del rapporto e poi per i tempi previsti dalla legge fiscale (10 anni per i documenti contabili)."]},
+      {h:"Offerte via email (solo con il tuo consenso)", p:["Se nella registrazione o nel tuo account scegli di riceverle, usiamo la tua email per inviarti offerte e novità di Komunigo. Il consenso è facoltativo, non condiziona l'uso del sito e puoi revocarlo in qualsiasi momento dal tuo account o con il link presente in ogni email."]},
+      {h:"Per quanto tempo", p:["Per la durata del rapporto e poi per i tempi previsti dalla legge fiscale (10 anni per i documenti contabili). L'email per le offerte la usiamo finché non revochi il consenso."]},
       {h:"I tuoi diritti", p:["Accesso, rettifica, cancellazione, limitazione, portabilità e opposizione: scrivi a "+DATI_AZIENDA.email+". Puoi anche rivolgerti al Garante Privacy."]},
     ]},
   "cookie":{gruppo:"Creatio", titolo:"Cookie", legale:true, intro:"Il sito usa solo strumenti tecnici necessari al funzionamento.",
@@ -874,6 +904,12 @@ function scaricaTracciato(modello,A,B,H,t,materiale){
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
 }
 
+// I download (template, tracciati) sono riservati agli utenti registrati
+function soloRegistrati(azione, cosa){
+  const a=window.KG_AUTH;
+  if(a && a.sess){ azione(); return; }
+  if(a) a.chiedi(cosa||"scaricare i template"); else azione();
+}
 // anteprima del tracciato (stessa geometria del PDF)
 function TracciatoSvg({modello,A,B,H,t}){
   const pezzi=tracciatoScatola(modello,A,B,H,t);
@@ -998,7 +1034,7 @@ function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureInizial
                 <button type="button" className={vistaDis==="tracciato"?"on":""} onClick={()=>setVistaDis("tracciato")}>Tracciato</button></div>
               {vistaDis==="scatola" ? <ScatolaDisegno A={A} B={B} H={H}/> : <TracciatoSvg modello={modello} A={Number(A)} B={Number(B)} H={Number(H)} t={Number(va&&va.spessore)||0}/>}
               <button type="button" className="tracciato-dl" disabled={!(Number(A)>0&&Number(B)>0&&Number(H)>0)}
-                onClick={()=>scaricaTracciato(modello,Number(A),Number(B),Number(H),Number(va&&va.spessore)||0,va?va.nome:"")}>📐 Scarica il tracciato (PDF)</button>
+                onClick={()=>soloRegistrati(()=>scaricaTracciato(modello,Number(A),Number(B),Number(H),Number(va&&va.spessore)||0,va?va.nome:""),"scaricare il tracciato della tua scatola")}><Ico n="download" s={16} style={{marginRight:6}}/>Scarica il tracciato (PDF)</button>
               {vistaDis==="tracciato" && <div className="muted" style={{fontSize:11.5,marginTop:4}}><span style={{color:"#d9002b"}}>━</span> taglio · <span style={{color:"#0073d9"}}>┅</span> piega</div>}
             </div>
             <div style={{flex:1,minWidth:240}}>
@@ -1040,8 +1076,8 @@ function ConfiguratoreScatola({prod, chiudi, addCart, iva, setIva, misureInizial
             {Number(prezzo.sconto_pct)>0 && <div className="r" style={{color:"var(--blu)",fontWeight:700}}><span>Sconto riservato B2B</span><span>−{prezzo.sconto_pct}%</span></div>}
             <div className="r"><span>Prezzo a scatola</span><span>{eur(conIva(prezzo.prezzo_unitario,iva))}</span></div>
             <div className="r big"><span>Totale ({Number(qta).toLocaleString("it-IT")} pz) <span className="iva-tag">{ivaLbl(iva)}</span></span><span>{eur(conIva(prezzo.prezzo_totale,iva))}</span></div></div>}
-          {Number(prod.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}>📦 Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b></div>}
-          <div className="note" style={{marginTop:12}}>📐 Scarica il <b>tracciato</b> con le tue misure, impagina la grafica (3 mm di abbondanza oltre il taglio) e caricala dopo l'ordine: ti mandiamo la <b>bozza da approvare</b> prima della produzione.</div>
+          {Number(prod.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}><Ico n="truck" s={16} className="ico-t"/>Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b></div>}
+          <div className="note" style={{marginTop:12}}><Ico n="ruler" s={16} className="ico-t"/>Scarica il <b>tracciato</b> con le tue misure, impagina la grafica (3 mm di abbondanza oltre il taglio) e caricala dopo l'ordine: ti mandiamo la <b>bozza da approvare</b> prima della produzione.</div>
         </div>
         <div className="mf">
           {prezzo
@@ -1066,7 +1102,7 @@ function BoxFinder({addCart, iva, setIva}){
   const ok=Number(m.A)>0&&Number(m.B)>0&&Number(m.H)>0;
   return (
     <div className="boxfinder">
-      <div className="bf-head"><b>📐 Trova la scatola</b><span className="muted">Inserisci le misure del tuo prodotto (mm) e scegli il modello.</span></div>
+      <div className="bf-head"><b><Ico n="ruler" s={18} className="ico-t"/>Trova la scatola</b><span className="muted">Inserisci le misure del tuo prodotto (mm) e scegli il modello.</span></div>
       <div className="bf-row">
         {[["A","Larghezza"],["B","Profondità"],["H","Altezza"]].map(([k,l])=>(
           <label key={k} className="sc-mis" style={{"--c":SC_COL[k]}}>
@@ -1075,7 +1111,7 @@ function BoxFinder({addCart, iva, setIva}){
       </div>
       <div className="bf-modelli">{mod.map(p=>(
         <button type="button" key={p.id} className="bf-mod" onClick={()=>setAperto(p)}>
-          <span className="bf-ic">📦</span><span><b>{p.nome}</b><br/><span className="muted" style={{fontSize:12}}>{p.categoria||""}</span></span>
+          <span className="bf-ic"><Ico n="box" s={30} sw={1.4}/></span><span><b>{p.nome}</b><br/><span className="muted" style={{fontSize:12}}>{p.categoria||""}</span></span>
           <span className="bf-go">{ok?"Configura con queste misure →":"Configura →"}</span>
         </button>))}</div>
       {aperto && <ConfiguratoreScatola prod={aperto} chiudi={()=>setAperto(null)} addCart={addCart} iva={iva} setIva={setIva}
@@ -1091,7 +1127,7 @@ function RichiestaSuMisura({categoria}){
   const corpo="Ciao Komunigo,\nnon ho trovato quello che cerco"+(categoria?" nella categoria "+categoria:"")+".\n\nCosa mi serve:\nQuantità:\nMisure / formato:\nMateriale o colore:\nQuando mi serve:\n\nNome e azienda:\nTelefono:\n";
   return (
     <div className="sumisura">
-      <div className="sumisura-ic" aria-hidden="true">✏️</div>
+      <div className="sumisura-ic" aria-hidden="true"><Ico n="pen" s={30} sw={1.5}/></div>
       <div className="sumisura-txt">
         <div className="sumisura-kicker">Non è in {cat==="catalogo"?"catalogo":"questa categoria"}?</div>
         <h3>Lo facciamo su misura.</h3>
@@ -1104,21 +1140,21 @@ function RichiestaSuMisura({categoria}){
 // ---- categorie della homepage: [icona, titolo, sottotitolo, destinazione] ----
 // destinazione = categoria del catalogo ("" = tutto) oppure "packaging" (pagina dedicata)
 const CATEGORIE_HOME=[
-  ["🖨️","Stampa","Grande formato, carta e adesivi","Stampa"],
-  ["💡","Insegne","Luminose e non, installate da noi","Insegne"],
-  ["🎁","Gadget","Penne, borracce, shopper personalizzati","Gadget"],
-  ["👕","Abbigliamento","T-shirt, felpe e polo con il tuo logo","Abbigliamento"],
-  ["📦","Packaging","Scatole e astucci su misura","packaging"],
-  ["🎪","Allestimenti","Fiere, eventi e punti vendita","Allestimenti"],
+  ["printer","Stampa","Grande formato, carta e adesivi","Stampa"],
+  ["bulb","Insegne","Luminose e non, installate da noi","Insegne"],
+  ["gift","Gadget","Penne, borracce, shopper personalizzati","Gadget"],
+  ["shirt","Abbigliamento","T-shirt, felpe e polo con il tuo logo","Abbigliamento"],
+  ["box","Packaging","Scatole e astucci su misura","packaging"],
+  ["stand","Allestimenti","Fiere, eventi e punti vendita","Allestimenti"],
 ];
 // ---- PACKAGING: sotto-categorie (testi nostri). "categoria" = quella da dare ai
 // prodotti nel gestionale perché compaiano nella card. Foto: da aggiungere.
 const PACKAGING_SOTTO=[
-  {ic:"🎀", titolo:"Scatole rivestite", categoria:"Scatole rivestite",
+  {ic:"gift", titolo:"Scatole rivestite", categoria:"Scatole rivestite",
    testo:"Scatole rigide rivestite di carta stampata o materiali speciali: cofanetti regalo, confezioni di pregio e kit di benvenuto. Forma, colori e finiture le decidi tu."},
-  {ic:"🧴", titolo:"Astucci in cartoncino", categoria:"Astucci in cartoncino",
+  {ic:"astuccio", titolo:"Astucci in cartoncino", categoria:"Astucci in cartoncino",
    testo:"Astucci pieghevoli in cartoncino, spediti stesi e pronti da montare in un gesto. Perfetti per cosmetica, alimentare e piccoli prodotti da scaffale."},
-  {ic:"📦", titolo:"Scatole in microonda", categoria:"Scatole in microonda",
+  {ic:"box", titolo:"Scatole in microonda", categoria:"Scatole in microonda",
    testo:"Scatole in cartone ondulato leggere e robuste, per spedizioni ed e-commerce. Stampate con il tuo marchio, trasformano il pacco in un biglietto da visita."},
 ];
 function PaginaPackaging({vaiCatalogo, addCart, iva, setIva}){
@@ -1131,7 +1167,7 @@ function PaginaPackaging({vaiCatalogo, addCart, iva, setIva}){
       <div className="pack-grid">
         {PACKAGING_SOTTO.map(p=>(
           <button key={p.titolo} className="pack-card" onClick={()=>vaiCatalogo(p.categoria)}>
-            <div className="pack-ph">{p.foto? <img src={p.foto} alt={p.titolo}/> : <span>{p.ic}</span>}</div>
+            <div className="pack-ph">{p.foto? <img src={p.foto} alt={p.titolo}/> : <Ico n={p.ic} s={96} sw={1}/>}</div>
             <h3>{p.titolo}</h3>
             <p>{p.testo}</p>
             <span className="pack-go">Scopri i prodotti →</span>
@@ -1178,15 +1214,61 @@ function Carosello({items}){
   );
 }
 
+// =====================================================================
+//  ICONE: set nostro a linea sottile (SVG 24×24, colore = currentColor).
+//  Sostituisce le emoji. Token "C x,y,r" = cerchio; gli altri sono path.
+// =====================================================================
+const ICONS={
+  check:"M12 3l7 3v5c0 4.6-3 8.2-7 10-4-1.8-7-5.4-7-10V6z|M9 12l2.2 2.2L15.5 10",
+  pen:"M15.5 4.5l4 4L9 19l-5 1 1-5z|M13.5 6.5l4 4",
+  truck:"M2 6h12v10H2z|M14 9.5h4l3.5 3.5V16H14|C6.5,17.5,1.8|C17.5,17.5,1.8",
+  flask:"M9.5 3h5|M10.5 3v6.2L5.2 18.4A1.8 1.8 0 0 0 6.8 21h10.4a1.8 1.8 0 0 0 1.6-2.6L13.5 9.2V3|M7.6 15h8.8",
+  printer:"M7 8V3h10v5|M7 17H4.5A1.5 1.5 0 0 1 3 15.5v-6A1.5 1.5 0 0 1 4.5 8h15A1.5 1.5 0 0 1 21 9.5v6a1.5 1.5 0 0 1-1.5 1.5H17|M7 13h10v8H7z",
+  bulb:"M9 18h6|M10 21h4|M12 3a6 6 0 0 0-3.6 10.8c.6.5.6 1.2.6 2.2h6c0-1 0-1.7.6-2.2A6 6 0 0 0 12 3z",
+  gift:"M3.5 8h17v4h-17z|M5 12v9h14v-9|M12 8v13|M12 8C10.5 4 6.5 3.5 6.5 6S10 8 12 8z|M12 8c1.5-4 5.5-4.5 5.5-2S14 8 12 8z",
+  shirt:"M8.5 3.5L3 6.5l2 4 2.5-1V21h9V9.5l2.5 1 2-4-5.5-3c-.6 1.5-2 2.5-3.5 2.5s-2.9-1-3.5-2.5z",
+  box:"M3 7.5L12 3l9 4.5v9L12 21l-9-4.5z|M3 7.5l9 4.5 9-4.5|M12 12v9|M7.5 5.2l9 4.6",
+  stand:"M4 21V8l8-5 8 5v13|M4 8h16|M9 21v-6h6v6",
+  ruler:"M3.5 16.5L16.5 3.5l4 4-13 13h-4z|M13 7l1.8 1.8|M10 10l1.8 1.8|M7 13l1.8 1.8",
+  bag:"M5 8h14l-1.2 13H6.2z|M9 10V7a3 3 0 0 1 6 0v3",
+  lock:"M5.5 11h13v10h-13z|M8 11V7.5a4 4 0 0 1 8 0V11",
+  download:"M12 3v12|M7 10.5l5 5 5-5|M4 21h16",
+  upload:"M12 16V4|M7 8.5l5-5 5 5|M4 21h16",
+  search:"C11,11,7|M16.2 16.2L21 21",
+  user:"C12,8,4|M4 21c1.2-4 4.4-6 8-6s6.8 2 8 6",
+  cart:"M3 4h2.5l2.2 11h10.6L20.5 7H7|C9.5,19.5,1.5|C17,19.5,1.5",
+  doc:"M6 3h8l5 5v13H6z|M14 3v5h5|M9 13h7|M9 17h7",
+  clip:"M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.4 8.4a1.7 1.7 0 0 1-2.4-2.4l7.7-7.7",
+  image:"M3.5 4.5h17v15h-17z|C9,9.5,1.8|M20.5 15.5l-5-5-9 9",
+  alert:"M12 3.5l9.5 16.5h-19z|M12 10v4.5|M12 17.5v.5",
+  tag:"M3 12V3.5h8.5l9.5 9.5-8.5 8.5z|C7.5,7.5,1.5",
+  repeat:"M17 2.5l3.5 3.5-3.5 3.5|M3.5 11V9.5A3.5 3.5 0 0 1 7 6h13.5|M7 21.5L3.5 18 7 14.5|M20.5 13v1.5A3.5 3.5 0 0 1 17 18H3.5",
+  spark:"M12 3v4|M12 17v4|M3 12h4|M17 12h4|M5.6 5.6l2.8 2.8|M15.6 15.6l2.8 2.8|M5.6 18.4l2.8-2.8|M15.6 8.4l2.8-2.8",
+  drop:"M12 3.5s6.5 7 6.5 11.5a6.5 6.5 0 0 1-13 0C5.5 10.5 12 3.5 12 3.5z",
+  type:"M4 6.5V4h16v2.5|M12 4v16|M9 20h6",
+  layers:"M12 3l9 4.5-9 4.5-9-4.5z|M3 12l9 4.5 9-4.5|M3 16.5L12 21l9-4.5",
+  astuccio:"M7 3h10v18H7z|M7 7.5h10|M9.5 3v4.5",
+  menu:"M4 6h16|M4 12h16|M4 18h16",
+  ok:"C12,12,9|M8 12.3l2.6 2.6L16 9.5",
+};
+function Ico({n,s=20,sw=1.7,className,style,title}){
+  const d=ICONS[n]; if(!d) return null;
+  return <svg className={"ico"+(className?" "+className:"")} width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" style={style} aria-hidden={title?undefined:"true"} role={title?"img":undefined}>
+    {title && <title>{title}</title>}
+    {d.split("|").map((p,i)=>{ if(p.charAt(0)==="C"){ const [x,y,r]=p.slice(1).split(",").map(Number); return <circle key={i} cx={x} cy={y} r={r}/>; } return <path key={i} d={p}/>; })}
+  </svg>;
+}
+
 function BarraFiducia({compact}){
   const items=[
-    ["✅","Produzione solo dopo approvazione","Stampiamo dopo la tua conferma"],
-    ["🎨","Bozza grafica gratuita","Simulazione di stampa prima di produrre"],
-    ["🚚","Spedizione o ritiro","In tutta Italia, o ritiro in sede"],
-    ["🧪","Campione neutro","Vuoi toccarlo prima? Chiedicelo"],
+    ["check","Produzione solo dopo approvazione","Stampiamo solo quando confermi la bozza"],
+    ["pen","Bozza grafica gratuita","Vedi la simulazione prima di produrre"],
+    ["truck","Spedizione o ritiro","In tutta Italia, oppure ritiri in sede"],
+    ["flask","Campione neutro","Vuoi toccarlo prima? Te lo mandiamo"],
   ];
-  return <div className={"trust"+(compact?" trust-c":"")}>{items.map(([ic,t,s])=>(
-    <div className="trust-i" key={t}><span className="trust-ic">{ic}</span><div className="trust-tx"><b>{t}</b><span>{s}</span></div></div>))}</div>;
+  return <div className={"trust"+(compact?" trust-c":"")}>{items.map(([ic,t,sub])=>(
+    <div className="trust-i" key={t}><span className="trust-ic"><Ico n={ic} s={compact?20:26} sw={1.6}/></span><div className="trust-tx"><b>{t}</b><span>{sub}</span></div></div>))}</div>;
 }
 function Home({vaiCatalogo, vaiPackaging}){
   const [evid,setEvid]=useState(null);
@@ -1232,7 +1314,7 @@ function Home({vaiCatalogo, vaiPackaging}){
         <div className="head"><div><h2 className="sec">Cosa stampiamo</h2><p className="sec-sub">Scegli la categoria e parti.</p></div><button className="lnk" onClick={vaiCatalogo}>Tutto il catalogo →</button></div>
         <div className="cats">
           {CATEGORIE_HOME.map(([ic,t,s,dest])=>(
-            <button className="cat" key={t} onClick={()=>dest==="packaging"? (vaiPackaging&&vaiPackaging()) : vaiCatalogo(dest)}><div className="ic">{ic}</div><h4>{t}</h4><p>{s}</p></button>
+            <button className="cat" key={t} onClick={()=>dest==="packaging"? (vaiPackaging&&vaiPackaging()) : vaiCatalogo(dest)}><div className="ic"><Ico n={ic} s={44} sw={1.35}/></div><h4>{t}</h4><p>{s}</p></button>
           ))}
         </div>
 
@@ -1242,7 +1324,7 @@ function Home({vaiCatalogo, vaiPackaging}){
             ? <p className="muted">Presto in vetrina: nel gestionale spunta “vendibile” su qualche articolo, con prezzo pubblico e foto.</p>
             : <div className="grid">{evid.map(p=>{ const disp=Number(p.disponibile)||0; return (
                 <div className="card" key={p.id}>
-                  <div className="ph">{Array.isArray(p.foto_urls)&&p.foto_urls[0]?<img src={p.foto_urls[0]} alt={p.nome}/>:"📦"}</div>
+                  <div className="ph">{Array.isArray(p.foto_urls)&&p.foto_urls[0]?<img src={p.foto_urls[0]} alt={p.nome}/>:<Ico n="box" s={56} sw={1.1} className="ph-ico"/>}</div>
                   <div className="bd">{p.categoria && <span className="cat-l">{p.categoria}</span>}<h3>{p.nome}</h3>
                     <div className="row"><span className="price">{eur(p.prezzo)}</span><span className={"avail "+(disp>0?"ok":"no")}>{disp>0?disp+" disp.":"Esaurito"}</span></div>
                     <button className="add" onClick={vaiCatalogo}>Vai al catalogo</button></div>
@@ -1287,25 +1369,36 @@ function Home({vaiCatalogo, vaiPackaging}){
 //  COLONNE LATERALI DEL CATALOGO (solo schermi larghi)
 //  sinistra: menu "Tutti i prodotti" in ordine alfabetico; destra: foto in loop
 // =====================================================================
-function MenuTuttiProdotti({voci, onApri}){
+// sotto-categorie dei cataloghi fornitore (arrivano in inglese) → italiano
+const SUB_IT={"T-shirt":"T-shirt","Sweatshirt":"Felpe","Pique":"Polo piqué","Polo":"Polo","Shirt":"Camicie","Vest":"Gilet",
+  "Jackets":"Giacche","Softshell Jacket":"Giacche softshell","Fleece Jacket":"Pile","Winter jacket":"Giacconi invernali","Shell Jacket":"Giacche tecniche",
+  "Rain jacket":"Giacche antipioggia","Jackets and Vests":"Giacche e gilet","Knitted Sweater":"Maglioni","Pants":"Pantaloni","Shorts":"Bermuda e shorts",
+  "Cap":"Cappellini","Hat":"Cappelli","Accessories":"Accessori","Backpack":"Zaini","Sportbag":"Borse sportive","Laptop Bag":"Borse porta PC",
+  "Travelbag":"Borse da viaggio","Borse":"Borse"};
+const tradSub=x=>SUB_IT[x]||x||"";
+const BORSE_SUB=new Set(["Backpack","Sportbag","Laptop Bag","Travelbag","Borse"]);
+const eBorsa=c=> BORSE_SUB.has(c.sottocategoria) || (!c.sottocategoria && /bag|zain|borsa/i.test(c.nome||""));
+// menu laterale stile "tutti i prodotti": CATEGORIE e loro VOCI (tipi), in ordine alfabetico
+function MenuTuttiProdotti({gruppi, attivo, onScegli}){
   const [open,setOpen]=useState(true);
   const [f,setF]=useState("");
   const q=f.trim().toLowerCase();
-  const lista=voci.filter(v=>!q || v.nome.toLowerCase().includes(q));
-  let lettera="";
+  const lista=gruppi.map(g=>({...g, voci:g.voci.filter(v=>!q || v.nome.toLowerCase().includes(q) || g.nome.toLowerCase().includes(q))}))
+    .filter(g=>!q || g.voci.length || g.nome.toLowerCase().includes(q));
   return (
     <nav className="side-menu" aria-label="Tutti i prodotti">
       <button type="button" className="side-head" onClick={()=>setOpen(o=>!o)} aria-expanded={open}>
-        <span>☰ Tutti i prodotti</span><span className="side-n">{voci.length}</span><span className="side-car">{open?"▴":"▾"}</span></button>
+        <span><Ico n="menu" s={17} style={{marginRight:8}}/>Tutti i prodotti</span><span className="side-car">{open?"▴":"▾"}</span></button>
       {open && <>
-        {voci.length>8 && <input className="side-filtro" placeholder="Filtra…" value={f} onChange={e=>setF(e.target.value)}/>}
+        <input className="side-filtro" placeholder="Cerca un tipo di prodotto…" value={f} onChange={e=>setF(e.target.value)}/>
         <div className="side-list">
-          {lista.map(v=>{ const c0=v.nome.charAt(0).toUpperCase(); const L=/[A-ZÀ-Ý]/.test(c0)?c0:"#"; const head=L!==lettera; lettera=L; return (
-            <React.Fragment key={v.k}>
-              {head && <div className="side-lett">{L}</div>}
-              <button type="button" className="side-item" onClick={()=>onApri(v)} title={v.nome}>{v.nome}</button>
-            </React.Fragment>); })}
-          {lista.length===0 && <div className="muted" style={{fontSize:12.5,padding:"6px 10px"}}>Nessun prodotto.</div>}
+          <button type="button" className={"side-item side-tutto"+(!attivo?" on":"")} onClick={()=>onScegli(null)}>Tutto il catalogo</button>
+          {lista.map(g=>(
+            <div key={g.k} className="side-gr">
+              <button type="button" className={"side-gr-h"+(attivo===g.k?" on":"")} onClick={()=>onScegli(g)}>{g.nome}</button>
+              {g.voci.map(v=><button type="button" key={v.k} className={"side-item"+(attivo===v.k?" on":"")} onClick={()=>onScegli(v)} title={v.nome}>{v.nome}</button>)}
+            </div>))}
+          {lista.length===0 && <div className="muted" style={{fontSize:12.5,padding:"6px 10px"}}>Nessun tipo di prodotto.</div>}
         </div>
       </>}
     </nav>);
@@ -1386,11 +1479,15 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
   if(dettaglio) return <ProdottoDettaglio tipo={dettaglio.tipo} prod={dettaglio.prod} addCart={addCart} onBack={()=>setDettaglio(null)} profilo={profilo} vaiGuida={vaiGuida} iva={iva} setIva={setIva}/>;
 
   const catList=[...new Set([...conf,...prodotti,...abb].map(x=>x.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-  const matchCat = x => !cat || String(x.categoria||"").toLowerCase()===cat.toLowerCase();
+  const PACK_CAT=PACKAGING_SOTTO.map(p=>p.categoria.toLowerCase());
+  const matchCat = x => { if(!cat) return true; const c=String(x.categoria||"").toLowerCase(), k=cat.toLowerCase();
+    if(k==="packaging") return PACK_CAT.includes(c);
+    if(x.categoria==="Abbigliamento" && x.sottocategoria!==undefined){ if(k==="borse e zaini") return eBorsa(x); if(k==="abbigliamento") return !eBorsa(x); }
+    return c===k; };
   const q=(ricerca||"").trim().toLowerCase();
   const matchQ = x => !q || [x.nome,x.descrizione,x.note,x.categoria,x.codice,x.sottocategoria,x.brand].filter(Boolean).join(" ").toLowerCase().includes(q);
   const capiAll = abb.filter(x=>matchCat(x) && matchQ(x));
-  const abbSubs = [...new Set(capiAll.map(x=>x.sottocategoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const abbSubs = [...new Set(capiAll.map(x=>x.sottocategoria).filter(Boolean))].sort((a,b)=>tradSub(a).localeCompare(tradSub(b),"it"));
   const capi = capiAll.filter(x=>!abbSub || x.sottocategoria===abbSub);
   const gadget = conf.filter(c=>c.tipo==="gadget" && matchCat(c) && matchQ(c));
   const misura = conf.filter(c=>c.tipo!=="gadget" && c.tipo!=="scatola" && matchCat(c) && matchQ(c));
@@ -1401,7 +1498,7 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
 
   const cardConf = (c,isGadget) => (
     <div className="card" key={c.id} style={{cursor:"pointer"}} onClick={()=>setDettaglio({tipo:"configuratore",prod:c})}>
-      <div className="ph">{isGadget?"🎁":"🎨"}</div>
+      <div className="ph"><Ico n={isGadget?"gift":"ruler"} s={56} sw={1.1} className="ph-ico"/></div>
       <div className="bd"><span className="tag-conf">{isGadget?"Personalizzabile":"Su misura"}</span><h3>{c.nome}</h3>
         <div className="desc">{c.note||"Prodotto personalizzabile."}</div>
         <div className="row">{isGadget && prezziDa[c.id]
@@ -1410,24 +1507,32 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
         <button className="add" onClick={e=>{e.stopPropagation();setDettaglio({tipo:"configuratore",prod:c});}}>{isGadget?"Personalizza":"Vedi e configura"}</button></div>
     </div>);
 
-  // voci del menu laterale: tutti i prodotti in ordine alfabetico
-  const vociMenu=[
-    ...(conf||[]).map(c=>({k:"c"+c.id, nome:c.nome||"", apri:{tipo:"configuratore",prod:c}})),
-    ...(prodotti||[]).map(p=>({k:"p"+p.id, nome:p.nome||"", apri:{tipo:"articolo",prod:p}})),
-    ...abb.map(c=>({k:"a"+c.fornitore+c.codice, nome:c.nome||"", apri:{tipo:"abbigliamento",prod:c}})),
-  ].filter(v=>v.nome.trim()).sort((a,b)=>a.nome.localeCompare(b.nome,"it"));
+  // menu laterale: CATEGORIE con le loro VOCI (tipi di prodotto), tutto in ordine alfabetico
+  const gruppiMenu=(()=>{
+    const G={};
+    const gr=(nome)=>G[nome]||(G[nome]={k:"g:"+nome, nome, cat:nome, voci:{}});
+    const bello=t=>{ t=String(t||"").trim(); return t===t.toUpperCase()&&t.length>3? t.charAt(0)+t.slice(1).toLowerCase() : t; };
+    [...(conf||[]),...(prodotti||[])].forEach(x=>{ const c=String(x.categoria||"").trim(); if(!c) return;
+      if(PACK_CAT.includes(c.toLowerCase())){ const g=gr("Packaging"); g.voci[c]={k:"v:"+c, nome:c, cat:c}; }
+      else gr(bello(c)).cat=c; });
+    abb.forEach(x=>{ const g=gr(eBorsa(x)?"Borse e zaini":"Abbigliamento"); g.cat=g.nome; if(x.sottocategoria) g.voci[x.sottocategoria]={k:"s:"+x.sottocategoria, nome:tradSub(x.sottocategoria), cat:g.nome, sub:x.sottocategoria}; });
+    return Object.values(G).map(g=>({...g, voci:Object.values(g.voci).sort((a,b)=>a.nome.localeCompare(b.nome,"it"))}))
+      .sort((a,b)=>a.nome.localeCompare(b.nome,"it"));
+  })();
+  const menuAttivo = !cat? null : (abbSub? "s:"+abbSub : (gruppiMenu.flatMap(g=>g.voci).find(v=>!v.sub && v.cat.toLowerCase()===cat.toLowerCase())||{}).k || (gruppiMenu.find(g=>g.cat.toLowerCase()===cat.toLowerCase())||{}).k);
+  const scegliMenu=v=>{ if(!v){ setCat(""); setAbbSub(""); } else { setCat(v.cat); setAbbSub(v.sub||""); } try{ window.scrollTo(0,0); }catch(e){} };
   // foto in loop: lavori reali + capi d'abbigliamento (cliccabili)
   const fotoRail=[...fotoLavori, ...abb.filter(c=>(c.immagini||[])[0]).slice(0,12).map(c=>({src:c.immagini[0].anteprima, titolo:c.nome, apri:{tipo:"abbigliamento",prod:c}}))];
   const apriVoce=v=>{ setDettaglio(v.apri||v); try{ window.scrollTo(0,0); }catch(e){} };
 
   return (
     <div className="cat-layout">
-    <aside className="cat-side"><MenuTuttiProdotti voci={vociMenu} onApri={apriVoce}/></aside>
+    <aside className="cat-side"><MenuTuttiProdotti gruppi={gruppiMenu} attivo={menuAttivo} onScegli={scegliMenu}/></aside>
     <div className="cat-main">
-      {profilo && profilo.b2b && <div className="b2b-note">🤝 <b>Prezzi riservati B2B{profilo.cliente_nome?" · "+profilo.cliente_nome:""}</b> — lo sconto del tuo listino è già applicato ai prezzi qui sotto.</div>}
+      {profilo && profilo.b2b && <div className="b2b-note"><Ico n="tag" s={16} className="ico-t"/><b>Prezzi riservati B2B{profilo.cliente_nome?" · "+profilo.cliente_nome:""}</b> — lo sconto del tuo listino è già applicato ai prezzi qui sotto.</div>}
       <div className="cat-toprow">
         <div className="cat-search">
-          <span>🔍</span>
+          <Ico n="search" s={18}/>
           <input value={ricerca||""} onChange={e=>setRicerca(e.target.value)} placeholder="Cerca per nome, categoria, codice…"/>
           {q && <button className="search-x" onClick={()=>setRicerca("")} aria-label="Pulisci">×</button>}
         </div>
@@ -1443,16 +1548,16 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
       </div>}
 
       {capiAll.length>0 && <>
-        <h2 className="sec">👕 Abbigliamento personalizzato</h2>
+        <h2 className="sec"><Ico n={cat.toLowerCase()==="borse e zaini"?"bag":"shirt"} s={26} sw={1.5} className="ico-t"/>{cat.toLowerCase()==="borse e zaini"?"Borse e zaini personalizzati":"Abbigliamento personalizzato"}</h2>
         <p className="sec-sub">T-shirt, felpe, polo e giacche con il tuo logo: scegli colore, taglie e dove stampare.</p>
         {abbSubs.length>1 && <div className="catbar" style={{marginTop:0}}>
           <button className={!abbSub?"on":""} onClick={()=>setAbbSub("")}>Tutto</button>
-          {abbSubs.map(sc=><button key={sc} className={abbSub===sc?"on":""} onClick={()=>setAbbSub(sc)}>{sc}</button>)}
+          {abbSubs.map(sc=><button key={sc} className={abbSub===sc?"on":""} onClick={()=>setAbbSub(sc)}>{tradSub(sc)}</button>)}
         </div>}
         <div className="grid">{capi.map(c=>{ const img=(c.immagini||[])[0]; return (
           <div className="card" key={c.fornitore+":"+c.codice} style={{cursor:"pointer"}} onClick={()=>setDettaglio({tipo:"abbigliamento",prod:c})}>
-            <div className="ph">{img?<img src={img.anteprima} alt={c.nome} loading="lazy" style={{objectFit:"contain",background:"#fff"}}/>:"👕"}</div>
-            <div className="bd"><span className="tag-conf">Personalizzabile</span>{c.sottocategoria && <span className="cat-l" style={{marginLeft:6}}>{c.sottocategoria}</span>}
+            <div className="ph">{img?<img src={img.anteprima} alt={c.nome} loading="lazy" style={{objectFit:"contain",background:"#fff"}}/>:<Ico n="shirt" s={56} sw={1.1} className="ph-ico"/>}</div>
+            <div className="bd"><span className="tag-conf">Personalizzabile</span>{c.sottocategoria && <span className="cat-l" style={{marginLeft:6}}>{tradSub(c.sottocategoria)}</span>}
               <h3>{c.nome}</h3>
               <div className="desc">{[c.brand,c.genere,c.grammatura].filter(Boolean).join(" · ")}</div>
               <div className="row">{c.prezzo_da
@@ -1463,17 +1568,17 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
       </>}
 
       {gadget.length>0 && <>
-        <h2 className="sec" style={{marginTop:capiAll.length?40:0}}>🎁 Gadget personalizzati</h2>
+        <h2 className="sec" style={{marginTop:capiAll.length?40:0}}><Ico n="gift" s={26} sw={1.5} className="ico-t"/>Gadget personalizzati</h2>
         <p className="sec-sub">Scegli colore, quantità e dove stampare: il prezzo lo calcola il sistema.</p>
         <div className="grid">{gadget.map(c=>cardConf(c,true))}</div>
       </>}
 
       {scatole.length>0 && <>
-        <h2 className="sec" style={{marginTop:(capiAll.length||gadget.length)?40:0}}>📦 Packaging su misura</h2>
+        <h2 className="sec" style={{marginTop:(capiAll.length||gadget.length)?40:0}}><Ico n="box" s={26} sw={1.5} className="ico-t"/>Packaging su misura</h2>
         <p className="sec-sub">Scegli il modello, scrivi le misure interne: prezzo per quantità calcolato subito.</p>
         <div className="grid">{scatole.map(c=>(
           <div className="card" key={c.id} style={{cursor:"pointer"}} onClick={()=>setDettaglio({tipo:"configuratore",prod:c})}>
-            <div className="ph">📦</div>
+            <div className="ph"><Ico n="box" s={56} sw={1.1} className="ph-ico"/></div>
             <div className="bd"><span className="tag-conf">Su misura</span>{c.categoria && <span className="cat-l" style={{marginLeft:6}}>{c.categoria}</span>}<h3>{c.nome}</h3>
               <div className="desc">{c.note && !/COSTI FINTI/i.test(c.note)? c.note : "Dimensioni libere, stampa UV, taglio e incollaggio nel nostro laboratorio."}</div>
               <div className="row"><span className="muted">{Number(c.giorni_lavorazione)>0?`pronto in ~${c.giorni_lavorazione} gg lav.`:"prezzo su configurazione"}</span></div>
@@ -1492,7 +1597,7 @@ function Catalogo({addCart, catInit, profilo, vaiGuida, ricerca, setRicerca, iva
         <p className="sec-sub">Disponibilità reale dal nostro magazzino.</p>
         <div className="grid">{stock.map(p=>{ const disp=Number(p.disponibile)||0; const sc=scontoPerCat(profilo,p.categoria); const net=prezzoNet(p.prezzo,profilo,p.categoria); return (
           <div className="card" key={p.id} style={{cursor:"pointer"}} onClick={()=>setDettaglio({tipo:"articolo",prod:p})}>
-            <div className="ph">{Array.isArray(p.foto_urls)&&p.foto_urls[0]?<img src={p.foto_urls[0]} alt={p.nome}/>:"📦"}</div>
+            <div className="ph">{Array.isArray(p.foto_urls)&&p.foto_urls[0]?<img src={p.foto_urls[0]} alt={p.nome}/>:<Ico n="box" s={56} sw={1.1} className="ph-ico"/>}</div>
             <div className="bd">{p.categoria && <span className="cat-l">{p.categoria}</span>}<h3>{p.nome}</h3>
               <div className="desc">{p.descrizione||""}</div>
               <div className="row"><span className="price">{eur(conIva(net,iva))}{sc>0 && <span className="listino-old">{eur(conIva(p.prezzo,iva))}</span>}</span>
@@ -1540,7 +1645,7 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida, iva,
       <button className="pdp-back" onClick={onBack}>← Torna al catalogo</button>
       <div className="pdp">
         <div className="pdp-media">
-          <div className="pdp-main">{fotoMain? <img src={fotoMain} alt={prod.nome}/> : <span style={{fontSize:64}}>{tipo==="configuratore"?(prod.tipo==="scatola"?"📦":"🎨"):"📦"}</span>}</div>
+          <div className="pdp-main">{fotoMain? <img src={fotoMain} alt={prod.nome}/> : <Ico n={tipo==="configuratore"?(prod.tipo==="scatola"?"box":"ruler"):"box"} s={90} sw={1} className="ph-ico"/>}</div>
           {galleria.length>1 && <div className="pdp-thumbs">{galleria.map((u,i)=>
             <button key={i} className={"pdp-thumb "+(i===imgSel?"on":"")} onClick={()=>setImgSel(i)}><img src={u} alt=""/></button>)}</div>}
         </div>
@@ -1564,20 +1669,22 @@ function ProdottoDettaglio({tipo, prod, addCart, onBack, profilo, vaiGuida, iva,
           </div>}
 
           {Number(prod.giorni_lavorazione)>0
-            ? <div className="muted" style={{fontSize:13,marginTop:10}}>📦 Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {prod.giorni_lavorazione} gg lavorativi + spedizione)</span></div>
-            : (tipo==="articolo" && disp>0 && <div className="muted" style={{fontSize:13,marginTop:10}}>📦 <b>Pronto</b> per la spedizione</div>)}
+            ? <div className="muted" style={{fontSize:13,marginTop:10}}><Ico n="truck" s={16} className="ico-t"/>Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {prod.giorni_lavorazione} gg lavorativi + spedizione)</span></div>
+            : (tipo==="articolo" && disp>0 && <div className="muted" style={{fontSize:13,marginTop:10}}><Ico n="truck" s={16} className="ico-t"/><b>Pronto</b> per la spedizione</div>)}
 
           <div style={{marginTop:14}}><BarraFiducia compact/></div>
 
           {scheda.template_path && <div className="pdp-template">
-            <div className="pdp-tpl-h">📄 Template / layout di stampa</div>
+            <div className="pdp-tpl-h"><Ico n="doc" s={18} className="ico-t"/>Template / layout di stampa</div>
             <p className="muted" style={{margin:"4px 0 10px",fontSize:13}}>{scheda.template_note||"Scarica il file, posiziona la tua grafica nell'area indicata ed esporta in PDF."}</p>
-            <a className="btn-tpl" href={kPubShop(scheda.template_path)} target="_blank" rel="noopener noreferrer" download>⬇ Scarica il template ({scheda.template_nome||"PDF"})</a>
+            <a className="btn-tpl" href={kPubShop(scheda.template_path)} target="_blank" rel="noopener noreferrer" download
+              onClick={e=>{ if(!(window.KG_AUTH&&window.KG_AUTH.sess)){ e.preventDefault(); soloRegistrati(()=>{},"scaricare il template di stampa"); } }}><Ico n="download" s={16} style={{marginRight:6}}/>Scarica il template ({scheda.template_nome||"PDF"})</a>
+            {!(window.KG_AUTH&&window.KG_AUTH.sess) && <div className="muted" style={{fontSize:12,marginTop:6}}><Ico n="lock" s={14} className="ico-t"/>Registrazione gratuita richiesta per scaricare i template.</div>}
           </div>}
 
-          {vaiGuida && <p className="muted" style={{fontSize:13,marginTop:12}}>📄 Come preparare il file? <button className="lnk" onClick={vaiGuida}>Leggi le linee guida di stampa →</button></p>}
+          {vaiGuida && <p className="muted" style={{fontSize:13,marginTop:12}}><Ico n="doc" s={16} className="ico-t"/>Come preparare il file? <button className="lnk" onClick={vaiGuida}>Leggi le linee guida di stampa →</button></p>}
 
-          {tipo==="configuratore" && <a className="campione-lnk" href={`mailto:info@komunigo.it?subject=${encodeURIComponent("Richiesta campione neutro — "+prod.nome)}&body=${encodeURIComponent("Vorrei ricevere un campione NEUTRO (senza stampa) di: "+prod.nome+"\n\nNome/azienda:\nIndirizzo di spedizione:\nTelefono:\n\nGrazie!")}`}>🧪 Vuoi provarlo prima? <b>Ordina un campione neutro</b></a>}
+          {tipo==="configuratore" && <a className="campione-lnk" href={`mailto:info@komunigo.it?subject=${encodeURIComponent("Richiesta campione neutro — "+prod.nome)}&body=${encodeURIComponent("Vorrei ricevere un campione NEUTRO (senza stampa) di: "+prod.nome+"\n\nNome/azienda:\nIndirizzo di spedizione:\nTelefono:\n\nGrazie!")}`}><Ico n="flask" s={16} className="ico-t"/>Vuoi provarlo prima? <b>Ordina un campione neutro</b></a>}
         </div>
       </div>
 
@@ -1702,7 +1809,7 @@ function AbbigliamentoDettaglio({capo, addCart, onBack, profilo, vaiGuida, iva, 
   const vSel=(colori||[]).find(c=>c.codice_colore===colSel);
   const imgs=((vSel&&vSel.immagini&&vSel.immagini.length)? vSel.immagini : (capo.immagini||[])).filter(i=>i.anteprima);
   const fotoMain=imgs[imgSel]||imgs[0]||null;
-  const carat=[["Marchio",capo.brand],["Tipo",capo.sottocategoria],["Genere",capo.genere],["Vestibilità",capo.vestibilita],
+  const carat=[["Marchio",capo.brand],["Tipo",tradSub(capo.sottocategoria)],["Genere",capo.genere],["Vestibilità",capo.vestibilita],
     ["Taglie",capo.taglie],["Grammatura",capo.grammatura],["Tessuto",capo.tessuto],
     ["Lavaggio",lavaggioIt(capo.lavaggio)],["Codice",capo.codice]]
     .filter(x=>String(x[1]||"").trim());
@@ -1711,12 +1818,12 @@ function AbbigliamentoDettaglio({capo, addCart, onBack, profilo, vaiGuida, iva, 
       <button className="pdp-back" onClick={onBack}>← Torna al catalogo</button>
       <div className="pdp">
         <div className="pdp-media">
-          <div className="pdp-main">{fotoMain? <img src={fotoMain.anteprima} alt={capo.nome} style={{objectFit:"contain",background:"#fff"}}/> : <span style={{fontSize:64}}>👕</span>}</div>
+          <div className="pdp-main">{fotoMain? <img src={fotoMain.anteprima} alt={capo.nome} style={{objectFit:"contain",background:"#fff"}}/> : <Ico n="shirt" s={90} sw={1} className="ph-ico"/>}</div>
           {imgs.length>1 && <div className="pdp-thumbs">{imgs.map((u,i)=>
             <button key={i} className={"pdp-thumb "+(i===imgSel?"on":"")} onClick={()=>setImgSel(i)}><img src={u.anteprima} alt="" loading="lazy" style={{objectFit:"contain",background:"#fff"}}/></button>)}</div>}
         </div>
         <div className="pdp-info">
-          <span className="tag-conf">Personalizzabile</span>{capo.sottocategoria && <span className="cat-l" style={{marginLeft:6}}>{capo.sottocategoria}</span>}
+          <span className="tag-conf">Personalizzabile</span>{capo.sottocategoria && <span className="cat-l" style={{marginLeft:6}}>{tradSub(capo.sottocategoria)}</span>}
           <h1 className="pdp-title">{capo.nome}</h1>
           <p className="pdp-sub">{[capo.brand,capo.linea,capo.genere].filter(Boolean).join(" · ")}</p>
           {capo.descrizione && <div className="pdp-desc">{capo.descrizione}</div>}
@@ -1732,9 +1839,9 @@ function AbbigliamentoDettaglio({capo, addCart, onBack, profilo, vaiGuida, iva, 
             <span className="muted" style={{fontSize:13}}>capo neutro · stampa a parte{capo.minimo?` · minimo ${capo.minimo} pz`:""}</span>
             <button className="add" disabled={!colori||!colori.length} onClick={()=>setCfgOpen(true)}>Personalizza e ordina</button>
           </div>
-          {Number(capo.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:10}}>📦 Spedizione stimata: <b>{dataStimata(capo.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {capo.giorni_lavorazione} gg lavorativi + spedizione)</span></div>}
+          {Number(capo.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:10}}><Ico n="truck" s={16} className="ico-t"/>Spedizione stimata: <b>{dataStimata(capo.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {capo.giorni_lavorazione} gg lavorativi + spedizione)</span></div>}
           <div style={{marginTop:14}}><BarraFiducia compact/></div>
-          {vaiGuida && <p className="muted" style={{fontSize:13,marginTop:12}}>📄 Come preparare il file? <button className="lnk" onClick={vaiGuida}>Leggi le linee guida di stampa →</button></p>}
+          {vaiGuida && <p className="muted" style={{fontSize:13,marginTop:12}}><Ico n="doc" s={16} className="ico-t"/>Come preparare il file? <button className="lnk" onClick={vaiGuida}>Leggi le linee guida di stampa →</button></p>}
         </div>
       </div>
       {carat.length>0 && <div className="pdp-specs">
@@ -1837,14 +1944,14 @@ function ConfiguratoreAbbigliamento({capo, colori, colInit, chiudi, addCart, iva
                     ? <SagomaStampa sagoma={sagomaPerCapo(capo)} nome={s.nome} area={s.area_cm}/>
                     : <span className="area-rect">area</span>}
                   <span className="area-lbl">Area di stampa{s.area_cm?` · ${s.area_cm} cm`:""}</span></div>
-                {c>0 && /digitale/i.test(s.tecnica||"") && <div className="stampa-col muted" style={{fontSize:12.5}}>🎨 Stampa a colori illimitati (anche foto e sfumature): il prezzo non dipende dai colori.</div>}
+                {c>0 && /digitale/i.test(s.tecnica||"") && <div className="stampa-col muted" style={{fontSize:12.5}}><Ico n="drop" s={15} className="ico-t"/>Stampa a colori illimitati (anche foto e sfumature): il prezzo non dipende dai colori.</div>}
                 {c>0 && !/digitale/i.test(s.tecnica||"") && <div className="stampa-col">N° colori <input type="number" min="1" max={s.max_colori||4} value={c} style={{width:56,padding:"4px 6px"}}
                   onChange={e=>{ const n=Math.max(1,Math.min(Number(e.target.value)||1, s.max_colori||4)); setStSel(o=>({...o,[s.id]:n})); invalida(); }}/> <span className="muted" style={{fontSize:12}}>{/ricamo/i.test(s.tecnica||"")?"(fino a 12 colori, il prezzo non cambia)":"(dal n° colori del tuo logo)"}</span></div>}
               </div>); })}
           </div>; })()}
           {step===ultimo && <>
-            {Number(capo.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}>📦 Spedizione stimata: <b>{dataStimata(capo.giorni_lavorazione)}</b></div>}
-            <div className="note" style={{marginTop:12}}>📎 Dopo l'ordine carichi il logo e ricevi la <b>bozza di stampa da approvare</b> prima della produzione.</div>
+            {Number(capo.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}><Ico n="truck" s={16} className="ico-t"/>Spedizione stimata: <b>{dataStimata(capo.giorni_lavorazione)}</b></div>}
+            <div className="note" style={{marginTop:12}}><Ico n="clip" s={16} className="ico-t"/>Dopo l'ordine carichi il logo e ricevi la <b>bozza di stampa da approvare</b> prima della produzione.</div>
             {stato==="errore" && <div className="warn" style={{marginTop:14}}><b>Prezzo non disponibile.</b> {errMsg} — scrivici a <a href="mailto:info@komunigo.it">info@komunigo.it</a>.</div>}
             {prezzoOk && <div className="cart-tot" style={{marginTop:14}}>
               {d && <>
@@ -2023,7 +2130,7 @@ function Configuratore({prod,chiudi,addCart,iva,setIva}){
                   <span className="area-rect">area</span>
                   <span className="area-lbl">Area di stampa{s.area_cm?` · ${s.area_cm} cm`:""}</span>
                 </div>
-                {col>0 && /digitale/i.test(s.tecnica||"") && <div className="stampa-col muted" style={{fontSize:12.5}}>🎨 Stampa a colori illimitati (anche foto e sfumature): il prezzo non dipende dai colori.</div>}
+                {col>0 && /digitale/i.test(s.tecnica||"") && <div className="stampa-col muted" style={{fontSize:12.5}}><Ico n="drop" s={15} className="ico-t"/>Stampa a colori illimitati (anche foto e sfumature): il prezzo non dipende dai colori.</div>}
                 {col>0 && !/digitale/i.test(s.tecnica||"") && <div className="stampa-col">N° colori <input type="number" min="1" max={s.max_colori||4} value={col} style={{width:56,padding:"4px 6px"}}
                   onChange={e=>{ const n=Math.max(1,Math.min(Number(e.target.value)||1, s.max_colori||4)); setStSel(o=>({...o,[s.id]:n})); setPrezzo(null); }}/> <span className="muted" style={{fontSize:12}}>(dal n° colori del tuo logo)</span></div>}
               </div>); })}
@@ -2032,8 +2139,8 @@ function Configuratore({prod,chiudi,addCart,iva,setIva}){
             {voci.map(v=>(<label key={v.id}><input type="checkbox" checked={!!opzioni[v.id]}
               onChange={e=>{setOpzioni(o=>({...o,[v.id]:e.target.checked}));setPrezzo(null);}}/>{v.descrizione}</label>))}
           </div>}
-          {(!gadget||step===3) && Number(prod.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}>📦 Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {prod.giorni_lavorazione} gg lavorativi + spedizione)</span></div>}
-          {(!gadget||step===3) && <div className="note" style={{marginTop:12}}>📎 Dopo l'ordine carichi il file grafico e ricevi la <b>bozza di stampa da approvare</b> prima della produzione.</div>}
+          {(!gadget||step===3) && Number(prod.giorni_lavorazione)>0 && <div className="muted" style={{fontSize:13,marginTop:12}}><Ico n="truck" s={16} className="ico-t"/>Spedizione stimata: <b>{dataStimata(prod.giorni_lavorazione)}</b> <span style={{opacity:.8}}>(≈ {prod.giorni_lavorazione} gg lavorativi + spedizione)</span></div>}
+          {(!gadget||step===3) && <div className="note" style={{marginTop:12}}><Ico n="clip" s={16} className="ico-t"/>Dopo l'ordine carichi il file grafico e ricevi la <b>bozza di stampa da approvare</b> prima della produzione.</div>}
           {stato==="errore" && <div className="warn" style={{marginTop:14}}>
             <b>Motore prezzi non ancora collegato.</b> Serve la Edge Function <code>prezzo-configuratore</code>. Fino ad allora il preventivo si fa dal gestionale.</div>}
           {(!gadget||step===3) && prezzoOk && <div className="cart-tot" style={{marginTop:14}}>
@@ -2181,10 +2288,10 @@ function Carrello({cart,delCart,vaiCatalogo,onOrdineCreato,account,profilo}){
               <input type="radio" name="pag" checked={p.metodo===pagSel} onChange={()=>setPagSel(p.metodo)}/>
               <span className="ship-txt"><b>{p.nome}</b>{p.metodo==="differito"?<span className="b2b-badge" style={{marginLeft:8}}>B2B</span>:null}{p.descrizione?<span className="muted"> — {p.descrizione}</span>:null}</span>
             </label>))}
-        {sforaFido && <div className="warn" style={{marginTop:10}}>⚠️ Con questo ordine superi il <b>fido concordato</b> ({eur(espos+totale)} su {eur(fido)}). Puoi comunque procedere: ti contatteremo per l'importo eccedente.</div>}
+        {sforaFido && <div className="warn" style={{marginTop:10}}><Ico n="alert" s={16} className="ico-t"/>Con questo ordine superi il <b>fido concordato</b> ({eur(espos+totale)} su {eur(fido)}). Puoi comunque procedere: ti contatteremo per l'importo eccedente.</div>}
       </div>
 
-      {profilo && profilo.b2b && <div className="b2b-note" style={{marginTop:12}}>🤝 <b>Prezzi riservati B2B applicati.</b> Gli importi vengono ricalcolati con il tuo sconto alla conferma dell'ordine.</div>}
+      {profilo && profilo.b2b && <div className="b2b-note" style={{marginTop:12}}><Ico n="tag" s={16} className="ico-t"/><b>Prezzi riservati B2B applicati.</b> Gli importi vengono ricalcolati con il tuo sconto alla conferma dell'ordine.</div>}
       <div className="cart-tot" style={{marginTop:16}}>
         <div className="r"><span>Imponibile merce</span><span>{eur(imponibileMerce)}</span></div>
         {sped && <div className="r"><span>Trasporto — {sped.nome}</span><span>{spedCosto===0?"Gratis":eur(spedCosto)}</span></div>}
@@ -2295,19 +2402,19 @@ function OrdinePagina({token, vaiCatalogo}){
 
       {o.pagamento_metodo && <div className="warn" style={{marginBottom:16, background:pagato?"var(--blu-wash)":"var(--sand-wash)", border:"1px solid "+(pagato?"var(--blu)":"var(--sand)")}}>
         {o.pagamento_metodo==="differito"
-         ? <><b>Pagamento — Conto aperto:</b> {pagato? "✅ saldato, grazie!" : `a ${o.pagamento_giorni||30} giorni dalla fattura.`}
+         ? <><b>Pagamento — Conto aperto:</b> {pagato? "saldato, grazie!" : `a ${o.pagamento_giorni||30} giorni dalla fattura.`}
              {!pagato && <div style={{marginTop:6,fontSize:13.5}}>Importo: <b>{eur(o.totale)}</b> · nessun anticipo richiesto, riceverai fattura. L'ordine è già preso in carico.</div>}</>
-         : <><b>Pagamento — {pag?pag.nome:o.pagamento_metodo}:</b> {pagato? "✅ ricevuto, grazie!" : "in attesa."}
+         : <><b>Pagamento — {pag?pag.nome:o.pagamento_metodo}:</b> {pagato? "ricevuto, grazie!" : "in attesa."}
              {!pagato && pag && pag.istruzioni && <div style={{whiteSpace:"pre-wrap",marginTop:6,fontSize:13}}>{pag.istruzioni}</div>}
              {!pagato && (o.pagamento_metodo==="bonifico"||o.pagamento_metodo==="ritiro") &&
                <div style={{marginTop:6,fontSize:13.5}}>Importo: <b>{eur(o.totale)}</b>{o.pagamento_metodo==="bonifico"?<> · Causale: <b>{o.numero}</b></>:null}</div>}</>}
       </div>}
 
       {o.bozza_stato && <div className="warn" style={{marginBottom:16, background:o.bozza_stato==="approvata"?"var(--blu-wash)":"var(--sand-wash)", border:"1px solid "+(o.bozza_stato==="approvata"?"var(--blu)":"var(--sand)")}}>
-        <b>🎨 Bozza grafica (simulazione di stampa)</b>
+        <b><Ico n="pen" s={17} className="ico-t"/>Bozza grafica (simulazione di stampa)</b>
         {o.bozza_stato==="da_approvare" && <>
           <p style={{margin:"6px 0",fontSize:13.5}}>Abbiamo preparato l'anteprima di come verrà stampato. Controllala e <b>approvala</b> per mandare l'ordine in produzione.</p>
-          {bozzaFiles.map(f=><div key={f.id} style={{marginBottom:6,fontSize:13.5}}>🖼️ {f.url? <a href={f.url} target="_blank" rel="noopener noreferrer">{f.nome_file}</a> : f.nome_file}</div>)}
+          {bozzaFiles.map(f=><div key={f.id} style={{marginBottom:6,fontSize:13.5}}><Ico n="image" s={15} className="ico-t"/>{f.url? <a href={f.url} target="_blank" rel="noopener noreferrer">{f.nome_file}</a> : f.nome_file}</div>)}
           {!modApri
             ? <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:6}}>
                 <button className="btn" onClick={approvaBozza} disabled={bozBusy==="ok"}>{bozBusy==="ok"?"…":"✓ Approva la bozza"}</button>
@@ -2321,7 +2428,7 @@ function OrdinePagina({token, vaiCatalogo}){
                 </div>
               </div>}
         </>}
-        {o.bozza_stato==="approvata" && <p style={{margin:"6px 0 0",fontSize:13.5}}>✅ Hai approvato la bozza — l'ordine può andare in produzione. Grazie!</p>}
+        {o.bozza_stato==="approvata" && <p style={{margin:"6px 0 0",fontSize:13.5}}><Ico n="ok" s={16} className="ico-t"/>Hai approvato la bozza — l'ordine può andare in produzione. Grazie!</p>}
         {o.bozza_stato==="modifiche_richieste" && <p style={{margin:"6px 0 0",fontSize:13.5}}>Abbiamo ricevuto la tua richiesta di modifica: ti invieremo una nuova bozza a breve.</p>}
       </div>}
 
@@ -2331,12 +2438,12 @@ function OrdinePagina({token, vaiCatalogo}){
             <div className="ord-riga-h">
               <div><b>{r.descrizione}</b><div className="muted" style={{fontSize:12.5}}>{r.quantita} pz · {eur(r.prezzo_totale)}</div>
                 {r.config && r.config.scatola && r.config.scatola.modello && <button type="button" className="lnk" style={{fontSize:13,marginTop:4}}
-                  onClick={()=>{ const c=r.config.scatola; scaricaTracciato(c.modello,c.A,c.B,c.H,c.spessore||0,c.materiale||""); }}>📐 Scarica il tracciato della scatola (PDF)</button>}</div>
+                  onClick={()=>{ const c=r.config.scatola; scaricaTracciato(c.modello,c.A,c.B,c.H,c.spessore||0,c.materiale||""); }}><Ico n="download" s={15} style={{marginRight:5}}/>Scarica il tracciato della scatola (PDF)</button>}</div>
             </div>
             <div className="ord-files">
               {files.map(f=>(
                 <div className="ord-file" key={f.id}>
-                  <span className="ord-file-n">📎 {f.url? <a href={f.url} target="_blank" rel="noopener noreferrer">{f.nome_file}</a> : f.nome_file}</span>
+                  <span className="ord-file-n"><Ico n="clip" s={15} className="ico-t"/>{f.url? <a href={f.url} target="_blank" rel="noopener noreferrer">{f.nome_file}</a> : f.nome_file}</span>
                   <span className="muted" style={{fontSize:12}}>{kb(f.dimensione)}</span>
                   <button className="ord-file-x" title="Rimuovi" onClick={()=>elimina_file(f)}>×</button>
                 </div>
@@ -2344,7 +2451,7 @@ function OrdinePagina({token, vaiCatalogo}){
               {files.length===0 && <div className="muted" style={{fontSize:13}}>Nessun file caricato per questo prodotto.</div>}
             </div>
             <label className="ord-up">
-              {busy===r.id? "Carico…" : "⬆ Carica file grafico"}
+              {busy===r.id? "Carico…" : <><Ico n="upload" s={15} style={{marginRight:6}}/>Carica file grafico</>}
               <input type="file" onChange={e=>{const f=e.target.files[0]; e.target.value=""; carica_file(r,f);}} disabled={busy===r.id} style={{display:"none"}}/>
             </label>
           </div>
@@ -2420,9 +2527,9 @@ function CampiFatturazione({f,set}){
 // =====================================================================
 //  AUTENTICAZIONE CLIENTI (registrazione / login)
 // =====================================================================
-function AuthModal({onClose}){
-  const [modo,setModo]=useState("login");
-  const [f,setF]=useState({email:"",password:"",...DATI_VUOTI});
+function AuthModal({onClose, motivo}){
+  const [modo,setModo]=useState(motivo?"registra":"login");
+  const [f,setF]=useState({email:"",password:"",consenso:false,...DATI_VUOTI});
   const [busy,setBusy]=useState(false);
   const [err,setErr]=useState(""); const [msg,setMsg]=useState("");
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -2436,7 +2543,7 @@ function AuthModal({onClose}){
         if(f.password.length<6){ setErr("La password deve avere almeno 6 caratteri."); setBusy(false); return; }
         if(!fatturazioneValida(f)){ setErr(f.tipo==="azienda"?"Per le aziende servono ragione sociale e P.IVA.":"Servono nome e codice fiscale."); setBusy(false); return; }
         const {data,error}=await sb.auth.signUp({email:f.email.trim(),password:f.password,
-          options:{ data:{ komunigo:"true", nome:(f.nome||f.ragione_sociale||"").trim() } }});
+          options:{ data:{ komunigo:"true", nome:(f.nome||f.ragione_sociale||"").trim(), consenso_marketing:f.consenso?"true":"false" } }});
         if(error) throw error;
         if(data.session){
           try{ await sb.from("komunigo_account").update(formToAcc(f)).eq("id",data.session.user.id); }catch(e){}
@@ -2451,6 +2558,7 @@ function AuthModal({onClose}){
       <div className="modal" style={{width:modo==="registra"?"min(620px,100%)":"min(440px,100%)"}}>
         <div className="mh"><h3>{modo==="login"?"Accedi":"Crea un account"}</h3><button className="x" onClick={onClose}>×</button></div>
         <div className="mb">
+          {motivo && <div className="auth-motivo"><Ico n="lock" s={16} className="ico-t"/>Per <b>{motivo}</b> serve un account Komunigo: è gratis e ci vuole un minuto.{modo==="registra"?"":" Accedi oppure registrati."}</div>}
           {err && <div className="warn" style={{marginBottom:12}}>{err}</div>}
           {msg && <div className="note" style={{marginBottom:12}}>{msg}</div>}
           {modo==="registra" && <>
@@ -2463,6 +2571,12 @@ function AuthModal({onClose}){
           <input type="email" value={f.email} onChange={e=>set("email",e.target.value)} placeholder="nome@email.it"/>
           <label className="fld">Password</label>
           <input type="password" value={f.password} onChange={e=>set("password",e.target.value)} placeholder={modo==="registra"?"almeno 6 caratteri":""}/>
+          {modo==="registra" && <>
+            <label className="consenso-box">
+              <input type="checkbox" checked={!!f.consenso} onChange={e=>set("consenso",e.target.checked)}/>
+              <span><b>Sì, voglio ricevere offerte e novità</b> di Komunigo via email. Facoltativo: puoi revocarlo quando vuoi dal tuo account o con il link in ogni email.</span></label>
+            <p className="muted" style={{fontSize:11.5,margin:"8px 0 0"}}>Registrandoti dichiari di aver letto l'<a href="#" onClick={e=>{e.preventDefault(); onClose(); setTimeout(()=>{ const b=[...document.querySelectorAll(".ft-lnk")].find(x=>x.innerText==="Privacy"); if(b) b.click(); },50);}}>informativa privacy</a>. I tuoi dati servono a gestire account e ordini.</p>
+          </>}
         </div>
         <div className="mf">
           <button className="btn" onClick={submit} disabled={busy||!f.email||!f.password}>{busy?"…":(modo==="login"?"Accedi":"Registrati")}</button>
@@ -2512,16 +2626,25 @@ function AccountPagina({account,sess,onLogout,vaiCatalogo,apriOrdine,onAccountCh
         <CampiFatturazione f={f} set={set}/>
         <button className="btn" style={{marginTop:14}} onClick={salvaProfilo}>{salvato?"Salvato ✓":"Salva dati"}</button>
       </div>
+      {account && "consenso_marketing" in account && <div className="ship" style={{marginTop:14}}>
+        <h3 className="ship-h">Offerte via email</h3>
+        <label className="consenso-box" style={{marginTop:0}}>
+          <input type="checkbox" checked={!!account.consenso_marketing} onChange={async e=>{ const v=e.target.checked;
+            const patch={consenso_marketing:v, consenso_marketing_il:new Date().toISOString(), consenso_marketing_fonte:v?"area account":"revoca area account"};
+            const {error}=await sb.from("komunigo_account").update(patch).eq("id",sess.user.id);
+            if(!error && onAccountChange) onAccountChange({...(account||{}),...patch}); }}/>
+          <span>Voglio ricevere offerte e novità di Komunigo via email.{account.consenso_marketing_il? <span className="muted"> (aggiornato il {new Date(account.consenso_marketing_il).toLocaleDateString("it-IT")})</span>:null}</span></label>
+      </div>}
 
       <h3 className="ship-h" style={{marginTop:24}}>I tuoi ordini</h3>
       {ordini===null? <p className="muted">Carico…</p>
        : ordini.length===0? <p className="muted">Non hai ancora ordini. <button className="lnk" onClick={vaiCatalogo}>Vai al catalogo →</button></p>
        : <div style={{marginTop:8}}>{ordini.map(o=>(
           <div className="cart-line" key={o.numero} style={{cursor:"pointer"}} onClick={()=>apriOrdine(o.token)}>
-            <div className="g"><h4>Ordine {o.numero}</h4><p>{o.creato_il?new Date(o.creato_il).toLocaleDateString("it-IT"):""} · {o.pagamento_stato==="pagato"?"pagato ✅":"pagamento in attesa"}</p></div>
+            <div className="g"><h4>Ordine {o.numero}</h4><p>{o.creato_il?new Date(o.creato_il).toLocaleDateString("it-IT"):""} · {o.pagamento_stato==="pagato"?"pagato":"pagamento in attesa"}</p></div>
             <div style={{display:"flex",alignItems:"center",gap:12}}>
               <span className="price">{eur(o.totale)}</span>
-              {riordina && <button className="btn ghost small" onClick={e=>{e.stopPropagation();riordina(o.token);}}>🔁 Riordina</button>}
+              {riordina && <button className="btn ghost small" onClick={e=>{e.stopPropagation();riordina(o.token);}}><Ico n="repeat" s={15} style={{marginRight:6}}/>Riordina</button>}
             </div>
           </div>))}</div>}
     </div>
@@ -2545,14 +2668,14 @@ function DiagrammaRifilo(){
   );
 }
 const LG_SEZIONI=[
-  {ico:"📐", t:"Formato e taglio", extra:"diagramma", voci:[
+  {ico:"ruler", t:"Formato e taglio", extra:"diagramma", voci:[
     "Imposta il file nel formato del prodotto, inclusi i 3 mm di abbondanza per lato (es. biglietto 8,5×5,5 cm → file da 8,7×5,7 cm).",
     "Tieni testi, loghi ed elementi importanti entro l'area sicura, ad almeno 3 mm dal taglio.",
     "Estendi sfondi e immagini a vivo fino al bordo del file, coprendo tutta l'abbondanza.",
     "Nessun crocino di taglio, piega o registro nel file: li generiamo noi.",
     "Usa il template della scheda prodotto: ha già taglio, abbondanza e area sicura.",
   ]},
-  {ico:"🎨", t:"Colore", voci:[
+  {ico:"drop", t:"Colore", voci:[
     "Lavora in CMYK (stampa 4/4 o 4/0). In RGB i colori vengono convertiti e possono cambiare tonalità.",
     "Per colori esatti usa Pantone / tinte piatte (HKS/PANTONE) coi nomi canale corretti; indicali nelle note dell'ordine.",
     "Nero dei testi: C0 M0 Y0 K100. Nero profondo per grandi fondi: C40 M0 Y0 K100.",
@@ -2561,25 +2684,25 @@ const LG_SEZIONI=[
     "Elementi bianchi mai in sovrastampa (sparirebbero).",
     "Profilo colore consigliato: ISO Coated V2 300% (ECI), impostato come output intent.",
   ]},
-  {ico:"🔍", t:"Immagini e risoluzione", voci:[
+  {ico:"image", t:"Immagini e risoluzione", voci:[
     "Risoluzione 300 dpi (fino a 356) alla dimensione reale di stampa.",
     "Grande formato (da A2 in su): 100–150 dpi sono sufficienti.",
     "Immagini in CMYK; evita immagini piccole ingrandite dal web (vengono sgranate).",
     "Se impagini, i collegamenti alle immagini devono essere presenti e aggiornati.",
   ]},
-  {ico:"🔤", t:"Scritte e linee", voci:[
+  {ico:"type", t:"Scritte e linee", voci:[
     "Corpo del testo minimo 6 pt.",
     "Font incorporati nel PDF oppure testi convertiti in tracciati / curve.",
     "Spessore minimo linee: 0,25 pt in positivo, 0,5 pt in negativo (chiaro su scuro).",
     "Niente cornici/outline a filo: se le usi, tienile ad almeno 4 mm dal bordo.",
   ]},
-  {ico:"📄", t:"Formato file", voci:[
+  {ico:"doc", t:"Formato file", voci:[
     "Invia in PDF (ideale PDF/X-3 o PDF/X-4), oppure TIFF / JPG ad alta risoluzione.",
     "Niente password o cifratura sul file.",
     "Testi neri piccoli e linee sottili nere meglio in sovrastampa: evitano bordi bianchi.",
     "Evita grafiche vettoriali troppo complesse: in caso, esporta in raster (JPG).",
   ]},
-  {ico:"🧩", t:"Pagine e livelli (multipagina)", voci:[
+  {ico:"layers", t:"Pagine e livelli (multipagina)", voci:[
     "Sequenza e orientamento delle pagine corretti; numero facciate giusto.",
     "Riduci tutti i livelli a un unico livello di fondo (PDF/TIF da Photoshop/GIMP).",
   ]},
@@ -2603,14 +2726,14 @@ function LineeGuida({vaiCatalogo}){
           <div className="lg-bar"><span style={{width:(totale?Math.round(fatti/totale*100):0)+"%"}}/></div>
           <div className="lg-progress-lbl">{fatti}/{totale} controlli {fatti>0 && <button className="lnk" onClick={reset}>azzera</button>}</div>
         </div>
-        <button className="btn ghost" onClick={()=>window.print()}>⬇ Scarica la checklist (PDF)</button>
+        <button className="btn ghost" onClick={()=>window.print()}><Ico n="download" s={16} style={{marginRight:6}}/>Scarica la checklist (PDF)</button>
       </div>
       <div className="lg-print-note">Checklist file di stampa — komunigo.it · info@komunigo.it</div>
 
       <div className="lg-grid">
         {LG_SEZIONI.map((z,i)=>(
           <div className="lg-card" key={i}>
-            <div className="lg-ico">{z.ico}</div>
+            <div className="lg-ico"><Ico n={z.ico} s={26} sw={1.5}/></div>
             <h3>{z.t}</h3>
             {z.extra==="diagramma" && <DiagrammaRifilo/>}
             <div className="lg-items">
@@ -2625,7 +2748,7 @@ function LineeGuida({vaiCatalogo}){
       </div>
 
       {completo && <div className="lg-done">
-        <div><span style={{fontSize:20}}>🎉</span> <b>Hai spuntato tutto!</b> Il tuo file è pronto. Scegli il prodotto, completa l'ordine e poi carica il file dalla pagina «I tuoi ordini».</div>
+        <div><Ico n="spark" s={22} className="ico-t"/> <b>Hai spuntato tutto!</b> Il tuo file è pronto. Scegli il prodotto, completa l'ordine e poi carica il file dalla pagina «I tuoi ordini».</div>
         <button className="btn no-print" onClick={vaiCatalogo}>Vai al catalogo e ordina →</button>
       </div>}
 

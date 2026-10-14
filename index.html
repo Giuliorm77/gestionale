@@ -10080,12 +10080,19 @@ function ModuloAccountKomunigo({profilo,perm}){
         <div className="toolbar">
           <div className="search"><span className="mag">🔍</span><input placeholder="Cerca nome, email, azienda…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
           <span className="muted">{lista.length} account</span>
+          {(acc||[]).some(a=>"consenso_marketing" in a) && <button className="btn small" title="Elenco di chi ha accettato di ricevere offerte via email (CSV per Brevo/Excel)" onClick={()=>{
+            const r=(acc||[]).filter(a=>a.consenso_marketing&&a.email);
+            if(!r.length){ window.alert("Nessun account ha dato il consenso alle offerte."); return; }
+            const esc=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+            const csv=["email;nome;azienda;consenso_il;fonte",...r.map(a=>[a.email,a.nome||"",a.ragione_sociale||a.azienda||"",a.consenso_marketing_il?new Date(a.consenso_marketing_il).toLocaleDateString("it-IT"):"",a.consenso_marketing_fonte||""].map(esc).join(";"))].join("\r\n");
+            const b=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"}); const l=document.createElement("a"); l.href=URL.createObjectURL(b); l.download="komunigo-consenso-offerte.csv"; l.click(); setTimeout(()=>URL.revokeObjectURL(l.href),1000);
+          }}>📧 Esporta email con consenso ({(acc||[]).filter(a=>a.consenso_marketing).length})</button>}
         </div>
         {acc===null? <div className="empty">Caricamento…</div>
          : lista.length===0? <div className="card empty">Nessun account registrato dal negozio.</div>
          : <div className="card" style={{overflow:"auto"}}>
             <table>
-              <thead><tr><th>Cliente</th><th>Contatti</th><th>Anagrafica</th><th>Stato</th><th>Sconto B2B</th><th>Conto aperto</th><th></th></tr></thead>
+              <thead><tr><th>Cliente</th><th>Contatti</th><th>Anagrafica</th><th>Stato</th><th>Sconto B2B</th><th>Conto aperto</th><th title="Consenso a ricevere offerte via email">Offerte ✉</th><th></th></tr></thead>
               <tbody>{lista.map(a=>{ const cli=cliMap[a.cliente_id]; const s=scontoStd(cli); const esp=esposizione(a.id); const sfora=esp>Number(a.fido_massimo||0)&&Number(a.fido_massimo)>0; return (
                 <tr key={a.id} style={{cursor:"pointer"}} onClick={()=>setSelId(a.id)}>
                   <td className="rs">{a.ragione_sociale||a.nome||"—"}
@@ -10100,6 +10107,7 @@ function ModuloAccountKomunigo({profilo,perm}){
                   <td>{a.pagamento_differito
                     ? <span className="tag" style={{background:sfora?"#fde8e8":"#e6f4ea",color:sfora?"#c0392b":"#1e7d34"}}>{eur(esp)}/{eur(a.fido_massimo)} · {a.giorni_pagamento}gg</span>
                     : <span className="muted">no</span>}</td>
+                  <td>{a.consenso_marketing ? <span className="tag" style={{background:"#e6f4ea",color:"#1e7d34"}} title={a.consenso_marketing_il?"dal "+new Date(a.consenso_marketing_il).toLocaleDateString("it-IT"):""}>sì</span> : <span className="muted">no</span>}</td>
                   <td><button className="btn small" onClick={e=>{e.stopPropagation();setSelId(a.id);}}>Apri ›</button></td>
                 </tr>); })}</tbody>
             </table>

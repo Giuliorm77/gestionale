@@ -13303,6 +13303,15 @@ function ModuloMaterialeInArrivo({profilo,perm}){
     setRighe(data||[]);
   },[]);
   async function riceviOrd(o){
+    // se l'ordine contiene PANNELLI/LASTRE serve inserire le misure → ricezione dall'editor
+    try{
+      const {data:rr}=await sb.from("ordini_fornitore_righe").select("articolo_id").eq("ordine_id",o.ordine_id);
+      const aids=[...new Set((rr||[]).map(x=>x.articolo_id).filter(Boolean))];
+      if(aids.length){ const {data:aa}=await sb.from("articoli_magazzino").select("id,materiale_tipo").in("id",aids);
+        if((aa||[]).some(a=>a.materiale_tipo==="lastra")){
+          setErr("L'ordine "+o.numero+" contiene pannelli/lastre: aprilo (▸) e usa «📥 Ricevi merce» per inserire le misure — si caricano come pezzi, non come giacenza sfusa.");
+          return; } }
+    }catch(e){}
     if(!window.confirm("Confermi che la merce dell'ordine "+o.numero+(o.fornitore?(" ("+o.fornitore+")"):"")+" è ARRIVATA?\nVerrà caricata a magazzino.")) return;
     setBusy(true); setErr(""); setMsg("");
     try{ const {error}=await sb.rpc("ricevi_materiale",{p_ordine_id:o.ordine_id}); if(error) throw error;
@@ -13364,7 +13373,7 @@ function ModuloOrdiniFornitori({profilo,perm}){
     const [o,fo,a,cm]=await Promise.all([
       sb.from("ordini_fornitore").select("*, ordini_fornitore_righe(*)").order("creato_il",{ascending:false}),
       sb.from("fornitori").select("*").order("ragione_sociale"),
-      caricaArticoliTutti("id,codice,nome_articolo,unita,costo,giacenza,impegnato,scorta_minima"),
+      caricaArticoliTutti("id,codice,nome_articolo,unita,costo,giacenza,impegnato,scorta_minima,materiale_tipo"),
       sb.from("commesse").select("id,numero,cliente_nome,data_consegna").order("creato_il",{ascending:false}),
     ]);
     if(o.error){ setErr(o.error.message); return; }
@@ -13450,6 +13459,9 @@ function OrdineFornitoreEditor({ordine,profilo,perm,fornitori,articoli,commesse,
   const [busy,setBusy]=useState(false);
   const [err,setErr]=useState("");
   const [msg,setMsg]=useState("");
+  const [riceviPan,setRiceviPan]=useState(null);   // righe-lastra per cui chiedere le misure alla ricezione
+  const artById=useMemo(()=>{ const m={}; (articoli||[]).forEach(a=>m[a.id]=a); return m; },[articoli]);
+  const isLastraArt=aid=> !!(aid && (artById[aid]||{}).materiale_tipo==="lastra");
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   // Controllo date: la consegna del fornitore deve essere PRIMA della consegna della commessa
   const commSel=(commesse||[]).find(c=>c.id===f.commessa_id)||null;
@@ -13507,29 +13519,49 @@ function OrdineFornitoreEditor({ordine,profilo,perm,fornitori,articoli,commesse,
     if(dataKO){ setErr("La consegna prevista è DOPO la consegna della commessa: correggi la data prima di ricevere."); return; }
     const nonContr=righe.filter(r=>r.articolo_id && (Number(r.quantita)||0)-(Number(r.quantita_ricevuta)||0)>0 && !r.prezzo_verificato);
     if(nonContr.length){ setErr("Prima di ricevere, controlla i prezzi in rosso e spunta «controllato» su: "+nonContr.map(r=>r.descrizione||"riga").join(", ")); return; }
+    // righe LASTRA da ricevere → chiedo le misure (si caricano come pezzi, non come giacenza sfusa)
+    const panRighe=righe.map((r,i)=>({r,i})).filter(({r})=>isLastraArt(r.articolo_id) && (Number(r.quantita)||0)-(Number(r.quantita_ricevuta)||0)>0);
+    if(panRighe.length){
+      setRiceviPan(panRighe.map(({r,i})=>({idx:i, articolo_id:r.articolo_id, descrizione:r.descrizione||(artById[r.articolo_id]||{}).nome_articolo||"",
+        qta:(Number(r.quantita)||0)-(Number(r.quantita_ricevuta)||0), costo:Number(r.prezzo_unitario)||0, L:"", H:"", sp:""})));
+      return;
+    }
     if(!window.confirm("Registrare la ricezione e caricare a magazzino "+daRicevere+" articolo/i?")) return;
+    eseguiRicezione(null);
+  }
+  // esegue la ricezione: lastre → pezzi (carica_pannelli con misure); altri → carico sfuso
+  async function eseguiRicezione(misure){
     setBusy(true); setErr(""); setMsg("");
     try{
       const rif="Ordine "+(f.numero||ordine.numero||"");
       const nuoveRighe=righe.map(r=>({...r}));
-      for(const r of nuoveRighe){
+      for(let i=0;i<nuoveRighe.length;i++){ const r=nuoveRighe[i];
         const delta=(Number(r.quantita)||0)-(Number(r.quantita_ricevuta)||0);
         if(!r.articolo_id || delta<=0) continue;
-        const {error}=await sb.from("movimenti_magazzino").insert({articolo_id:r.articolo_id, tipo:"carico",
-          quantita:delta, causale:"Acquisto / carico fornitore", riferimento:rif, creato_da:profilo.id});
-        if(error) throw error;
+        if(isLastraArt(r.articolo_id)){
+          const m=(misure||[]).find(x=>x.idx===i); if(!m) continue;   // senza misure, salta (non carica)
+          const {error}=await sb.rpc("carica_pannelli",{ p_articolo_id:r.articolo_id,
+            p_larghezza:Number(m.L)||0, p_altezza:Number(m.H)||0, p_spessore:m.sp===""?null:Number(m.sp),
+            p_quantita:Math.round(delta), p_costo_unitario:Number(r.prezzo_unitario)||null,
+            p_ubicazione:"", p_note:rif });
+          if(error) throw error;
+        } else {
+          const {error}=await sb.from("movimenti_magazzino").insert({articolo_id:r.articolo_id, tipo:"carico",
+            quantita:delta, causale:"Acquisto / carico fornitore", riferimento:rif, creato_da:profilo.id});
+          if(error) throw error;
+        }
         r.quantita_ricevuta=Number(r.quantita)||0;
       }
       const tuttoRic=nuoveRighe.every(r=>!r.articolo_id || (Number(r.quantita_ricevuta)||0)>=(Number(r.quantita)||0));
       setRighe(nuoveRighe);
       setF(p=>({...p,stato:tuttoRic?"ricevuto":"ricevuto_parziale"}));
-      // persiste subito con le quantità ricevute aggiornate
       await sb.from("ordini_fornitore").update({stato:tuttoRic?"ricevuto":"ricevuto_parziale", aggiornato_il:new Date().toISOString()}).eq("id",ordine.id);
       await sb.from("ordini_fornitore_righe").delete().eq("ordine_id",ordine.id);
       const rows=nuoveRighe.map((r,idx)=>({ordine_id:ordine.id, ordine:idx, articolo_id:r.articolo_id||null, descrizione:r.descrizione||"",
         quantita:Number(r.quantita)||0, unita:r.unita||"", prezzo_unitario:Number(r.prezzo_unitario)||0, prezzo_verificato:!!r.prezzo_verificato,
         quantita_ricevuta:Number(r.quantita_ricevuta)||0, note:r.note||""}));
       if(rows.length){ const {error}=await sb.from("ordini_fornitore_righe").insert(rows); if(error) throw error; }
+      setRiceviPan(null);
       setMsg("Merce ricevuta e caricata a magazzino ✓"); setBusy(false);
     }catch(ex){ setErr(ex.message); setBusy(false); }
   }
@@ -13665,6 +13697,27 @@ function OrdineFornitoreEditor({ordine,profilo,perm,fornitori,articoli,commesse,
           <button className="btn primary" disabled={busy}>{busy?<span className="spin"/>:"Salva ordine"}</button>
         </footer>
       </form>
+      {riceviPan && <div className="overlay"><div className="modal" style={{maxWidth:620}} onClick={e=>e.stopPropagation()}>
+        <header><h2>📥 Ricezione pannelli — misure</h2><button type="button" className="x" onClick={()=>setRiceviPan(null)}>×</button></header>
+        <div className="body">
+          <div className="muted" style={{fontSize:12.5,marginBottom:10}}>Questi articoli sono <b>lastre/pannelli</b>: inserisci le misure del pannello ricevuto. Verranno caricati a scaffale come <b>pezzi</b> (non come giacenza sfusa). La quantità è quella da ricevere.</div>
+          {err && <div className="banner err">{err}</div>}
+          {riceviPan.map((p,k)=>
+            <div key={k} className="card" style={{padding:12,marginBottom:8}}>
+              <div style={{fontWeight:700,marginBottom:6}}>{p.descrizione} <span className="muted" style={{fontWeight:400}}>· {p.qta} pz{p.costo>0?(" · "+eur(p.costo)+"/pz"):""}</span></div>
+              <div className="row">
+                <div className="field" style={{maxWidth:130}}><label>Base (cm)</label><input type="number" step="0.1" value={p.L} onChange={e=>setRiceviPan(v=>v.map((x,j)=>j===k?{...x,L:e.target.value}:x))} placeholder="es. 305"/></div>
+                <div className="field" style={{maxWidth:130}}><label>Altezza (cm)</label><input type="number" step="0.1" value={p.H} onChange={e=>setRiceviPan(v=>v.map((x,j)=>j===k?{...x,H:e.target.value}:x))} placeholder="es. 205"/></div>
+                <div className="field" style={{maxWidth:130}}><label>Spessore (mm)</label><input type="number" step="0.1" value={p.sp} onChange={e=>setRiceviPan(v=>v.map((x,j)=>j===k?{...x,sp:e.target.value}:x))} placeholder="es. 3"/></div>
+              </div>
+            </div>)}
+        </div>
+        <footer>
+          <button type="button" className="btn" style={{marginLeft:"auto"}} onClick={()=>setRiceviPan(null)}>Annulla</button>
+          <button type="button" className="btn primary" disabled={busy || !riceviPan.every(p=>Number(p.L)>0&&Number(p.H)>0)}
+            onClick={()=>eseguiRicezione(riceviPan)}>{busy?<span className="spin"/>:"Carica pannelli e ricevi"}</button>
+        </footer>
+      </div></div>}
     </div>
   );
 }

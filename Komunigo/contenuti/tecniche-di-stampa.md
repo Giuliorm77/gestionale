@@ -70,3 +70,16 @@ stampa. La **ricamatura** viene effettuata da una macchina che riceve il logo
 attraverso un software. Il macchinario stesso prepara la punciatura dell'immagine
 che consentirà un ricamo punto a punto. Il logo ricamato è resistente ai lavaggi e
 nel tempo e si adatta ad ogni tipo di tessuto.
+
+---
+
+## Quadricromia
+
+La **quadricromia** è una tecnica di stampa serigrafica che consente di riprodurre
+immagini fotografiche o con sfumature utilizzando i quattro colori primari: ciano,
+magenta, giallo e nero. Attraverso la separazione dei quattro colori in retini,
+questi vengono sovrapposti e mescolati in diverse intensità per generare tutte le
+altre sfumature cromatiche. Il risultato migliore si ottiene modulando la
+luminosità e la densità di ciascun colore primario. L'utilizzo di telai ad alta
+definizione, si riduce significativamente la dimensione dei retini, ottenendo così
+una resa fotografica.

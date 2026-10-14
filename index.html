@@ -4147,6 +4147,7 @@ function ModuloMagazzino({profilo,perm}){
   const [dettImp,setDettImp]=useState(null);     // articolo di cui mostrare il dettaglio impegni (modale)
   const [filtroArt,setFiltroArt]=useState(null); // {id,nome}: filtra lo storico movimenti su un articolo
   const [valz,setValz]=useState(null);           // valorizzazione totale {val_sfuso,n_sfuso,val_avanzi,n_avanzi}
+  const [pezziGiac,setPezziGiac]=useState({});   // id lastra -> {n,mq} giacenza a pezzi (pannelli a scaffale)
   const [costi,setCosti]=useState({});           // id -> costo (per il valore di riga, solo economici)
   // la ricerca aspetta 300ms prima di interrogare il DB
   useEffect(()=>{ const t=setTimeout(()=>setCercaDeb(cerca),300); return ()=>clearTimeout(t); },[cerca]);
@@ -4157,7 +4158,7 @@ function ModuloMagazzino({profilo,perm}){
     // e i materiali si perderebbero). Chiediamo solo cio' che serve: i materiali a magazzino, o la ricerca.
     const LIM=1000;
     let qy=sb.from("articoli_magazzino")
-      .select("id,codice,nome_articolo,unita,tipo,giacenza,impegnato,scorta_minima,mq_per_lastra")
+      .select("id,codice,nome_articolo,unita,tipo,giacenza,impegnato,scorta_minima,mq_per_lastra,materiale_tipo")
       .order("nome_articolo").limit(LIM);
     const q=cercaDeb.trim().replace(/[,()*]/g," ");
     // il filtro "solo materiali a magazzino" vale per la vista di default; quando CERCHI
@@ -4167,6 +4168,13 @@ function ModuloMagazzino({profilo,perm}){
     const a=await qy;
     if(a.error){ setErr(a.error.message); return; }
     setArticoli(a.data||[]); setTroncato((a.data||[]).length>=LIM);
+    // giacenza "a pezzi" per le lastre: somma dei pannelli a scaffale
+    try{
+      const lids=(a.data||[]).filter(x=>x.materiale_tipo==="lastra").map(x=>x.id);
+      if(lids.length){ const {data:gp}=await sb.rpc("giacenza_pezzi",{p_ids:lids});
+        const gm={}; (gp||[]).forEach(r=>{ gm[r.articolo_id]={n:Number(r.n_pezzi)||0,mq:Number(r.mq)||0}; }); setPezziGiac(gm); }
+      else setPezziGiac({});
+    }catch(e){ setPezziGiac({}); }
     // VALORIZZAZIONE (solo economici): costi per riga + totale su TUTTO il magazzino via RPC
     if(perm.economici){
       const ids=(a.data||[]).map(x=>x.id);
@@ -4315,6 +4323,13 @@ function ModuloMagazzino({profilo,perm}){
                             style={canMov?{cursor:"pointer"}:{cursor:"default"}} title={canMov?"Apri lo storico movimenti di questo articolo":""}>
                             <td className="rs">{a.nome_articolo||"—"}<div className="muted" style={{fontSize:12}}>{a.codice}</div></td>
                             <td className="muted" style={{textTransform:"capitalize"}}>{a.tipo||"—"}</td>
+                            {a.materiale_tipo==="lastra" ? (()=>{ const pg=pezziGiac[a.id]||{n:0,mq:0};
+                              return <>
+                                <td style={{textAlign:"right"}}><b>{pg.n}</b> <span className="muted" style={{fontSize:12}}>pannelli</span>
+                                  <div className="muted" style={{fontSize:11}}>{Math.round(pg.mq*100)/100} mq a scaffale</div></td>
+                                <td style={{textAlign:"right"}} className="muted">—</td>
+                                <td style={{textAlign:"right",fontWeight:700,color:pg.n>0?"var(--ok)":"var(--danger)"}}>{pg.n} <span className="muted" style={{fontSize:11,fontWeight:400}}>pz</span></td>
+                              </>; })() : <>
                             <td style={{textAlign:"right"}}>{gi}{a.unita?<span className="muted" style={{fontSize:12}}> {a.unita}</span>:null}
                               {mql>0 && <div className="muted" style={{fontSize:11}}>~{Math.round(gi/mql*10)/10} lastre</div>}</td>
                             <td style={{textAlign:"right"}} className="muted">
@@ -4323,9 +4338,10 @@ function ModuloMagazzino({profilo,perm}){
                                     style={{padding:"1px 8px",fontWeight:700}}>{imp} 👥</button>
                                 : "—"}</td>
                             <td style={{textAlign:"right",fontWeight:700,color:esaurito?"var(--danger)":sotto?"#b45309":"var(--ok)"}}>{disp}
-                              {mql>0 && <div className="muted" style={{fontSize:11,fontWeight:400}}>~{Math.round(disp/mql*10)/10} lastre</div>}</td>
+                              {mql>0 && <div className="muted" style={{fontSize:11,fontWeight:400}}>~{Math.round(disp/mql*10)/10} lastre</div>}</td></>}
                             <td style={{textAlign:"right"}} className="muted">{sc||"—"}</td>
-                            {perm.economici && (()=>{ const co=Number(costi[a.id])||0; const val=gi*co;
+                            {perm.economici && (()=>{ if(a.materiale_tipo==="lastra") return <td style={{textAlign:"right"}} className="muted" title="Il valore delle lastre è nei pezzi a scaffale (vedi Pezzi & Etichette)"><span style={{fontSize:12}}>a pezzi</span></td>;
+                              const co=Number(costi[a.id])||0; const val=gi*co;
                               return <td style={{textAlign:"right",fontWeight:600}} title={co?("costo "+eur(co)+" × giac. "+gi):"costo non impostato"}>{co? eur(val) : <span className="muted">—</span>}</td>; })()}
                             <td>{esaurito? <span className="tag" style={{background:"#fde8e8",color:"#c0392b"}}>Esaurito</span>
                                  : sotto? <span className="tag" style={{background:"#fff4e5",color:"#b26a00"}}>Sotto scorta</span>
@@ -4826,11 +4842,17 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
   const [busy,setBusy]=useState(false); const [err,setErr]=useState("");
   const [fatto,setFatto]=useState(null);
   const [matCommessa,setMatCommessa]=useState([]);   // materiali della commessa scelta
+  // --- modalità LASTRA: scelta del pannello fisico a scaffale ---
+  const [pezziDisp,setPezziDisp]=useState(null);     // pannelli in_magazzino dell'articolo
+  const [pezzoSel,setPezzoSel]=useState(null);       // pannello scelto
+  const [reqL,setReqL]=useState(""); const [reqH,setReqH]=useState("");  // misura richiesta (cm) per evidenziare
+  const [scan,setScan]=useState("");                 // ricerca/scan per codice
+  const isLastra = !!(art && art.materiale_tipo==="lastra");
 
   useEffect(()=>{ (async()=>{
     const [c,a]=await Promise.all([
       sb.from("commesse").select("id,numero,cliente_nome,stato").in("stato",["aperta","in_produzione","pronta"]).order("data_consegna",{ascending:true}),
-      caricaArticoliTutti("id,codice,nome_articolo,unita",{tabella:"articoli_magazzino"}),
+      caricaArticoliTutti("id,codice,nome_articolo,unita,materiale_tipo",{tabella:"articoli_magazzino"}),
     ]);
     setCommesse(c.data||[]); setArticoli(a);
   })(); },[]);
@@ -4848,9 +4870,27 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
     return ()=>{vivo=false;};
   },[commessaId]);
 
+  // carica i pannelli a scaffale quando scelgo una LASTRA
+  useEffect(()=>{ setPezzoSel(null); setScan("");
+    if(!(art && art.materiale_tipo==="lastra")){ setPezziDisp(null); return; }
+    let vivo=true; setPezziDisp(null);
+    sb.from("magazzino_pezzi_op").select("*").eq("articolo_id",art.id).eq("stato","in_magazzino").order("creato_il",{ascending:false})
+      .then(({data})=>{ if(vivo) setPezziDisp(data||[]); });
+    return ()=>{vivo=false;};
+  },[art]);
   const ris=useMemo(()=>{ const s=q.trim().toLowerCase(); if(!s) return [];
     return articoli.filter(a=>[a.nome_articolo,a.codice].join(" ").toLowerCase().includes(s)).slice(0,12); },[q,articoli]);
   const mq=((Number(larg)||0)*(Number(alt)||0)/10000)*(Number(qta)||1);
+  // un pannello "contiene" la misura richiesta (cm) con rotazione e piccola tolleranza
+  const TOLL=0.2;
+  const contiene=(p)=>{ const rl=Number(reqL)||0, rh=Number(reqH)||0; if(!(rl>0&&rh>0)) return false;
+    const pl=Number(p.larghezza_cm)||0, ph=Number(p.altezza_cm)||0;
+    return (pl+TOLL>=rl && ph+TOLL>=rh) || (pl+TOLL>=rh && ph+TOLL>=rl); };
+  const pezziView=useMemo(()=>{ const s=scan.trim().toLowerCase();
+    let list=(pezziDisp||[]).filter(p=>!s || String(p.codice||"").toLowerCase().includes(s));
+    if(Number(reqL)>0 && Number(reqH)>0) list=[...list].sort((a,b)=>(contiene(b)?1:0)-(contiene(a)?1:0));
+    return list;
+  },[pezziDisp,scan,reqL,reqH]);
 
   const matSel = art ? matCommessa.find(m=>m.articolo_id===art.id) : null;
   const pagatoScelto = matSel ? matSel.pagato_intero!==false : true;   // deciso dal commerciale nel preventivo
@@ -4860,6 +4900,16 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
     if(!commessaId){ setErr("Scegli la commessa."); return; }
     if(!art){ setErr("Scegli il materiale."); return; }
     setBusy(true); setErr("");
+    const com=commesse.find(c=>c.id===commessaId);
+    if(isLastra){
+      // LASTRA: consuma un pannello esistente a scaffale (non crea nuovo, non scarica sfuso)
+      if(!pezzoSel){ setErr("Scegli il pannello da prelevare dalla lista."); setBusy(false); return; }
+      const {data,error}=await sb.rpc("preleva_pezzo_commessa",{
+        p_pezzo_id:pezzoSel.id, p_commessa_id:commessaId, p_pagato_intero:pagatoScelto, p_note:note||null });
+      if(error){ setErr(error.message); setBusy(false); return; }
+      setFatto({codice:data, articolo:art.nome_articolo, larghezza_cm:pezzoSel.larghezza_cm, altezza_cm:pezzoSel.altezza_cm, spessore_mm:pezzoSel.spessore_mm, commessa: com?("Commessa "+com.numero):""});
+      setBusy(false); return;
+    }
     const {data,error}=await sb.rpc("preleva_per_commessa",{
       p_articolo_id:art.id, p_commessa_id:commessaId,
       p_larghezza:larg===""?null:Number(larg)/10, p_altezza:alt===""?null:Number(alt)/10,
@@ -4867,7 +4917,6 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
       p_ubicazione:ubic, p_note:note, p_pagato_intero:pagatoScelto,
     });
     if(error){ setErr(error.message); setBusy(false); return; }
-    const com=commesse.find(c=>c.id===commessaId);
     setFatto({codice:data, articolo:art.nome_articolo, larghezza_cm:larg===""?"":Number(larg)/10, altezza_cm:alt===""?"":Number(alt)/10, spessore_mm:sp, commessa: com?("Commessa "+com.numero):""});
     setBusy(false);
   }
@@ -4877,7 +4926,7 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
       <div className="modal" style={{maxWidth:460}}>
         <header><h2>Etichetta pronta</h2><button type="button" className="x" onClick={onFatto}>×</button></header>
         <div className="body" style={{textAlign:"center"}}>
-          <div className="banner info">Pezzo <b>{fatto.codice}</b> creato e agganciato alla commessa. Giacenza neutra aggiornata.</div>
+          <div className="banner info">Pannello <b>{fatto.codice}</b> agganciato alla commessa{fatto.commessa?(" ("+fatto.commessa+")"):""}.</div>
           <div style={{margin:"14px 0"}} dangerouslySetInnerHTML={{__html:code128SVG(fatto.codice,2,60)}}/>
           <div style={{fontFamily:"monospace",fontSize:16,letterSpacing:1}}>{fatto.codice}</div>
         </div>
@@ -4934,22 +4983,47 @@ function PreparaPezzoForm({profilo,onClose,onFatto}){
                   {q && ris.length===0 && <div className="muted">Nessun materiale trovato.</div>}
                 </>}
           </div>
-          <div className="section">
-            <h3>Misure del pezzo che mandi in produzione</h3>
-            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-              <div className="field" style={{maxWidth:130}}><label>Larghezza (mm)</label><input type="number" step="1" min="0" value={larg} onChange={e=>setLarg(e.target.value)}/></div>
-              <div className="field" style={{maxWidth:130}}><label>Altezza (mm)</label><input type="number" step="1" min="0" value={alt} onChange={e=>setAlt(e.target.value)}/></div>
-              <div className="field" style={{maxWidth:130}}><label>Spessore (mm)</label><input type="number" step="0.01" min="0" value={sp} onChange={e=>setSp(e.target.value)}/></div>
-              <div className="field" style={{maxWidth:100}}><label>Quantità</label><input type="number" min="1" value={qta} onChange={e=>setQta(e.target.value)}/></div>
-            </div>
-            <div className="banner info">Scala dalla giacenza neutra: <b>{mq>0?mq.toFixed(3)+" mq":"— (inserisci le misure)"}</b></div>
-          </div>
-          <div className="field"><label>Ubicazione (facoltativo)</label><input value={ubic} onChange={e=>setUbic(e.target.value)}/></div>
+          {isLastra
+            ? <div className="section">
+                <h3>Scegli il pannello da prelevare</h3>
+                <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end",marginBottom:8}}>
+                  <div className="field" style={{maxWidth:150}}><label>Misura richiesta — base (cm)</label><input type="number" step="0.1" value={reqL} onChange={e=>setReqL(e.target.value)} placeholder="facolt."/></div>
+                  <div className="field" style={{maxWidth:150}}><label>× altezza (cm)</label><input type="number" step="0.1" value={reqH} onChange={e=>setReqH(e.target.value)} placeholder="facolt."/></div>
+                  <div className="field" style={{flex:1,minWidth:160}}><label>Cerca / scansiona codice</label><input value={scan} onChange={e=>setScan(e.target.value)} placeholder="pistola o digita PZ-…"/></div>
+                </div>
+                {(Number(reqL)>0&&Number(reqH)>0) && <div className="muted" style={{fontSize:12,marginBottom:6}}>In verde i pannelli che contengono {Number(reqL)}×{Number(reqH)} cm (anche ruotati).</div>}
+                {pezziDisp===null ? <div className="muted">Caricamento pannelli…</div>
+                  : pezziDisp.length===0 ? <div className="card empty">Nessun pannello a scaffale per questo materiale. Caricane con “📥 Carico pannelli”.</div>
+                  : <div className="card" style={{maxHeight:260,overflow:"auto",padding:0}}>
+                      {pezziView.map(p=>{ const ok=contiene(p); const selezionato=pezzoSel&&pezzoSel.id===p.id;
+                        return <div key={p.id} onClick={()=>setPezzoSel(p)} style={{padding:"9px 12px",borderBottom:"1px solid var(--line)",cursor:"pointer",
+                          background:selezionato?"#e7f0ff":(ok?"#eafaef":"transparent"),borderLeft:"3px solid "+(selezionato?"var(--brand)":(ok?"#1f9c68":"transparent"))}}>
+                          <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}>
+                            <div><b style={{fontFamily:"monospace"}}>{p.codice}</b> <span style={{marginLeft:8}}>{(Number(p.larghezza_cm)||0)}×{(Number(p.altezza_cm)||0)} cm{p.spessore_mm?(" · "+p.spessore_mm+" mm"):""}</span>
+                              {ok && <span className="tag" style={{marginLeft:8,background:"#e6f4ee",color:"#1f9c68",fontSize:10.5}}>✓ contiene</span>}</div>
+                            <div className="muted" style={{fontSize:12,whiteSpace:"nowrap"}}>{p.mq!=null?p.mq+" mq":""}{p.ubicazione?(" · "+p.ubicazione):""}</div>
+                          </div>
+                        </div>; })}
+                    </div>}
+                {pezzoSel && <div className="banner info" style={{marginTop:8}}>Prelevi il pannello <b>{pezzoSel.codice}</b> ({(Number(pezzoSel.larghezza_cm)||0)}×{(Number(pezzoSel.altezza_cm)||0)} cm). L'avanzo lo registri col <b>Rientro</b> a fine lavoro.</div>}
+              </div>
+            : <>
+              <div className="section">
+                <h3>Misure del pezzo che mandi in produzione</h3>
+                <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                  <div className="field" style={{maxWidth:130}}><label>Larghezza (mm)</label><input type="number" step="1" min="0" value={larg} onChange={e=>setLarg(e.target.value)}/></div>
+                  <div className="field" style={{maxWidth:130}}><label>Altezza (mm)</label><input type="number" step="1" min="0" value={alt} onChange={e=>setAlt(e.target.value)}/></div>
+                  <div className="field" style={{maxWidth:130}}><label>Spessore (mm)</label><input type="number" step="0.01" min="0" value={sp} onChange={e=>setSp(e.target.value)}/></div>
+                  <div className="field" style={{maxWidth:100}}><label>Quantità</label><input type="number" min="1" value={qta} onChange={e=>setQta(e.target.value)}/></div>
+                </div>
+                <div className="banner info">Scala dalla giacenza neutra: <b>{mq>0?mq.toFixed(3)+" mq":"— (inserisci le misure)"}</b></div>
+              </div>
+              <div className="field"><label>Ubicazione (facoltativo)</label><input value={ubic} onChange={e=>setUbic(e.target.value)}/></div></>}
           <div className="field"><label>Note (facoltativo)</label><input value={note} onChange={e=>setNote(e.target.value)}/></div>
         </div>
         <footer>
           <button type="button" className="btn" onClick={onClose}>Annulla</button>
-          <button className="btn primary" disabled={busy}>{busy?<span className="spin"/>:"Genera etichetta e aggancia"}</button>
+          <button className="btn primary" disabled={busy}>{busy?<span className="spin"/>:(isLastra?"Preleva pannello e aggancia":"Genera etichetta e aggancia")}</button>
         </footer>
       </form>
     </div>

@@ -13364,9 +13364,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                           const nC = nuovoOp?Number(nuovoOp.costo_orario)||0:0;
                           const ore=Number(fa.ore_previste)||0;
                           const diff=Math.round((nC-base)*ore*100)/100;
-                          return <div style={{marginBottom:8,padding:"6px 10px",borderRadius:7,fontSize:12.5,background:diff>0?"#fdecec":"#eafaef",border:"1px solid "+(diff>0?"#f3c0c0":"#bfe6cd")}}>
+                          return <div style={{marginBottom:8,padding:"6px 10px",borderRadius:7,fontSize:12.5,background:"#fdecec",border:"1px solid #f3c0c0"}}>
                             🔄 Operatore cambiato rispetto al preventivo: <b>{fa.assegnato_prev_nome||"—"}</b> → <b>{fa.assegnato_nome||"—"}</b>
-                            {perm.economici && ore>0 && <> · costo previsto <b style={{color:diff>0?"#c0392b":"#127a3e"}}>{diff>0?"+":""}{eur(diff)}</b> <span className="muted">({ore} h × {eur(nC)} invece di {eur(base)})</span></>}
+                            {perm.economici && ore>0 && <> · costo previsto <b style={{color:"#c0392b"}}>{diff>0?"+":""}{eur(diff)}</b> <span className="muted">({ore} h × {eur(nC)} invece di {eur(base)})</span></>}
                           </div>; })()}
                         {(Array.isArray(fa.sostituzioni)?fa.sostituzioni:[]).length>0 &&
                           <div style={{marginBottom:8,padding:"6px 10px",borderRadius:7,fontSize:12.5,background:"#fff8e1",border:"1px solid #ffe08a"}}>
@@ -13375,16 +13375,18 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                               const d=Math.round((cA-cD)*h*100)/100;
                               return <div key={k} style={{padding:"2px 0"}}>↪ Fatto da <b>{s.a_nome||"—"}</b> invece di <b>{s.da_nome||"—"}</b> — «{s.motivo||""}»
                                 <span className="muted"> · {s.il?new Date(s.il).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""}</span>
-                                {h>0 && <span> · {oreTxt(h)} timbrate{perm.economici && <> · costo <b style={{color:d>0?"#c0392b":"#127a3e"}}>{d>0?"+":""}{eur(d)}</b></>}</span>}</div>; })}
+                                {h>0 && <span> · {oreTxt(h)} timbrate{perm.economici && <> · costo <b style={{color:Math.abs(d)>=0.01?"#c0392b":"#127a3e"}}>{d>0?"+":""}{eur(d)}</b></>}</span>}</div>; })}
                           </div>}
                         {(()=>{ const eff=oreEffettiveFase(fa,timbByFase[fa.chiave]); const oreE=eff.reduce((t,e)=>t+e.ore,0); const oreP=Number(fa.ore_previste)||0;
                           if(!oreP && !oreE) return null;
                           const cE=costoOreEff(eff,opMap), cP=costoFasePrev(fa,opMap);
-                          const dOre=oreE-oreP, dCosto=Math.round((cE-cP)*100)/100; const peggio=dOre>0.0001;
+                          const dOre=oreE-oreP, dCosto=Math.round((cE-cP)*100)/100; const scost=Math.abs(dOre)>0.0001;   // qualsiasi scostamento = da guardare
                           return <div style={{marginBottom:8,padding:"7px 10px",borderRadius:7,fontSize:12.5,background:"#f8fafc",border:"1px solid var(--line)"}}>
                             📊 <b>Previste</b> {oreTxt(oreP)}{perm.economici && cP>0 ? <> ({eur(cP)})</> : null}
                             {" → "}<b>Effettive</b> {oreTxt(oreE)}{perm.economici ? <> ({eur(cE)})</> : null}
-                            {oreP>0 && <span style={{marginLeft:6,fontWeight:700,color:peggio?"#c0392b":"#127a3e"}}>· {dOre>=0?"+":"−"}{oreTxt(Math.abs(dOre))}{perm.economici?<> · {dCosto>0?"+":""}{eur(dCosto)}</>:null}</span>}
+                            {oreP>0 && (scost
+                              ? <span style={{marginLeft:6,fontWeight:700,color:"#c0392b"}}>· ⚠ scostamento {dOre>=0?"+":"−"}{oreTxt(Math.abs(dOre))}{perm.economici?<> · {dCosto>0?"+":""}{eur(dCosto)}</>:null}</span>
+                              : <span style={{marginLeft:6,fontWeight:700,color:"#127a3e"}}>· ✓ in linea</span>)}
                             {eff.length>0 && <div className="muted" style={{fontSize:11.5,marginTop:3}}>Chi ha lavorato: {eff.map(e=>(e.nome||"?")+" "+oreTxt(e.ore)+(e.timb>0?" ⏱":"")+(e.man>0?" ✍":"")).join(" · ")} <span title="⏱ timbrato in Postazione · ✍ inserito a mano">(⏱ timbrato · ✍ a mano)</span></div>}
                             {oreP>0 && oreE===0 && <div style={{fontSize:11.5,marginTop:3,color:"#8a6d00"}}>Nessuna ora effettiva: la lavorazione non è stata timbrata in Postazione né inserita a mano.</div>}
                           </div>; })()}
@@ -13571,7 +13573,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               {Math.abs(scostFornC)>=0.01 && <><span className="k" style={{color:scostFornC<0?"var(--ok)":"var(--danger)"}}>Correzione costo reale fornitori{scostFornC<0?" (risparmio)":""}</span><span style={{textAlign:"right",color:scostFornC<0?"var(--ok)":"var(--danger)"}}>{scostFornC>0?"+":""}{eur(scostFornC)}</span></>}
               <span className="k">Costo manodopera <span className="muted" style={{fontSize:11}}>(ore effettive: timbrature + manuali)</span></span><span style={{textAlign:"right"}}>{eur(costoManodopera)}</span>
               {costoManodoperaPrev>0 && (()=>{ const d=Math.round((costoManodopera-costoManodoperaPrev)*100)/100;
-                return <><span className="k muted" style={{fontSize:12,paddingLeft:12}}>↳ prevista {eur(costoManodoperaPrev)} · scostamento</span><span style={{textAlign:"right",fontSize:12,fontWeight:700,color:d>0?"var(--danger)":"var(--ok)"}}>{d>0?"+":""}{eur(d)}</span></>; })()}
+                return <><span className="k muted" style={{fontSize:12,paddingLeft:12}}>↳ prevista {eur(costoManodoperaPrev)} · scostamento</span><span style={{textAlign:"right",fontSize:12,fontWeight:700,color:Math.abs(d)>=0.01?"var(--danger)":"var(--ok)"}}>{Math.abs(d)>=0.01?(d>0?"+":"")+eur(d):"✓ in linea"}</span></>; })()}
               {speseGenC>0 && <><span className="k">Spese generali ({sgPct}%)</span><span style={{textAlign:"right"}}>{eur(speseGenC)}</span></>}
               <span className="k">Trasporto</span><span style={{textAlign:"right"}}>{eur(Number(f.trasporto)||0)}</span>
               {costoEsterno>0 && <><span className="k" style={{color:"var(--danger)"}}>Lavorazioni esterne (conto terzi)</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoEsterno)}</span></>}

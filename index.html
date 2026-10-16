@@ -8889,12 +8889,13 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     if(cgSel.kind==="articolo"){ const a=cgSel.item; const cli=(clienti||[]).find(c=>c.id===f.cliente_id); const sc=scontoPerCategoria(cli,cli&&cli.clienti_sconti,a.categoria,imp&&imp.sconto_rivenditori_pct); return {prezzo:Number(a.prezzo_pubblico)||0,costo:Number(a.costo)||0,sconto:sc}; }
     const t=cgSel.item;
     if(cgSel.cont==="tempo"){ const o=cg.op?(operatori||[]).find(x=>x.id===cg.op):null;
-      // prezzo di vendita: quello dell'operatore se impostato, altrimenti quello della TARIFFA
-      // (così una lavorazione venduta "a servizio" — es. Grafica — ha un prezzo anche senza vendita oraria operatore)
+      // PREZZO al cliente = sempre quello della TARIFFA (la lavorazione costa uguale chiunque la faccia).
+      // COSTO = costo orario dell'operatore scelto (serve al margine; se in commessa cambia operatore se ne vede la differenza).
+      // Solo se la Tariffa non ha un prezzo si ripiega sulla vendita oraria dell'operatore (con avviso).
       const vendTar=(Number(t.tariffa_oraria)||0)>0 ? Math.round((Number(t.tariffa_oraria)||0)*(1+(Number(t.margine_obiettivo)||0)/100)*100)/100 : 0;
-      const vend=(o && (Number(o.vendita_oraria)||0)>0) ? Number(o.vendita_oraria) : vendTar;
-      const costo=o?Number(o.costo_orario)||0:0;
-      return {prezzo:vend, costo:costo, sconto:0};
+      const vend=vendTar>0 ? vendTar : ((o && (Number(o.vendita_oraria)||0)>0) ? Number(o.vendita_oraria) : 0);
+      const costo=o?(Number(o.costo_orario)||0):(Number(t.tariffa_oraria)||0);
+      return {prezzo:vend, costo:costo, sconto:0, senzaTar:!(vendTar>0)};
     }
     const costo=Number(t.tariffa_oraria)||0,marg=Number(t.margine_obiettivo)||0; return {prezzo:Math.round(costo*(1+marg/100)*100)/100,costo:costo,sconto:0};
   }
@@ -9504,12 +9505,13 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                       {cont==="pz" && <div className="field" style={{maxWidth:120}}><label>N° pezzi</label><input type="number" step="1" value={cg.pz} onChange={e=>setCg(m=>({...m,pz:e.target.value}))} autoFocus/></div>}
                       {cont==="tempo" && <div className="field" style={{maxWidth:150}}><label>Tempo stimato (minuti)</label><input type="number" step="1" value={cg.min} onChange={e=>setCg(m=>({...m,min:e.target.value}))} autoFocus/></div>}
                       {cont==="tempo" && (()=>{ const tarVende=(Number(cgSel.item&&cgSel.item.tariffa_oraria)||0)>0; const obbl=true;
-                        return <div className="field" style={{maxWidth:280}}><label>Operatore {obbl?"(obbligatorio)":"(facoltativo)"} <InfoI t="Le lavorazioni a tempo (montaggio, taglio a mano…) le fa una persona: scegli CHI, così la riga prende costo e vendita dalla sua scheda. Se la lavorazione è venduta a SERVIZIO (es. Grafica, con un prezzo nelle Tariffe) l'operatore è facoltativo: il prezzo arriva dalla Tariffa, l'operatore serve solo a tracciare il costo."/> — costo + vendita</label>
+                        return <div className="field" style={{maxWidth:280}}><label>Operatore {obbl?"(obbligatorio)":"(facoltativo)"} <InfoI t="Il PREZZO al cliente arriva sempre dalla Tariffa della lavorazione: non cambia in base a chi la fa. L'operatore scelto determina il COSTO (il suo costo orario) e quindi il margine; passa alla commessa come assegnato e, se lì lo cambi, vedi la differenza di costo."/> — determina il costo</label>
                         <select value={cg.op} onChange={e=>setCg(m=>({...m,op:e.target.value}))} style={(obbl&&!cg.op)?{border:"2px solid #c0392b",borderRadius:7,padding:"5px"}:null}>
                           <option value="">{obbl?"⚠ scegli l'operatore…":"— nessuno (prezzo dalla Tariffa) —"}</option>
-                          {(operatori||[]).map(o=><option key={o.id} value={o.id}>{o.nome} · vendita {eur(Number(o.vendita_oraria)||0)}/h</option>)}
+                          {(operatori||[]).map(o=><option key={o.id} value={o.id}>{o.nome}{o.reparto?" · "+o.reparto:""} · costo {eur(Number(o.costo_orario)||0)}/h</option>)}
                         </select>
-                        {tarVende && <div className="muted" style={{fontSize:11,marginTop:3}}>Venduta a servizio: prezzo dalla Tariffa. L'operatore serve per l'assegnazione e il costo.</div>}
+                        {tarVende ? <div className="muted" style={{fontSize:11,marginTop:3}}>Prezzo fisso dalla Tariffa ({eur(cgPC().prezzo)}/h): l'operatore cambia solo il costo e il margine.</div>
+                          : <div style={{fontSize:11,marginTop:3,color:"#c0392b",fontWeight:600}}>⚠ Questa lavorazione non ha un prezzo nelle Tariffe: uso la vendita oraria dell'operatore. Imposta il prezzo in Tariffe per renderlo fisso.</div>}
                         </div>; })()}
                       {cgSel.kind==="tariffa" && cont!=="tempo" && <div className="field" style={{maxWidth:280}}><label>Operatore (obbligatorio) <InfoI t="Chi farà questa lavorazione: passa alla commessa come operatore ASSEGNATO. Il prezzo resta quello della Tariffa."/></label>
                         <select value={cg.op} onChange={e=>setCg(m=>({...m,op:e.target.value}))} style={!cg.op?{border:"2px solid #c0392b",borderRadius:7,padding:"5px"}:null}>
@@ -9530,6 +9532,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                         <span className="k">Quantità</span><span style={{textAlign:"right",fontWeight:700}}>{cgQ} {cont==="tempo"?"h":(cgSel.sub||"")}</span>
                         <span className="k">Prezzo unitario</span><span style={{textAlign:"right"}}>{eur(pc.prezzo)}{pc.sconto>0?" (−"+pc.sconto+"%)":""}</span>
                         <span className="k" style={{fontWeight:800}}>Totale riga</span><span style={{textAlign:"right",fontWeight:800}}>{eur(tot)}</span>
+                        {cgSel.kind==="tariffa" && cont==="tempo" && cg.op && (()=>{ const cT=Math.round(cgQ*pc.costo*100)/100; const m=tot-cT;
+                          return <><span className="k muted">Costo (operatore {eur(pc.costo)}/h)</span><span style={{textAlign:"right"}} className="muted">{eur(cT)}</span>
+                            <span className="k muted">Margine</span><span style={{textAlign:"right",color:m>=0?"var(--ok)":"var(--danger)",fontWeight:600}}>{eur(m)}{tot>0?" ("+Math.round(m/tot*100)+"%)":""}</span></>; })()}
                       </div>
                     </div>
                   </>; })()}

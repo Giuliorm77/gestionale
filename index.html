@@ -951,6 +951,9 @@ function Gestionale({profilo}){
     if(mq.addEventListener) mq.addEventListener("change",h); else mq.addListener(h);
     return ()=>{ if(mq.removeEventListener) mq.removeEventListener("change",h); else mq.removeListener(h); };
   },[]);
+  // un altro modulo (es. il preventivo dopo "Crea commessa") chiede di aprire una commessa
+  useEffect(()=>{ const h=()=>{ setModulo("commesse"); setMenuAperto(false); };
+    window.addEventListener("gest-apri-commessa",h); return ()=>window.removeEventListener("gest-apri-commessa",h); },[]);
   const perm = permEffettivi(profilo);
   if(mobile && !forzaCompleto && profilo.ruolo==="agente") return <CruscottoAgente profilo={profilo} perm={perm} onApriCompleto={()=>setForzaCompleto(true)}/>;
   if(mobile && !forzaCompleto) return <CruscottoMobile profilo={profilo} perm={perm} onApriCompleto={()=>setForzaCompleto(true)}/>;
@@ -9161,7 +9164,10 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       if(artRighe.length){ const {error:er}=await sb.from("commesse_righe").insert(artRighe); if(er) throw er; }
       try{ await sb.rpc("ricalcola_impegni"); }catch(e){}
       setBusy(false);
-      setCommMsg("Commessa "+numero+" creata con "+artRighe.length+" articolo/i"+(fasi.length?(" e "+fasi.length+" fase/i"):"")+". Aprila nel modulo 🏭 Commesse e imposta le date di consegna (obbligatorie).");
+      // preventivo già salvato (persisti): lo chiudo e passo alla commessa appena creata
+      try{ window.__gestApriCommessa=nc.id; }catch(e){}
+      onSalvato();
+      try{ window.dispatchEvent(new CustomEvent("gest-apri-commessa",{detail:{id:nc.id, numero}})); }catch(e){}
     }catch(ex){ setErr(ex.message); setBusy(false); }
   }
 
@@ -12083,6 +12089,9 @@ function ModuloCommesse({profilo,perm}){
       // il magazziniere legge le giacenze dalla VISTA senza prezzi (per lo scarico)
       try{ const a=await caricaArticoliTutti("id,codice,nome_articolo,unita,giacenza,impegnato",{tabella:"articoli_magazzino"}); setArticoli(a); }catch(e){}
     }
+    // richiesta di apertura (es. commessa appena creata dal preventivo): la apro ora che tutto è caricato
+    const pend=window.__gestApriCommessa;
+    if(pend){ const cm=(c.data||[]).find(x=>x.id===pend); window.__gestApriCommessa=null; if(cm) setEditor(cm); }
   },[perm.economici,perm.magazzino]);
   useEffect(()=>{ carica(); },[carica]);
 

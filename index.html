@@ -8861,12 +8861,12 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     if(cgSel.kind==="articolo"){ const a=cgSel.item;
       const cfgMis=(L>0||H>0)?{mis:{L:L||lung||0,H:H||0}}:(lung>0?{mis:{L:lung,H:0}}:null);
       aggiungiRigaInGruppo({tipo:"materiale",descrizione:a.nome_articolo+misTxt,articolo_id:a.id,lavorazione:"",quantita:q,unita:a.unita||"",costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:pc.sconto,gruppo:gruppoCorr,config:cfgMis});
-    } else { const t=cgSel.item; const o=(cgSel.cont==="tempo"&&cg.op)?(operatori||[]).find(x=>x.id===cg.op):null;
+    } else { const t=cgSel.item; const o=cg.op?(operatori||[]).find(x=>x.id===cg.op):null;
       // salvo la misura anche sulla lavorazione (mq/mc/perimetro), così il prodotto "ricorda" le sue misure
       const cfgMisL=((cgSel.cont==="mq"||cgSel.cont==="mc"||cgSel.cont==="perimetro")&&(L>0&&H>0))?{mis:{L,H}}:null;
       aggiungiRigaInGruppo({tipo:"manodopera",descrizione:("Manodopera "+t.lavorazione)+(o?" · "+o.nome:"")+misTxt,lavorazione:t.lavorazione,quantita:q,unita:(t.modo==="ora"?"ora":(t.modo||"")),costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:0,operatore_id:o?o.id:null,operatore_nome:o?o.nome:"",gruppo:gruppoCorr,config:cfgMisL});
     }
-    setCgMsg("✓ "+cgSel.nome+" aggiunto ("+q+")"); setCgSel(null); setCgMisDa(""); setCg({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true,op:"",n:""}); setCgSearch("");
+    setCgMsg("✓ "+cgSel.nome+" aggiunto ("+q+")"); setCgSel(null); setCgMisDa(""); setCg(m=>({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true,op:m.op||"",n:""})); setCgSearch("");
   }
   function setLavorazione(i,lav){
     const t=tariffe.find(x=>x.lavorazione===lav);
@@ -9027,6 +9027,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     // OBBLIGATORIO per il magazzino: ogni materiale deve avere la scelta "paga tutta la lastra / solo l'usato"
     const senzaScelta=righe.filter(r=>(r.tipo==="materiale"||r.tipo==="altro") && tracciaAvanzo(r) && r.pagato_intero!==true && r.pagato_intero!==false);
     if(senzaScelta.length){ throw new Error("Per ogni materiale scegli se il cliente paga tutta la lastra o solo la parte usata (obbligatorio, serve al magazzino): "+senzaScelta.map(r=>r.descrizione||"materiale").join(", ")); }
+    // OBBLIGATORIO: ogni lavorazione (manodopera) deve avere l'operatore che la farà → passa alla commessa come assegnato
+    const senzaOp=righe.filter(r=>r.tipo==="manodopera" && !r.operatore_id);
+    if(senzaOp.length){ throw new Error("Indica l'OPERATORE su tutte le lavorazioni (obbligatorio, passa alla commessa come assegnato): "+senzaOp.map(r=>r.lavorazione||r.descrizione||"lavorazione").join(", ")); }
     const cli=clienti.find(c=>c.id===f.cliente_id);
     const isMarg=f.tipo_provvigione==="margine";
     const rec={...f, cliente_nome:cli?cli.ragione_sociale:(preventivo?.cliente_nome||""),
@@ -9252,8 +9255,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                                     // lavorazione a TEMPO: il costo orario segue l'operatore scelto
                                     if(op && ((x.unita||"")==="ora"||(x.unita||"")==="") && (Number(op.costo_orario)||0)>0) nx.costo_unitario=Number(op.costo_orario);
                                     return nx; })); }}
-                                style={{width:"100%",padding:"5px",marginTop:4,border:"1px solid var(--line)",borderRadius:7,fontSize:12,background:r.operatore_id?"#eef6ff":"#fff"}}>
-                                <option value="">👷 operatore…</option>
+                                style={{width:"100%",padding:"5px",marginTop:4,border:"1px solid "+(r.operatore_id?"var(--line)":"var(--danger)"),borderRadius:7,fontSize:12,background:r.operatore_id?"#eef6ff":"#fdecea"}}>
+                                <option value="">👷 operatore… (obbligatorio)</option>
                                 {(operatori||[]).map(o=><option key={o.id} value={o.id}>{o.nome}</option>)}
                               </select></>
                             : <input value={r.descrizione} onChange={e=>setRiga(i,"descrizione",e.target.value)}
@@ -9450,14 +9453,19 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                       {cont==="mtl" && <div className="field" style={{maxWidth:150}}><label>Lunghezza (cm)</label><input type="number" step="1" value={cg.lung} onChange={e=>setCg(m=>({...m,lung:e.target.value}))} autoFocus/></div>}
                       {cont==="pz" && <div className="field" style={{maxWidth:120}}><label>N° pezzi</label><input type="number" step="1" value={cg.pz} onChange={e=>setCg(m=>({...m,pz:e.target.value}))} autoFocus/></div>}
                       {cont==="tempo" && <div className="field" style={{maxWidth:150}}><label>Tempo stimato (minuti)</label><input type="number" step="1" value={cg.min} onChange={e=>setCg(m=>({...m,min:e.target.value}))} autoFocus/></div>}
-                      {cont==="tempo" && (()=>{ const tarVende=(Number(cgSel.item&&cgSel.item.tariffa_oraria)||0)>0; const obbl=!tarVende;
+                      {cont==="tempo" && (()=>{ const tarVende=(Number(cgSel.item&&cgSel.item.tariffa_oraria)||0)>0; const obbl=true;
                         return <div className="field" style={{maxWidth:280}}><label>Operatore {obbl?"(obbligatorio)":"(facoltativo)"} <InfoI t="Le lavorazioni a tempo (montaggio, taglio a mano…) le fa una persona: scegli CHI, così la riga prende costo e vendita dalla sua scheda. Se la lavorazione è venduta a SERVIZIO (es. Grafica, con un prezzo nelle Tariffe) l'operatore è facoltativo: il prezzo arriva dalla Tariffa, l'operatore serve solo a tracciare il costo."/> — costo + vendita</label>
                         <select value={cg.op} onChange={e=>setCg(m=>({...m,op:e.target.value}))} style={(obbl&&!cg.op)?{border:"2px solid #c0392b",borderRadius:7,padding:"5px"}:null}>
                           <option value="">{obbl?"⚠ scegli l'operatore…":"— nessuno (prezzo dalla Tariffa) —"}</option>
                           {(operatori||[]).map(o=><option key={o.id} value={o.id}>{o.nome} · vendita {eur(Number(o.vendita_oraria)||0)}/h</option>)}
                         </select>
-                        {tarVende && <div className="muted" style={{fontSize:11,marginTop:3}}>Venduta a servizio: prezzo dalla Tariffa. L'operatore è facoltativo (serve solo per il costo).</div>}
+                        {tarVende && <div className="muted" style={{fontSize:11,marginTop:3}}>Venduta a servizio: prezzo dalla Tariffa. L'operatore serve per l'assegnazione e il costo.</div>}
                         </div>; })()}
+                      {cgSel.kind==="tariffa" && cont!=="tempo" && <div className="field" style={{maxWidth:280}}><label>Operatore (obbligatorio) <InfoI t="Chi farà questa lavorazione: passa alla commessa come operatore ASSEGNATO. Il prezzo resta quello della Tariffa."/></label>
+                        <select value={cg.op} onChange={e=>setCg(m=>({...m,op:e.target.value}))} style={!cg.op?{border:"2px solid #c0392b",borderRadius:7,padding:"5px"}:null}>
+                          <option value="">⚠ scegli l'operatore…</option>
+                          {(operatori||[]).map(o=><option key={o.id} value={o.id}>{o.nome}</option>)}
+                        </select></div>}
                       {cont==="fisso" && <div className="muted" style={{fontSize:12.5,marginBottom:12}}>Voce fissa: quantità 1.</div>}
                       {cont==="manuale" && <div className="field" style={{maxWidth:160}}><label>Quantità ({cgSel.sub||"?"})</label><input type="number" step="any" value={cg.qta} onChange={e=>setCg(m=>({...m,qta:e.target.value}))} autoFocus/></div>}
                       {(cont==="mq"||cont==="mc"||cont==="mtl") && <label style={{display:"flex",alignItems:"center",gap:6,alignSelf:"flex-end",marginBottom:12,fontSize:12.5}}><input type="checkbox" checked={cg.abbOn} onChange={e=>setCg(m=>({...m,abbOn:e.target.checked}))} style={{width:"auto"}}/> abbondanza +{cgAbb}cm</label>}
@@ -9478,7 +9486,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
               </div>
               <footer>
                 <button type="button" className="btn" onClick={()=>setCgOpen(false)}>Chiudi</button>
-                {cgSel && <button type="button" className="btn primary" disabled={!(cgQ>0) || (cgSel.cont==="tempo" && !cg.op && !((Number(cgSel.item&&cgSel.item.tariffa_oraria)||0)>0))} onClick={aggiungiComponente}>Aggiungi al preventivo</button>}
+                {cgSel && <button type="button" className="btn primary" disabled={!(cgQ>0) || (cgSel.kind==="tariffa" && !cg.op)} title={(cgSel.kind==="tariffa" && !cg.op)?"Scegli l'operatore (obbligatorio)":""} onClick={aggiungiComponente}>Aggiungi al preventivo</button>}
               </footer>
             </div></div>}
           </div>

@@ -1317,6 +1317,8 @@ function PostazioneOperatore({profilo,perm}){
   const [busy,setBusy]=useState(false);
   const [cerca,setCerca]=useState("");           // ricerca in "Altre lavorazioni"
   const [dettFase,setDettFase]=useState(null);    // commessa di cui mostrare "cosa fare"
+  const [altroFor,setAltroFor]=useState(null);    // pausa "Altro": chiave fase in cui scrivere il motivo
+  const [altroTxt,setAltroTxt]=useState("");
   const [presaFor,setPresaFor]=useState(null);    // id fase di un ALTRO operatore: chiedo la motivazione
   const [presaTxt,setPresaTxt]=useState("");
 
@@ -1397,7 +1399,7 @@ function PostazioneOperatore({profilo,perm}){
     setBusy(false);
   }
   async function mettiPausa(fa,motivo){
-    const seg=mioAperto(fa.chiave); setPausaFor(null); if(!seg) return;
+    const seg=mioAperto(fa.chiave); setPausaFor(null); setAltroFor(null); setAltroTxt(""); if(!seg) return;
     setBusy(true);
     try{ await sb.from("segmenti_lavoro").update({fine:new Date().toISOString(), motivo}).eq("id",seg.id); await carica(); }
     catch(ex){ setErr(ex.message); }
@@ -1482,10 +1484,22 @@ function PostazioneOperatore({profilo,perm}){
             </div>
           </div>
         : pausaFor===ch && ch
-        ? <div className="po-reasons">
-            {Object.keys(MOTIVI).map(k=><button key={k} onClick={()=>mettiPausa(fa,k)}>{MOTIVI[k]}</button>)}
-            <button onClick={()=>setPausaFor(null)} style={{background:"#f5f7fb"}}>Annulla</button>
-          </div>
+        ? (altroFor===ch
+          ? <div style={{marginTop:8,padding:10,borderRadius:8,background:"#f5f7fb",border:"1px solid var(--line)"}}>
+              <div style={{fontSize:14,marginBottom:6}}>Scrivi il motivo della pausa <span style={{color:"#c0392b"}}>*</span></div>
+              <input value={altroTxt} onChange={e=>setAltroTxt(e.target.value)} autoFocus
+                onKeyDown={e=>{ if(e.key==="Enter" && altroTxt.trim()){ e.preventDefault(); mettiPausa(fa,"Altro: "+altroTxt.trim()); } }}
+                placeholder="es. attesa materiale, chiamata cliente, pausa pranzo…"
+                style={{width:"100%",padding:"10px 12px",fontSize:15,border:"1px solid var(--line)",borderRadius:8,boxSizing:"border-box"}}/>
+              <div className="po-btns" style={{marginTop:8}}>
+                <button className="po-btn pause" disabled={busy||!altroTxt.trim()} onClick={()=>mettiPausa(fa,"Altro: "+altroTxt.trim())}>⏸ Metti in pausa</button>
+                <button className="po-btn close" disabled={busy} onClick={()=>{setAltroFor(null);setAltroTxt("");}}>Indietro</button>
+              </div>
+            </div>
+          : <div className="po-reasons">
+            {Object.keys(MOTIVI).map(k=><button key={k} onClick={()=>{ if(k==="altro"){ setAltroFor(ch); setAltroTxt(""); } else mettiPausa(fa,k); }}>{MOTIVI[k]}{k==="altro"?"…":""}</button>)}
+            <button onClick={()=>{setPausaFor(null);setAltroFor(null);}} style={{background:"#f5f7fb"}}>Annulla</button>
+          </div>)
         : <div className="po-btns">
             {mio
               ? <button className="po-btn pause" disabled={busy} onClick={()=>setPausaFor(ch)}>⏸ Pausa</button>

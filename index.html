@@ -12716,6 +12716,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     // REGOLA DI VALIDITÀ (per tutti i ruoli): ogni articolo deve avere la data di consegna
     if(righeSenzaData>0){ setErr("Ogni articolo deve avere la sua data di consegna (obbligatoria): mancano "+righeSenzaData+" data/e."); return; }
     if(chiusaProd && sbloccata && !motivoMod.trim()){ setErr("Scrivi il MOTIVO della modifica: è obbligatorio per modificare una commessa chiusa."); return; }
+    if(scontoF>0 && margineReale<0){ setErr("⛔ Lo sconto commerciale porta la commessa SOTTO COSTO (provvigione agente inclusa): margine "+eur(margineReale)+". Lo sconto massimo consentito è "+eur(Math.max(0,margineLordo))+"."); return; }
     // AVVISO extra costi imprevisti quando si CHIUDE la commessa (passaggio a pronta/consegnata/chiusa)
     const chiudendo = ["pronta","consegnata","chiusa"].includes(f.stato) && !["pronta","consegnata","chiusa"].includes(commessa?.stato||"");
     if(chiudendo && extraCosti.length){
@@ -13621,7 +13622,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                     <input type="number" step="0.01" min="0" value={f.sconto_fattura||""} onChange={e=>set("sconto_fattura",e.target.value)} style={{width:110,padding:"6px",border:"1px solid var(--line)",borderRadius:7,textAlign:"right"}}/>
                     {scontoF>0 && <button type="button" className="btn small" onClick={()=>{ set("sconto_fattura",0); set("sconto_nota",""); }}>Togli sconto</button>}
                   </div>
-                  {scontoF>smax+0.005 && <div style={{color:"#c0392b",fontSize:12.5,marginTop:4,fontWeight:600}}>⚠ Lo sconto supera il margine extra: scendi sotto il margine del preventivo.</div>}
+                  {scontoF>smax+0.005 && margineReale>=0 && <div style={{color:"#c0392b",fontSize:12.5,marginTop:4,fontWeight:600}}>⚠ Lo sconto supera il margine extra: scendi sotto il margine del preventivo.</div>}
+                  {scontoF>0 && margineReale<0 && <div style={{color:"#fff",background:"#c0392b",borderRadius:7,padding:"6px 10px",fontSize:12.5,marginTop:6,fontWeight:700}}>⛔ SOTTO COSTO: con questo sconto (provvigione agente inclusa) il margine è {eur(margineReale)}. Massimo consentito {eur(Math.max(0,margineLordo))}. La commessa non si salva finché non lo riduci.</div>}
                   {scontoF>0 && <>
                     <div style={{fontSize:13,marginTop:6}}>Fattura: {eur(ricaviTot)} − {eur(scontoF)} = <b>{eur(ricaviNetti)}</b> · margine dopo lo sconto <b>{eur(margineReale)}</b> ({pctDopo.toFixed(1)}%)</div>
                     <div style={{fontSize:12,fontWeight:700,marginTop:8,color:"#41505c"}}>Testo per il cliente</div>

@@ -1034,7 +1034,7 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
   const [editorAtt,setEditorAtt]=useState(null);
   const carica=React.useCallback(async()=>{
     const tasks={
-      commesse: sb.from("commesse").select("id,numero,cliente_nome,stato,data_consegna,valore,priorita,avviso_produzione,avviso_il, commesse_righe(stato,data_consegna,descrizione)").order("data_consegna",{ascending:true}),
+      commesse: sb.from("commesse").select("id,numero,cliente_nome,stato,data_consegna,valore,priorita,avviso_produzione,avviso_il,imballo_il,spedibile_il, commesse_righe(stato,data_consegna,descrizione)").order("data_consegna",{ascending:true}),
     };
     if(perm.economici) tasks.preventivi = sb.from("preventivi").select("id,numero,cliente_nome,stato,data, preventivi_righe(prezzo_unitario,quantita)").order("data",{ascending:false});
     if(perm.crm){
@@ -1064,7 +1064,8 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
   const aperte=comm.filter(c=>["consegnata","chiusa"].indexOf(c.stato)<0);
   const ritardo=aperte.filter(c=>c.data_consegna && c.data_consegna<oggiS);
   const scadenza=aperte.filter(c=>c.data_consegna && c.data_consegna>=oggiS && c.data_consegna<=tra7S);
-  const pronte=comm.filter(c=>c.stato==="pronta");
+  const pronte=comm.filter(c=>c.stato==="pronta").sort((a,b)=>(b.spedibile_il?1:0)-(a.spedibile_il?1:0));   // prima quelle già imballate
+  const spedibili=pronte.filter(c=>c.spedibile_il);
   const avvisi=aperte.filter(c=>(c.avviso_produzione||"").trim());
   const prevAttesa=prev.filter(p=>p.stato==="inviato");
   const valoreInCorso=aperte.reduce((s,c)=>s+(Number(c.valore)||0),0);
@@ -1075,7 +1076,7 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
   const nowMs=Date.now();
   const promScaduti=agenda.filter(a=>new Date(a.promemoria_il).getTime()<nowMs);
 
-  const rigaComm=c=>{ const sc=STATI_COMMESSA[c.stato]||STATI_COMMESSA.aperta;
+  const rigaComm=c=>{ const sc=statoCommessaVis(c);
     const inRit=c.data_consegna && c.data_consegna<oggiS && ["consegnata","chiusa"].indexOf(c.stato)<0;
     return <div className="cmrow" key={c.id}>
       <div className="l">
@@ -1144,7 +1145,7 @@ function CruscottoMobile({profilo,perm,onApriCompleto}){
         <div className="sub">{ritardo.length>0 ? <span style={{color:"#c0392b",fontWeight:700}}>{ritardo.length} in ritardo</span> : <span style={{color:"#1f9c68"}}>nessun ritardo</span>}{scadenza.length>0? <span style={{color:"#b26a00"}}> · {scadenza.length} in scadenza</span>:null}</div>
       </button>
       <button className={"cmcard"+(apri==="pronte"?" sel":"")} onClick={()=>setApri("pronte")}>
-        <div className="ic">📦</div><div className="big">{pronte.length}</div><div className="lb">Pronto da consegnare</div>
+        <div className="ic">🚚</div><div className="big">{spedibili.length}</div><div className="lb">Pronte per la spedizione</div>{pronte.length>spedibili.length && <div style={{fontSize:11,color:"#8a6d00"}}>+{pronte.length-spedibili.length} da imballare</div>}
         <div className="sub" style={{color:"#5b6773"}}>da ritirare o spedire</div>
       </button>
       {perm.economici && <button className={"cmcard"+(apri==="prev"?" sel":"")} onClick={()=>setApri("prev")}>
@@ -4207,6 +4208,79 @@ function ImportArticoli({onClose,onImport,isAdmin,fornitori}){
 }
 
 /* ================================================================ MAGAZZINO (Fase 2) */
+/* ---- Magazzino: commesse con lavorazione terminata da imballare → pronte per la spedizione (v174) ---- */
+function DaImballare({profilo,perm}){
+  const [lista,setLista]=useState(null);
+  const [imballi,setImballi]=useState([]);
+  const [err,setErr]=useState("");
+  const [msg,setMsg]=useState("");
+  const [busy,setBusy]=useState(false);
+  const carica=useCallback(async()=>{
+    setErr("");
+    const [c,im]=await Promise.all([
+      sb.from("commesse").select("id,numero,cliente_nome,data_consegna,riferimento,priorita,stato,imballo_da_nome,imballo_il,spedibile_da_nome,spedibile_il, commesse_righe(id,ordine,descrizione,quantita,unita,modalita_consegna,data_consegna,imballo_id,imballo_ids,imballo_pluriball,imballo_input,config)").eq("stato","pronta").order("data_consegna",{ascending:true}),
+      sb.from("imballi").select("*, imballi_voci(*)"),
+    ]);
+    if(c.error){ setErr(c.error.message); setLista([]); return; }
+    setLista(c.data||[]); setImballi((im&&im.data)||[]);
+  },[]);
+  useEffect(()=>{ carica(); },[carica]);
+  async function azione(c,az){
+    if(az==="annulla" && !window.confirm("Riportare la commessa "+(c.numero||"")+" a «Lavorazione terminata» (non imballata)?")) return;
+    setBusy(true); setErr(""); setMsg("");
+    try{ const {error}=await sb.rpc("commessa_imballo",{p_commessa_id:c.id, p_azione:az}); if(error) throw error;
+      setMsg(az==="spedibile" ? "🚚 Commessa "+(c.numero||"")+" pronta per la spedizione: il Back office la vede subito." : az==="inizio" ? "📦 Imballo della commessa "+(c.numero||"")+" preso in carico." : "Stato imballo aggiornato.");
+      await carica();
+    }catch(ex){ setErr(ex.message); }
+    setBusy(false);
+  }
+  const fmt=d=>d?new Date(d).toLocaleDateString("it-IT"):"—";
+  const fdt=d=>d?new Date(d).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
+    const imballoRiga=r=>{ const parts=[];
+    const p=r.imballo_pluriball; if(p&&p.articolo_id&&Number(p.mtl_tot)>0) parts.push((p.nome||"Pluriball")+": "+(Math.round(Number(p.mtl_tot)*100)/100)+" mtl");
+    const ids=Array.isArray(r.imballo_ids)&&r.imballo_ids.length?r.imballo_ids:(r.imballo_id?[r.imballo_id]:[]);
+    ids.forEach(id=>{ const imbo=(imballi||[]).find(x=>x.id===id); if(imbo){ try{ vociImballoQty(imbo,(r.config&&r.config.mis)||{},r.quantita,r.imballo_input).forEach(q=>parts.push(q.descrizione+": "+q.qty+(q.um?" "+q.um:""))); }catch(e){ parts.push(imbo.nome||"imballo"); } } });
+    return parts; };
+  if(lista===null) return <div className="empty">Caricamento…</div>;
+  const daFare=lista.filter(c=>!c.spedibile_il), fatte=lista.filter(c=>c.spedibile_il);
+  const oggiS=new Date().toISOString().slice(0,10);
+  const card=c=>{ const st=statoCommessaVis(c); const righe=(c.commesse_righe||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0));
+    const rit=c.data_consegna && c.data_consegna<oggiS;
+    return <div key={c.id} className="card" style={{padding:12,marginBottom:10,borderLeft:"5px solid "+st.c}}>
+      <div style={{display:"flex",justifyContent:"space-between",gap:10,flexWrap:"wrap",alignItems:"center"}}>
+        <div><b style={{fontSize:15}}>{c.numero||"—"}</b> · {c.cliente_nome||"—"}{c.riferimento?<span className="muted"> · rif. {c.riferimento}</span>:null}
+          <div className="muted" style={{fontSize:12.5,color:rit?"var(--danger)":undefined,fontWeight:rit?700:400}}>📅 Consegna {fmt(c.data_consegna)}{rit?" — in ritardo":""}</div></div>
+        <span className="tag" style={{background:st.bg,color:st.c,fontWeight:700}}>{st.l}</span>
+      </div>
+      {righe.length>0 && <div style={{overflowX:"auto",marginTop:8}}><table><thead><tr><th>Articolo</th><th>Q.tà</th><th>Consegna</th><th>Imballo da usare</th></tr></thead><tbody>
+        {righe.map(r=>{ const parts=imballoRiga(r); return <tr key={r.id}>
+          <td className="rs">{r.descrizione||"—"}</td><td>{r.quantita}{r.unita?" "+r.unita:""}</td>
+          <td style={{fontSize:12.5}}>{(MODALITA_CONSEGNA[r.modalita_consegna||"corriere"]||{}).l||r.modalita_consegna||"—"}</td>
+          <td style={{fontSize:12.5}}>{parts.length? parts.join(" · ") : <span className="muted">—</span>}</td></tr>; })}
+      </tbody></table></div>}
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginTop:10}}>
+        {c.spedibile_il
+          ? <span className="muted" style={{fontSize:12.5}}>Imballata da <b>{c.spedibile_da_nome||c.imballo_da_nome||"—"}</b> il {fdt(c.spedibile_il)} · il Back office organizza corriere o ritiro</span>
+          : c.imballo_il ? <span className="muted" style={{fontSize:12.5}}>Presa in carico da <b>{c.imballo_da_nome||"—"}</b> il {fdt(c.imballo_il)}</span> : null}
+        <span style={{marginLeft:"auto",display:"flex",gap:6,flexWrap:"wrap"}}>
+          {!c.imballo_il && !c.spedibile_il && <button type="button" className="btn" disabled={busy} onClick={()=>azione(c,"inizio")}>📦 Prendo in carico l'imballo</button>}
+          {!c.spedibile_il && <button type="button" className="btn primary" disabled={busy} onClick={()=>azione(c,"spedibile")}>✓ Imballata — pronta per la spedizione</button>}
+          {c.spedibile_il && <button type="button" className="btn small" disabled={busy} onClick={()=>azione(c,"annulla_spedibile")}>↩ Non ancora pronta</button>}
+          {(c.imballo_il||c.spedibile_il) && <button type="button" className="btn small" disabled={busy} onClick={()=>azione(c,"annulla")}>↩ Annulla imballo</button>}
+        </span>
+      </div>
+    </div>; };
+  return <>
+    {err && <div className="banner err">{err}</div>}
+    {msg && <div className="banner" style={{background:"#e6f4ee",color:"#127a3e",border:"1px solid #9fd8bd"}}>{msg}</div>}
+    <div className="banner info">Qui arrivano le commesse con la <b>lavorazione terminata</b> dalla produzione. Prendi in carico l'imballo e, a imballo finito, segnala <b>✓ Imballata — pronta per la spedizione</b>: il Back office la vede e organizza corriere o ritiro.</div>
+    <h3 style={{margin:"10px 0 8px"}}>📦 Da imballare <span className="muted" style={{fontWeight:400}}>({daFare.length})</span></h3>
+    {daFare.length===0 ? <div className="card empty">Nessuna commessa da imballare 👍</div> : daFare.map(card)}
+    <h3 style={{margin:"18px 0 8px"}}>🚚 Pronte per la spedizione <span className="muted" style={{fontWeight:400}}>({fatte.length})</span></h3>
+    {fatte.length===0 ? <div className="card empty">Nessuna commessa in attesa di spedizione.</div> : fatte.map(card)}
+  </>;
+}
+
 function ModuloMagazzino({profilo,perm}){
   // Chi ha il flag "magazzino" gestisce i movimenti (carico/scarico) e può vederne lo storico.
   // Chi non ce l'ha (es. produzione: progettisti/disegnatori) vede SOLO le giacenze, senza prezzi.
@@ -4355,9 +4429,10 @@ function ModuloMagazzino({profilo,perm}){
           <div className="toolbar" style={{gap:8}}>
             <button className={"btn"+(vista==="giacenze"?" primary":"")} onClick={()=>setVista("giacenze")}>📦 Giacenze</button>
             <button className={"btn"+(vista==="movimenti"?" primary":"")} onClick={()=>setVista("movimenti")}>🔁 Movimenti</button>
+            <button className={"btn"+(vista==="imballi"?" primary":"")} onClick={()=>setVista("imballi")}>📦 Da imballare</button>
           </div>}
 
-        {vista==="giacenze" ? (
+        {vista==="imballi" ? <DaImballare profilo={profilo} perm={perm}/> : vista==="giacenze" ? (
           <>
             <div className="toolbar">
               <div className="search"><span className="mag">🔍</span>
@@ -7420,9 +7495,17 @@ function prossimoNumero(preventivi){
 const STATI_COMMESSA = {
   aperta:{l:"Aperta",bg:"#eef4ff",c:"#1e46c4"},
   in_produzione:{l:"In produzione",bg:"#fff4e5",c:"#b26a00"},
-  pronta:{l:"Pronta",bg:"#e6f4ee",c:"#1f9c68"},
+  pronta:{l:"Lavorazione terminata",bg:"#e6f4ee",c:"#1f9c68"},
   consegnata:{l:"Consegnata",bg:"#eef1f5",c:"#4b5563"},
   chiusa:{l:"Chiusa",bg:"#eef1f5",c:"#697386"}};
+// stato da MOSTRARE: dopo la produzione il magazzino imballa e segna "pronta per la spedizione" (v174)
+function statoCommessaVis(c){
+  if(c && c.stato==="pronta"){
+    if(c.spedibile_il) return {l:"🚚 Pronta per la spedizione",bg:"#e3f0ff",c:"#0b5cad"};
+    if(c.imballo_il) return {l:"📦 In imballaggio",bg:"#fff8e1",c:"#8a6d00"};
+  }
+  return STATI_COMMESSA[c&&c.stato]||STATI_COMMESSA.aperta;
+}
 const STATI_FASE = {
   da_fare:{l:"Da fare",bg:"#eef1f5",c:"#697386"},
   in_corso:{l:"In corso",bg:"#fff4e5",c:"#b26a00"},
@@ -7566,7 +7649,7 @@ function vociImballoQty(imb, mis, N, vInput){
   return out;
 }
 function htmlSchedaCommessa(c, fasi, righe, az, imballi){
-  const stc=STATI_COMMESSA[c.stato]||STATI_COMMESSA.aperta;
+  const stc=statoCommessaVis(c);
   const prc=PRIORITA_COMMESSA[c.priorita]||PRIORITA_COMMESSA.normale;
   const fmt=d=> d? new Date(d).toLocaleDateString("it-IT") : "—";
   const orePrev=(fasi||[]).reduce((s,fa)=>s+(Number(fa.ore_previste)||0),0);
@@ -10307,7 +10390,7 @@ function ModuloOrdiniShop({profilo,perm}){
   // se c'è una commessa collegata lo stato mostrato SEGUE la commessa (dove si trova la lavorazione)
   const badge = o => {
     const c = o.commessa_id && comm[o.commessa_id];
-    if(c){ const s=STATI_COMMESSA[c.stato]||STATI_COMMESSA.aperta; return <span className="tag" style={{background:s.bg,color:s.c}}>{s.l}</span>; }
+    if(c){ const s=statoCommessaVis(c); return <span className="tag" style={{background:s.bg,color:s.c}}>{s.l}</span>; }
     const col={nuovo:["#eef2ff","#3a49b8"],pagato:["#e6f4ea","#1e7d34"],in_lavorazione:["#fdf0e3","#c47a1e"],spedito:["#e4edf6","#2E6FB0"],annullato:["#fde8e8","#c0392b"]}[o.stato]||["#f0f0f0","#666"];
     return <span className="tag" style={{background:col[0],color:col[1]}}>{o.stato}</span>;
   };
@@ -10632,7 +10715,7 @@ function OrdineShopDettaglio({ordine,righe,files,commessa,perm,profilo,stati,onS
           {(commFatta||commessa)
             ? <div style={{marginTop:12,padding:12,borderRadius:10,background:"#f3faf6",border:"1px solid #bfe3cf",fontSize:13}}>
                 🏭 <b>In produzione</b> — commessa <b>{commessa? commessa.numero : "collegata"}</b>
-                {commessa? <> · stato <b>{(STATI_COMMESSA[commessa.stato]||STATI_COMMESSA.aperta).l}</b></> : null}
+                {commessa? <> · stato <b>{statoCommessaVis(commessa).l}</b></> : null}
                 <div className="muted" style={{fontSize:12,marginTop:4}}>Lo stato dell'ordine <b>segue la commessa</b>. Aprila nel modulo 🏭 Commesse per gestire la lavorazione e le date di consegna.</div>
               </div>
             : <>
@@ -12158,7 +12241,9 @@ function ModuloCommesse({profilo,perm}){
     if(!commesse) return [];
     const q=cerca.trim().toLowerCase();
     return commesse.filter(c=>{
-      if(filtroStato && c.stato!==filtroStato) return false;
+      if(filtroStato==="__sped"){ if(!(c.stato==="pronta" && c.spedibile_il)) return false; }
+      else if(filtroStato==="__imb"){ if(!(c.stato==="pronta" && !c.spedibile_il)) return false; }
+      else if(filtroStato && c.stato!==filtroStato) return false;
       if(!q) return true;
       return [c.numero,c.cliente_nome,c.riferimento].join(" ").toLowerCase().includes(q);
     });
@@ -12172,12 +12257,17 @@ function ModuloCommesse({profilo,perm}){
       <div className="content">
         {err && <div className="banner err">{err}</div>}
         <div className="banner info">Le commesse nascono di solito dal pulsante <b>🏭 Crea commessa</b> su un preventivo <b>accettato</b>. Qui segui l'avanzamento per reparto, gli operatori e le ore.</div>
+        {perm.economici && (()=>{ const ns=(commesse||[]).filter(c=>c.stato==="pronta" && c.spedibile_il).length; if(!ns || filtroStato==="__sped") return null;
+          return <div className="banner" onClick={()=>setFiltroStato("__sped")} style={{cursor:"pointer",background:"#e3f0ff",border:"1px solid #b9d6fb",color:"#0b5cad"}}>
+            🚚 <b>{ns}</b> {ns===1?"commessa imballata e pronta":"commesse imballate e pronte"} per la spedizione: organizza corriere o ritiro — <u>mostra</u></div>; })()}
         <div className="toolbar">
           <div className="search"><span className="mag">🔍</span>
             <input placeholder="Cerca per numero, cliente, riferimento…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
           <select className="btn" value={filtroStato} onChange={e=>setFiltroStato(e.target.value)} style={{maxWidth:170}}>
             <option value="">Tutti gli stati</option>
             {Object.keys(STATI_COMMESSA).map(s=><option key={s} value={s}>{STATI_COMMESSA[s].l}</option>)}
+            <option value="__imb">📦 Da imballare / in imballaggio</option>
+            <option value="__sped">🚚 Pronte per la spedizione</option>
           </select>
           <span className="muted">{filtrate.length} commesse</span>
         </div>
@@ -12190,7 +12280,7 @@ function ModuloCommesse({profilo,perm}){
                   {filtrate.map(c=>{
                     const fasi=c.commesse_fasi||[];
                     const fatte=fasi.filter(x=>x.stato==="fatto").length;
-                    const st=STATI_COMMESSA[c.stato]||STATI_COMMESSA.aperta;
+                    const st=statoCommessaVis(c);
                     const pr=PRIORITA_COMMESSA[c.priorita]||PRIORITA_COMMESSA.normale;
                     const oggi=new Date(); oggi.setHours(0,0,0,0);
                     const cons=c.data_consegna? new Date(c.data_consegna):null;
@@ -12268,6 +12358,18 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     avviso_produzione:commessa?.avviso_produzione||"",
   }));
   const [rilasciata,setRilasciata]=useState(!!commessa?.rilasciata_produzione);
+  const [imb,setImb]=useState({imballo_da_nome:commessa?.imballo_da_nome||"", imballo_il:commessa?.imballo_il||null, spedibile_da_nome:commessa?.spedibile_da_nome||"", spedibile_il:commessa?.spedibile_il||null});
+  async function azioneImballo(az){
+    if(!commessa?.id) return;
+    if(az==="annulla" && !window.confirm("Riportare la commessa a «Lavorazione terminata» (non imballata)?")) return;
+    setBusy(true); setErr("");
+    try{ const {error}=await sb.rpc("commessa_imballo",{p_commessa_id:commessa.id, p_azione:az}); if(error) throw error;
+      const {data}=await sb.from("commesse").select("imballo_da_nome,imballo_il,spedibile_da_nome,spedibile_il").eq("id",commessa.id).maybeSingle();
+      if(data) setImb(data);
+      setConsMsg(az==="spedibile" ? "🚚 Commessa imballata e PRONTA PER LA SPEDIZIONE: il Back office la vede e organizza corriere o ritiro." : az==="inizio" ? "📦 Imballo preso in carico." : "Stato imballo aggiornato.");
+    }catch(ex){ setErr(ex.message); }
+    setBusy(false);
+  }
   const [rilasciataIl,setRilasciataIl]=useState(commessa?.rilasciata_il||null);
   // Commessa chiusa dalla produzione (pronta) o consegnata: sola lettura, salvo sblocco dei responsabili
   const [sbloccata,setSbloccata]=useState(false);
@@ -12761,6 +12863,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         sconto_nota:(Number(f.sconto_fattura)>0 ? (f.sconto_nota||testoScontoCliente(f.numero||commessa?.numero, f.sconto_fattura)) : "")};
       if(chiusaProd && sbloccata) rec.modifiche_post_chiusura = nModifiche+1;
       if(extra) Object.assign(rec, extra);
+      if(["aperta","in_produzione"].includes(rec.stato) && (commessa?.imballo_il || commessa?.spedibile_il)){
+        Object.assign(rec,{imballo_da_id:null, imballo_da_nome:null, imballo_il:null, spedibile_da_id:null, spedibile_da_nome:null, spedibile_il:null}); }
       let id=commessa?.id;
       let sostDb={};   // sostituzioni registrate dalla Postazione (non vanno perse riscrivendo le fasi)
       if(nuova){ rec.creato_da=profilo.id;
@@ -12981,6 +13085,22 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
             {perm.economici && (rilasciata
               ? <button type="button" className="btn small" onClick={riportaInPreparazione} disabled={busy}>↩ Riporta in preparazione</button>
               : <button type="button" className="btn small primary" onClick={mandaInProduzione} disabled={busy}>🚀 Manda in produzione</button>)}
+          </div>}
+          {!nuova && commessa?.stato==="pronta" && <div style={{margin:"0 0 12px",padding:"8px 12px",borderRadius:9,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",
+              background:imb.spedibile_il?"#e3f0ff":(imb.imballo_il?"#fff8e1":"#e6f4ee"),border:"1px solid "+(imb.spedibile_il?"#b9d6fb":(imb.imballo_il?"#ffe08a":"#9fd8bd"))}}>
+            <div style={{fontSize:13,flex:1,minWidth:220}}>
+              {imb.spedibile_il
+                ? <><b style={{color:"#0b5cad"}}>🚚 Pronta per la spedizione</b><span className="muted" style={{marginLeft:8,fontSize:12}}>imballata da {imb.spedibile_da_nome||imb.imballo_da_nome||"—"} il {new Date(imb.spedibile_il).toLocaleString("it-IT")}{perm.economici?" — organizza corriere o ritiro":""}</span></>
+                : imb.imballo_il
+                  ? <><b style={{color:"#8a6d00"}}>📦 In imballaggio</b><span className="muted" style={{marginLeft:8,fontSize:12}}>preso in carico da {imb.imballo_da_nome||"—"} il {new Date(imb.imballo_il).toLocaleString("it-IT")}</span></>
+                  : <><b style={{color:"#127a3e"}}>✓ Lavorazione terminata</b><span className="muted" style={{marginLeft:8,fontSize:12}}>da imballare: il magazzino la prende in carico e la segna pronta per la spedizione</span></>}
+            </div>
+            {perm.magazzino && <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {!imb.imballo_il && !imb.spedibile_il && <button type="button" className="btn small" disabled={busy} onClick={()=>azioneImballo("inizio")}>📦 Prendo in carico l'imballo</button>}
+              {!imb.spedibile_il && <button type="button" className="btn small primary" disabled={busy} onClick={()=>azioneImballo("spedibile")}>✓ Imballata — pronta per la spedizione</button>}
+              {imb.spedibile_il && <button type="button" className="btn small" disabled={busy} onClick={()=>azioneImballo("annulla_spedibile")}>↩ Non ancora pronta</button>}
+              {(imb.imballo_il||imb.spedibile_il) && <button type="button" className="btn small" disabled={busy} onClick={()=>azioneImballo("annulla")}>↩ Annulla imballo</button>}
+            </div>}
           </div>}
 
           {!nuova && (apertaDa||ultimoLavoro) &&
@@ -13667,7 +13787,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         <footer>
           <button type="button" className="btn" onClick={stampaScheda} title="Stampa la scheda di lavorazione per il reparto">🖨️ Scheda</button>
           {!nuova && perm.magazzino &&
-            <button type="button" className="btn" onClick={()=>setDdtOpen(true)}
+            <button type="button" className="btn" onClick={()=>{ if(commessa?.stato==="pronta" && !imb.spedibile_il && !window.confirm("⚠ La commessa non risulta ancora IMBALLATA e pronta per la spedizione. Generare comunque il DDT?")) return; setDdtOpen(true); }}
               title="Genera un documento di trasporto con gli articoli pronti di questa commessa">📄 Genera DDT</button>}
           {!nuova && perm.economici &&
             <button type="button" className="btn" onClick={generaConsuntivo} disabled={busy}
@@ -16718,7 +16838,7 @@ function ModuloReport({profilo,perm}){
               <thead><tr><th>Numero</th><th>Cliente</th><th>Stato</th><th style={{textAlign:"right"}}>Ricavi</th><th style={{textAlign:"right"}}>Costi</th><th style={{textAlign:"right"}}>Margine</th><th style={{textAlign:"right"}}>%</th></tr></thead>
               <tbody>
                 {filtrate.length===0 ? <tr><td colSpan={7} className="muted" style={{padding:12}}>Nessuna commessa nel periodo.</td></tr>
-                  : filtrate.map(c=>{ const x=consunt(c); const st=STATI_COMMESSA[c.stato]||STATI_COMMESSA.aperta;
+                  : filtrate.map(c=>{ const x=consunt(c); const st=statoCommessaVis(c);
                     const nAgg=(c.commesse_fasi||[]).filter(f=>f.aggiunta).length+(c.commesse_righe||[]).filter(r=>r.aggiunta).length;
                     return <tr key={c.id}>
                       <td className="rs">{c.numero||"—"}</td>

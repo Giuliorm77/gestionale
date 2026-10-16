@@ -5404,6 +5404,8 @@ function costoFasePrev(fa,opMap){ const ore=Number(fa&&fa.ore_previste)||0; if(!
   let c=(fa.costo_orario_prev!=null)?Number(fa.costo_orario_prev)||0:null;
   if(c==null){ const id=fa.assegnato_prev_id||fa.assegnato_id; c=(id&&opMap&&opMap[id])?Number(opMap[id].costo_orario)||0:0; }
   return ore*c; }
+// testo pronto per il cliente quando si concede lo sconto "da ottimizzazione"
+function testoScontoCliente(numero, importo){ return "Gentile cliente, grazie all'ottimizzazione delle lavorazioni siamo riusciti a contenere i costi di produzione della commessa "+(numero||"")+": per questo le riconosciamo uno sconto di "+Number(importo||0).toLocaleString("it-IT",{style:"currency",currency:"EUR"})+" sulla fattura. Grazie per la fiducia."; }
 // ore (decimali) -> testo leggibile anche per tempi brevi
 function oreTxt(h){ const s=Math.round((Number(h)||0)*3600); if(s<60) return s+" s"; const m=Math.round(s/60); if(m<60) return m+" min"; const hh=Math.floor(m/60), mm=m%60; return hh+" h"+(mm?" "+mm+" min":""); }
 // timbrature CHIUSE raggruppate per fase: {chiave: [{operatore_id, operatore_nome, ore}]}
@@ -12185,7 +12187,7 @@ function ModuloCommesse({profilo,perm}){
                     return (
                       <tr key={c.id} onClick={()=>setEditor(c)}>
                         <td className="rs">{c.numero||"—"}{c.preventivo_numero && <div className="muted" style={{fontSize:10.5,fontWeight:400}}>📄 prev. {c.preventivo_numero}</div>}</td>
-                        <td>{c.cliente_nome||"—"}{!c.rilasciata_produzione && c.stato!=="consegnata" && c.stato!=="chiusa" && <span className="tag" style={{marginLeft:6,background:"#fff4e5",color:"#b26a00",border:"1px solid #f0d8a8"}} title="Non ancora rilasciata in produzione: non compare in Postazione">🔧 in preparazione</span>}{(c.avviso_produzione||"").trim() && <span className="tag" style={{marginLeft:6,background:"#fdecec",color:"#c0392b",border:"1px solid #e3342f",fontWeight:700}} title={"Variazione/disdetta cliente: "+c.avviso_produzione}>🚨 VARIAZIONE</span>}{nAgg>0 && <span className="tag" style={{marginLeft:6,background:"#fff8e1",color:"#9a6b00",border:"1px solid #ffe08a"}} title={nAgg+" voci (lavorazioni/materiali) aggiunte dopo la creazione (fuori preventivo): da fatturare o aggiornare a preventivo"}>➕ {nAgg} fuori prev.</span>}</td>
+                        <td>{c.cliente_nome||"—"}{!c.rilasciata_produzione && c.stato!=="consegnata" && c.stato!=="chiusa" && <span className="tag" style={{marginLeft:6,background:"#fff4e5",color:"#b26a00",border:"1px solid #f0d8a8"}} title="Non ancora rilasciata in produzione: non compare in Postazione">🔧 in preparazione</span>}{(c.avviso_produzione||"").trim() && <span className="tag" style={{marginLeft:6,background:"#fdecec",color:"#c0392b",border:"1px solid #e3342f",fontWeight:700}} title={"Variazione/disdetta cliente: "+c.avviso_produzione}>🚨 VARIAZIONE</span>}{nAgg>0 && <span className="tag" style={{marginLeft:6,background:"#fff8e1",color:"#9a6b00",border:"1px solid #ffe08a"}} title={nAgg+" voci (lavorazioni/materiali) aggiunte dopo la creazione (fuori preventivo): da fatturare o aggiornare a preventivo"}>➕ {nAgg} fuori prev.</span>}{perm.economici && Number(c.sconto_fattura)>0 && <span className="tag" style={{marginLeft:6,background:"#eef7ee",color:"#127a3e",border:"1px solid #bfe6cd",fontWeight:700}} title={"Sconto commerciale da applicare in fattura"+(c.sconto_nota?": "+c.sconto_nota:"")}>💡 sconto {eur(c.sconto_fattura)}</span>}</td>
                         <td className="muted" style={ritardo?{color:"var(--danger)",fontWeight:700}:null}>
                           {dateMancanti
                             ? <span className="tag" style={{background:"#fdecea",color:"#c0392b"}} title="Alcuni articoli non hanno la data di consegna">⚠ date mancanti</span>
@@ -12241,7 +12243,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     stato:commessa?.stato||"aperta",
     priorita:commessa?.priorita||"normale",
     valore:commessa?.valore ?? 0,
-    valore_prodotti:commessa?.valore_prodotti ?? null,   // base provvigione (solo prodotti); null = usa valore intero
+    valore_prodotti:commessa?.valore_prodotti ?? null,
+    sconto_fattura:commessa?.sconto_fattura ?? 0,      // leva commerciale: sconto da applicare in fattura
+    sconto_nota:commessa?.sconto_nota || "",   // base provvigione (solo prodotti); null = usa valore intero
     trasporto:commessa?.trasporto ?? 0,
     agente_id:commessa?.agente_id||"",
     provvigione_pct:commessa?.provvigione_pct ?? "",
@@ -12402,6 +12406,12 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     return m;
   },[segmenti]);
   const timbByFase=React.useMemo(()=>timbratureByFase(segmenti),[segmenti]);   // ore timbrate per fase e operatore
+  const [margPrev,setMargPrev]=useState(null);   // {margine, imponibile} dal preventivo, oppure {nd:true}
+  useEffect(()=>{ let vivo=true; const pid=commessa&&commessa.preventivo_id; if(!pid || !perm.economici){ setMargPrev(null); return; }
+    sb.from("preventivi").select("*, preventivi_righe(*)").eq("id",pid).maybeSingle().then(({data})=>{ if(!vivo||!data) return;
+      if(data.scaglioni){ setMargPrev({nd:true}); return; }
+      const t=calcolaPreventivo(data.preventivi_righe||[], data); setMargPrev({margine:t.margine, imponibile:t.imponibile}); });
+    return ()=>{vivo=false;}; },[commessa&&commessa.preventivo_id, perm.economici]);
   // durata ms -> "Zs" / "Ym" / "Xh YYm" (leggibile anche per tempi brevi)
   const fmtDur=ms=>{ const s=Math.max(0,Math.floor((Number(ms)||0)/1000)); if(s<60) return s+"s";
     const mm=Math.floor(s/60); if(mm<60) return mm+"m"; const h=Math.floor(mm/60); return h+"h "+String(mm%60).padStart(2,"0")+"m"; };
@@ -12621,6 +12631,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const costoExtra=extraCosti.reduce((s,x)=>s+(Number(x.costo)||0),0);
   const addebitiExtra=extraCosti.filter(x=>x.addebita).reduce((s,x)=>s+(Number(x.costo)||0),0);
   const ricaviTot=(Number(f.valore)||0)+addebitiInterventi+addebitiExtra;
+  const scontoF=Math.max(0,Number(f.sconto_fattura)||0);   // sconto commerciale in fattura
+  const ricaviNetti=ricaviTot-scontoF;
   const costoPerdite=persi.reduce((s,p)=>{ const a=artMap[p.articolo_id];
     const mq=(Number(p.larghezza_cm)||0)*(Number(p.altezza_cm)||0)/10000*(Number(p.quantita)||1);
     return s+mq*(a?Number(a.costo)||0:0); },0);
@@ -12638,7 +12650,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   // SPESE GENERALI (gestione): % sui costi diretti (materiali + manodopera + lavorazioni esterne), come nel preventivo
   const speseGenC=Math.round((costoMateriali+scostFornC+costoManodopera+costoEsterno)*(Number(sgPct)||0)/100*100)/100;
   const costiTot=costoOrig+costoInterventi+costoAiuti+costoPerdite+costoEsterno+costoStraordinario+costoExtra+costoProvvigione+scostFornC+speseGenC;
-  const margineReale=ricaviTot-costiTot;
+  const margineLordo=ricaviTot-costiTot;          // prima dello sconto commerciale
+  const margineReale=margineLordo-scontoF;
 
   async function generaOrdineFornitore(){
     if(nuova || !commessa?.id){ setErr("Salva prima la commessa, poi genera gli ordini fornitore."); return; }
@@ -12727,7 +12740,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         provvigione_pct: f.provvigione_pct===""||f.provvigione_pct==null ? null : Number(f.provvigione_pct),
         note:f.note||"", avviso_produzione:(f.avviso_produzione||"").trim()||null,
         avviso_il:(f.avviso_produzione||"").trim() ? (commessa?.avviso_il||new Date().toISOString()) : null,
-        consumi:consumi.map(c=>({...c})), aiuti:aiuti.map(a=>({...a})), straordinari:straordinari.map(a=>({...a})), extra_costi:extraCosti.map(x=>({...x})), aggiornato_il:new Date().toISOString()};
+        consumi:consumi.map(c=>({...c})), aiuti:aiuti.map(a=>({...a})), straordinari:straordinari.map(a=>({...a})), extra_costi:extraCosti.map(x=>({...x})), aggiornato_il:new Date().toISOString(),
+        sconto_fattura:Math.round(Math.max(0,Number(f.sconto_fattura)||0)*100)/100,
+        sconto_nota:(Number(f.sconto_fattura)>0 ? (f.sconto_nota||testoScontoCliente(f.numero||commessa?.numero, f.sconto_fattura)) : "")};
       if(chiusaProd && sbloccata) rec.modifiche_post_chiusura = nModifiche+1;
       let id=commessa?.id;
       let sostDb={};   // sostituzioni registrate dalla Postazione (non vanno perse riscrivendo le fasi)
@@ -12789,7 +12804,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     return { commessa_id:id, numero:f.numero||commessa?.numero||"",
       cliente_nome:(cli?cli.ragione_sociale:(f.cliente_nome||commessa?.cliente_nome||"")),
       stato:f.stato||"", data_chiusura:new Date().toISOString().slice(0,10),
-      ricavi:Math.round(ricaviTot*100)/100,
+      ricavi:Math.round(ricaviNetti*100)/100,
       costo_materiali:Math.round((costoMateriali+scostFornC)*100)/100,
       costo_manodopera:Math.round(costoManodopera*100)/100,
       costo_spese_generali:Math.round(speseGenC*100)/100,
@@ -12803,7 +12818,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       costo_provvigione:Math.round(costoProvvigione*100)/100,
       costi_totali:Math.round(costiTot*100)/100,
       margine:Math.round(margineReale*100)/100,
-      margine_pct: ricaviTot>0? Math.round(margineReale/ricaviTot*10000)/100 : 0,
+      margine_pct: ricaviNetti>0? Math.round(margineReale/ricaviNetti*10000)/100 : 0,
       creato_da:profilo.id, aggiornato_il:new Date().toISOString() };
   }
   async function salvaConsuntivo(id){
@@ -13583,8 +13598,42 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               {costoPerdite>0 && <><span className="k" style={{color:"var(--danger)"}}>Perdite materiale (pezzi persi)</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoPerdite)}</span></>}
               {costoInterventi>0 && <><span className="k" style={{color:"var(--danger)"}}>Costo rilavorazioni</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoInterventi)}</span></>}
               {costoProvvigione>0 && <><span className="k" style={{color:"var(--danger)"}}>Provvigione agente ({agenteInfo.pct}% sui prodotti {eur(baseProvvC)}{agenteInfo.eff?" · "+agenteInfo.eff.nome:""})</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoProvvigione)}</span></>}
+              {scontoF>0 && <><span className="k" style={{color:"var(--danger)"}}>💡 Sconto commerciale in fattura</span><span style={{textAlign:"right",color:"var(--danger)"}}>−{eur(scontoF)}</span></>}
               <span className="k" style={{fontWeight:800}}>MARGINE REALE</span><span style={{textAlign:"right",fontWeight:800,fontSize:16,color:margineReale>=0?"var(--ok)":"var(--danger)"}}>{eur(margineReale)}</span>
             </div>
+            {(()=>{ if(!margPrev) return null;
+              if(margPrev.nd) return <div className="muted" style={{fontSize:12,marginTop:10}}>💡 Leva commerciale non disponibile: il preventivo è a scaglioni di quantità.</div>;
+              const mPrev=Math.round((margPrev.margine-costoProvvigione)*100)/100;   // margine previsto netto provvigione
+              const extra=Math.round((margineLordo-mPrev)*100)/100;
+              const smax=Math.max(0,extra);
+              const pctPrev=ricaviTot>0? mPrev/ricaviTot*100 : 0;
+              const pctDopo=ricaviNetti>0? margineReale/ricaviNetti*100 : 0;
+              const auto=testoScontoCliente(f.numero||commessa?.numero, scontoF);
+              const testo=f.sconto_nota||auto;
+              return <div style={{marginTop:12,padding:12,borderRadius:9,border:"1px solid "+(extra>0?"#bfe6cd":"#f3c0c0"),background:extra>0?"#f1faf4":"#fdecec"}}>
+                <div style={{fontWeight:800,marginBottom:6}}>💡 Leva commerciale</div>
+                <div style={{fontSize:13}}>Margine previsto dal preventivo <b>{eur(mPrev)}</b> ({pctPrev.toFixed(1)}%) · margine reale prima dello sconto <b>{eur(margineLordo)}</b></div>
+                {extra>0 ? <>
+                  <div style={{fontSize:13,marginTop:4}}>Abbiamo guadagnato <b style={{color:"#127a3e"}}>{eur(extra)}</b> in più del previsto: puoi concedere fino a <b>{eur(smax)}</b> di sconto <b>senza scendere sotto il margine del preventivo</b>.</div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginTop:8}}>
+                    {[25,50,100].map(p=>{ const v=Math.round(smax*p)/100; return <button key={p} type="button" className="btn small" onClick={()=>set("sconto_fattura",v)}>{p}% · {eur(v)}</button>; })}
+                    <span style={{fontSize:13}}>oppure €</span>
+                    <input type="number" step="0.01" min="0" value={f.sconto_fattura||""} onChange={e=>set("sconto_fattura",e.target.value)} style={{width:110,padding:"6px",border:"1px solid var(--line)",borderRadius:7,textAlign:"right"}}/>
+                    {scontoF>0 && <button type="button" className="btn small" onClick={()=>{ set("sconto_fattura",0); set("sconto_nota",""); }}>Togli sconto</button>}
+                  </div>
+                  {scontoF>smax+0.005 && <div style={{color:"#c0392b",fontSize:12.5,marginTop:4,fontWeight:600}}>⚠ Lo sconto supera il margine extra: scendi sotto il margine del preventivo.</div>}
+                  {scontoF>0 && <>
+                    <div style={{fontSize:13,marginTop:6}}>Fattura: {eur(ricaviTot)} − {eur(scontoF)} = <b>{eur(ricaviNetti)}</b> · margine dopo lo sconto <b>{eur(margineReale)}</b> ({pctDopo.toFixed(1)}%)</div>
+                    <div style={{fontSize:12,fontWeight:700,marginTop:8,color:"#41505c"}}>Testo per il cliente</div>
+                    <textarea rows={3} value={testo} onChange={e=>set("sconto_nota",e.target.value)} style={{width:"100%",marginTop:3,fontSize:13}}/>
+                    <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap"}}>
+                      <button type="button" className="btn small" onClick={()=>{ try{ navigator.clipboard.writeText(testo); }catch(e){} }}>📋 Copia testo</button>
+                      {f.sconto_nota && <button type="button" className="btn small" onClick={()=>set("sconto_nota","")}>↻ Testo automatico</button>}
+                      <span className="muted" style={{fontSize:11.5,alignSelf:"center"}}>Lo sconto si salva con «Salva commessa» e compare nell'elenco commesse per la fatturazione.</span>
+                    </div>
+                  </>}
+                </> : <div style={{fontSize:13,marginTop:4,color:"#c0392b",fontWeight:600}}>Nessun margine extra ({eur(extra)}): il lavoro è costato quanto o più del previsto. Non c'è leva da giocare.</div>}
+              </div>; })()}
             <div className="muted" style={{fontSize:11,marginTop:8}}>Costi materiali/manodopera dai costi di catalogo e costi orari operatori. Le rilavorazioni "a nostro carico" riducono il margine; quelle "a carico cliente" rientrano nei ricavi.</div>
           </div>}
 
@@ -16146,7 +16195,7 @@ function ModuloReport({profilo,perm}){
     const costoProvv=baseProvv*pctP/100;
     const costoEsternoR=(c.commesse_fasi||[]).filter(fa=>fa.esterna).reduce((s,fa)=>s+(Number(fa.costo_reale)||0),0);   // lavorazioni conto terzi
     const speseGenR=(costoMat+scostForn+costoMdo+costoEsternoR)*(Number(impSg)||0)/100;   // spese generali (gestione)
-    const ricavi=(Number(c.valore)||0)+addeb+extraRic+addebExtraImprev;
+    const ricavi=(Number(c.valore)||0)+addeb+extraRic+addebExtraImprev-(Number(c.sconto_fattura)||0);   // al netto dello sconto commerciale
     const costi=costoMat+costoMdo+costoEsternoR+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos+costiExtraImprev+costoProvv+speseGenR;
     return {ricavi,costi,margine:ricavi-costi,scostForn,extraRic};
   },[artMap,opMap,intByComm,persiByComm,ofByComm,cliMap,agMap,impSg,timbFasi]);
@@ -16652,7 +16701,7 @@ function ModuloReport({profilo,perm}){
                     const nAgg=(c.commesse_fasi||[]).filter(f=>f.aggiunta).length+(c.commesse_righe||[]).filter(r=>r.aggiunta).length;
                     return <tr key={c.id}>
                       <td className="rs">{c.numero||"—"}</td>
-                      <td>{c.cliente_nome||"—"}{nAgg>0 && <span className="tag" style={{marginLeft:6,background:"#fff8e1",color:"#9a6b00",border:"1px solid #ffe08a"}} title={nAgg+" voci (lavorazioni/materiali) aggiunte dopo la creazione (fuori preventivo): da fatturare o aggiornare a preventivo"}>➕ {nAgg} fuori prev.</span>}</td>
+                      <td>{c.cliente_nome||"—"}{nAgg>0 && <span className="tag" style={{marginLeft:6,background:"#fff8e1",color:"#9a6b00",border:"1px solid #ffe08a"}} title={nAgg+" voci (lavorazioni/materiali) aggiunte dopo la creazione (fuori preventivo): da fatturare o aggiornare a preventivo"}>➕ {nAgg} fuori prev.</span>}{Number(c.sconto_fattura)>0 && <span className="tag" style={{marginLeft:6,background:"#eef7ee",color:"#127a3e",border:"1px solid #bfe6cd",fontWeight:700}} title={"Sconto commerciale da applicare in fattura"+(c.sconto_nota?": "+c.sconto_nota:"")}>💡 sconto {eur(c.sconto_fattura)}</span>}</td>
                       <td><span className="tag" style={{background:st.bg,color:st.c}}>{st.l}</span></td>
                       <td style={{textAlign:"right"}}>{eur(x.ricavi)}{Math.abs(x.extraRic||0)>=0.01 && <div style={{fontSize:10.5,color:"#9a6b00"}} title="Include gli articoli aggiunti fuori preventivo (extra da fatturare)">di cui +{eur(x.extraRic)} extra</div>}</td>
                       <td style={{textAlign:"right"}}>{eur(x.costi)}{Math.abs(x.scostForn||0)>=0.01 && <div style={{fontSize:10.5,color:x.scostForn>0?"#c0392b":"#127a3e"}} title="Correzione al costo reale pagato ai fornitori (ordini collegati) rispetto al preventivato">{x.scostForn>0?"+":""}{eur(x.scostForn)} forn. reale</div>}</td>

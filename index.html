@@ -5385,6 +5385,34 @@ function conteggioComponente(u){ const s=String(u||"").toLowerCase().trim();
   return "manuale";
 }
 // quantità (nell'unità nativa del componente) dalla misura inserita; tempo in MINUTI -> ore
+// ---- ORE EFFETTIVE di una fase = timbrature Postazione (operatore REALE) + ore manuali (lavoro non timbrato).
+// Se la fase ha timbrature, l'operatore precompilato dal preventivo con le ore previste (mai toccato) NON conta:
+// quello è il previsto, non il lavorato. timbFase: [{operatore_id, operatore_nome, ore}]
+function oreEffettiveFase(fa, timbFase){
+  const m={};
+  const add=(id,nome,ore,tipo)=>{ const k=id||("?"+(nome||"")); const e=m[k]||(m[k]={id:id||null,nome:nome||"",ore:0,timb:0,man:0}); e.ore+=ore; e[tipo]+=ore; if(!e.nome&&nome) e.nome=nome; };
+  (timbFase||[]).forEach(t=>{ const h=Number(t.ore)||0; if(h>0) add(t.operatore_id,t.operatore_nome,h,"timb"); });
+  const haTimb=(timbFase||[]).some(t=>(Number(t.ore)||0)>0);
+  (fa&&fa.operatori||[]).forEach(o=>{ const h=Number(o.ore)||0; if(!h) return;
+    const prefill = haTimb && o.id && (o.id===fa.assegnato_prev_id || o.id===fa.assegnato_id) && h===(Number(fa.ore_previste)||0);
+    if(!prefill) add(o.id,o.nome,h,"man"); });
+  return Object.values(m);
+}
+const costoOreEff=(lista,opMap)=>(lista||[]).reduce((s,e)=>s+(Number(e.ore)||0)*(e.id&&opMap&&opMap[e.id]?Number(opMap[e.id].costo_orario)||0:0),0);
+// costo PREVISTO della fase: ore previste × costo orario usato nel preventivo (o dell'operatore previsto/assegnato)
+function costoFasePrev(fa,opMap){ const ore=Number(fa&&fa.ore_previste)||0; if(!ore) return 0;
+  let c=(fa.costo_orario_prev!=null)?Number(fa.costo_orario_prev)||0:null;
+  if(c==null){ const id=fa.assegnato_prev_id||fa.assegnato_id; c=(id&&opMap&&opMap[id])?Number(opMap[id].costo_orario)||0:0; }
+  return ore*c; }
+// ore (decimali) -> testo leggibile anche per tempi brevi
+function oreTxt(h){ const s=Math.round((Number(h)||0)*3600); if(s<60) return s+" s"; const m=Math.round(s/60); if(m<60) return m+" min"; const hh=Math.floor(m/60), mm=m%60; return hh+" h"+(mm?" "+mm+" min":""); }
+// timbrature CHIUSE raggruppate per fase: {chiave: [{operatore_id, operatore_nome, ore}]}
+function timbratureByFase(segmenti){ const m={};
+  (segmenti||[]).forEach(s=>{ if(!s.fase_chiave||!s.fine) return; const h=(new Date(s.fine)-new Date(s.inizio))/3600000; if(!(h>0)) return;
+    const arr=m[s.fase_chiave]||(m[s.fase_chiave]=[]); const k=s.operatore_id||("?"+(s.operatore_nome||""));
+    const e=arr.find(x=>(x.operatore_id||("?"+(x.operatore_nome||"")))===k); if(e) e.ore+=h; else arr.push({operatore_id:s.operatore_id||null,operatore_nome:s.operatore_nome||"",ore:h}); });
+  return m; }
+
 function qtaComponente(cont, cg, abb){
   const L=Number(cg.L)||0, H=Number(cg.H)||0, add=cg.abbOn?(Number(abb)||0):0;
   if(cont==="mq"){ const Lm=L>0?L+add:0, Hm=H>0?H+add:0; return Math.round((Lm/100)*(Hm/100)*1000)/1000; }
@@ -9136,7 +9164,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
             unita_lavorata: aTempo? "" : (r.unita||""),
             assegnato_id:r.operatore_id||null, assegnato_nome:r.operatore_nome||"",
             costo_orario_prev: (r.operatore_id && aTempo) ? (Number(r.costo_unitario)||null) : null,
-            operatori:r.operatore_id?[{id:r.operatore_id,nome:r.operatore_nome||"",ore: aTempo? q : 0}]:[]});
+            operatori:[]});
         } else if((r.tipo==="materiale"||r.tipo==="altro") && r.config && r.config.prodotto_id){
           fasiDaConfigurato(r,prodotti).forEach(fx=>fasiRaw.push({reparto:fx.reparto, descrizione:fx.descrizione, ore_previste:0, operatori:[]}));
         }
@@ -12373,6 +12401,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     });
     return m;
   },[segmenti]);
+  const timbByFase=React.useMemo(()=>timbratureByFase(segmenti),[segmenti]);   // ore timbrate per fase e operatore
   // durata ms -> "Zs" / "Ym" / "Xh YYm" (leggibile anche per tempi brevi)
   const fmtDur=ms=>{ const s=Math.max(0,Math.floor((Number(ms)||0)/1000)); if(s<60) return s+"s";
     const mm=Math.floor(s/60); if(mm<60) return mm+"m"; const h=Math.floor(mm/60); return h+"h "+String(mm%60).padStart(2,"0")+"m"; };
@@ -12557,7 +12586,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const delExtra=i=>setExtraCosti(p=>p.filter((_,j)=>j!==i));
 
   const orePrevTot=fasi.reduce((s,fa)=>s+(Number(fa.ore_previste)||0),0);
-  const oreEffTot=fasi.reduce((s,fa)=>s+oreFase(fa),0);
+  const oreEffTot=Math.round(fasi.reduce((s,fa)=>s+(fa.esterna?0:oreEffettiveFase(fa,timbByFase[fa.chiave]).reduce((t,e)=>t+e.ore,0)),0)*100)/100;   // timbrature + manuali
   const fatte=fasi.filter(x=>x.stato==="fatto").length;
   const numIn={width:70,padding:"6px 7px",border:"1px solid var(--line)",borderRadius:7,textAlign:"right"};
   const oggi=new Date().toISOString().slice(0,10);
@@ -12583,7 +12612,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   // ---- Consuntivo reale ----
   const opMap=React.useMemo(()=>{ const m={}; (operatori||[]).forEach(o=>m[o.id]=o); return m; },[operatori]);
   const costoMateriali=consumi.reduce((s,c)=>{ const a=artMap[c.articolo_id]; return s+(Number(c.quantita)||0)*(a?Number(a.costo)||0:0); },0);
-  const costoManodopera=fasi.reduce((s,fa)=>s+(fa.operatori||[]).reduce((ss,o)=>{ const op=opMap[o.id]; return ss+(Number(o.ore)||0)*(op?Number(op.costo_orario)||0:0); },0),0);
+  const costoManodopera=fasi.reduce((s,fa)=>s+(fa.esterna?0:costoOreEff(oreEffettiveFase(fa,timbByFase[fa.chiave]),opMap)),0);
+  const costoManodoperaPrev=fasi.reduce((s,fa)=>s+(fa.esterna?0:costoFasePrev(fa,opMap)),0);   // per il confronto previsto/effettivo
   const costoAiuti=aiuti.reduce((s,a)=>{ const op=opMap[a.operatore_id]; return s+(Number(a.ore)||0)*(op?Number(op.costo_orario)||0:0); },0);
   const costoOrig=costoMateriali+costoManodopera+(Number(f.trasporto)||0);
   const costoInterventi=interventi.reduce((s,it)=>s+(it.interventi_righe||[]).reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0),0);
@@ -13345,9 +13375,20 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                               const d=Math.round((cA-cD)*h*100)/100;
                               return <div key={k} style={{padding:"2px 0"}}>↪ Fatto da <b>{s.a_nome||"—"}</b> invece di <b>{s.da_nome||"—"}</b> — «{s.motivo||""}»
                                 <span className="muted"> · {s.il?new Date(s.il).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""}</span>
-                                {perm.economici && h>0 && <span> · {Math.round(h*100)/100} h timbrate · costo <b style={{color:d>0?"#c0392b":"#127a3e"}}>{d>0?"+":""}{eur(d)}</b></span>}</div>; })}
+                                {h>0 && <span> · {oreTxt(h)} timbrate{perm.economici && <> · costo <b style={{color:d>0?"#c0392b":"#127a3e"}}>{d>0?"+":""}{eur(d)}</b></>}</span>}</div>; })}
                           </div>}
-                        <label className="muted" style={{fontSize:11,textTransform:"uppercase",letterSpacing:".05em"}}>Operatori &amp; ore effettive</label>
+                        {(()=>{ const eff=oreEffettiveFase(fa,timbByFase[fa.chiave]); const oreE=eff.reduce((t,e)=>t+e.ore,0); const oreP=Number(fa.ore_previste)||0;
+                          if(!oreP && !oreE) return null;
+                          const cE=costoOreEff(eff,opMap), cP=costoFasePrev(fa,opMap);
+                          const dOre=oreE-oreP, dCosto=Math.round((cE-cP)*100)/100; const peggio=dOre>0.0001;
+                          return <div style={{marginBottom:8,padding:"7px 10px",borderRadius:7,fontSize:12.5,background:"#f8fafc",border:"1px solid var(--line)"}}>
+                            📊 <b>Previste</b> {oreTxt(oreP)}{perm.economici && cP>0 ? <> ({eur(cP)})</> : null}
+                            {" → "}<b>Effettive</b> {oreTxt(oreE)}{perm.economici ? <> ({eur(cE)})</> : null}
+                            {oreP>0 && <span style={{marginLeft:6,fontWeight:700,color:peggio?"#c0392b":"#127a3e"}}>· {dOre>=0?"+":"−"}{oreTxt(Math.abs(dOre))}{perm.economici?<> · {dCosto>0?"+":""}{eur(dCosto)}</>:null}</span>}
+                            {eff.length>0 && <div className="muted" style={{fontSize:11.5,marginTop:3}}>Chi ha lavorato: {eff.map(e=>(e.nome||"?")+" "+oreTxt(e.ore)+(e.timb>0?" ⏱":"")+(e.man>0?" ✍":"")).join(" · ")} <span title="⏱ timbrato in Postazione · ✍ inserito a mano">(⏱ timbrato · ✍ a mano)</span></div>}
+                            {oreP>0 && oreE===0 && <div style={{fontSize:11.5,marginTop:3,color:"#8a6d00"}}>Nessuna ora effettiva: la lavorazione non è stata timbrata in Postazione né inserita a mano.</div>}
+                          </div>; })()}
+                        <label className="muted" style={{fontSize:11,textTransform:"uppercase",letterSpacing:".05em"}} title="Le ore timbrate in Postazione si contano da sole: qui aggiungi solo il lavoro NON timbrato">Ore manuali (solo lavoro non timbrato)</label>
                         <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",marginTop:5}}>
                           {(fa.operatori||[]).map(o=>(
                             <span key={o.id} style={{display:"inline-flex",alignItems:"center",gap:6,background:"#f5f7fb",border:"1px solid var(--line)",borderRadius:20,padding:"4px 6px 4px 12px"}}>
@@ -13367,7 +13408,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                           {(operatori||[]).length===0 &&
                             <span className="tag" style={{background:"#fff4e5",color:"#8a6d00",fontWeight:600}}
                               title="La lista operatori è vuota: aggiungili nel modulo Operatori (menu Produzione)">⚠ Nessun operatore in anagrafica — aggiungili in 👷 Operatori</span>}
-                          <span className="muted" style={{fontSize:12,marginLeft:"auto"}}>tot. {oreFase(fa)} h</span>
+                          <span className="muted" style={{fontSize:12,marginLeft:"auto"}}>tot. manuali {oreFase(fa)} h</span>
                         </div>
                       </div>}
                 </div>
@@ -13528,7 +13569,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               <span className="k">Ricavi (valore commessa{addebitiInterventi>0?" + addebiti":""})</span><span style={{textAlign:"right"}}>{eur(ricaviTot)}</span>
               <span className="k">Costo materiali</span><span style={{textAlign:"right"}}>{eur(costoMateriali)}</span>
               {Math.abs(scostFornC)>=0.01 && <><span className="k" style={{color:scostFornC<0?"var(--ok)":"var(--danger)"}}>Correzione costo reale fornitori{scostFornC<0?" (risparmio)":""}</span><span style={{textAlign:"right",color:scostFornC<0?"var(--ok)":"var(--danger)"}}>{scostFornC>0?"+":""}{eur(scostFornC)}</span></>}
-              <span className="k">Costo manodopera</span><span style={{textAlign:"right"}}>{eur(costoManodopera)}</span>
+              <span className="k">Costo manodopera <span className="muted" style={{fontSize:11}}>(ore effettive: timbrature + manuali)</span></span><span style={{textAlign:"right"}}>{eur(costoManodopera)}</span>
+              {costoManodoperaPrev>0 && (()=>{ const d=Math.round((costoManodopera-costoManodoperaPrev)*100)/100;
+                return <><span className="k muted" style={{fontSize:12,paddingLeft:12}}>↳ prevista {eur(costoManodoperaPrev)} · scostamento</span><span style={{textAlign:"right",fontSize:12,fontWeight:700,color:d>0?"var(--danger)":"var(--ok)"}}>{d>0?"+":""}{eur(d)}</span></>; })()}
               {speseGenC>0 && <><span className="k">Spese generali ({sgPct}%)</span><span style={{textAlign:"right"}}>{eur(speseGenC)}</span></>}
               <span className="k">Trasporto</span><span style={{textAlign:"right"}}>{eur(Number(f.trasporto)||0)}</span>
               {costoEsterno>0 && <><span className="k" style={{color:"var(--danger)"}}>Lavorazioni esterne (conto terzi)</span><span style={{textAlign:"right",color:"var(--danger)"}}>{eur(costoEsterno)}</span></>}
@@ -15995,6 +16038,7 @@ function ModuloReport({profilo,perm}){
   const [intByComm,setIntByComm]=useState({});
   const [persiByComm,setPersiByComm]=useState({});
   const [ofByComm,setOfByComm]=useState({});   // ordini fornitore collegati, per correzione costo reale
+  const [timbFasi,setTimbFasi]=useState({});   // ore TIMBRATE per fase e operatore (consuntivo reale)
   const [err,setErr]=useState("");
   const [dal,setDal]=useState("");
   const [al,setAl]=useState("");
@@ -16046,6 +16090,8 @@ function ModuloReport({profilo,perm}){
       sb.from("impostazioni").select("spese_generali_pct").eq("id",1).maybeSingle(),
     ]);
     if(c.error){ setErr(c.error.message); return; }
+    try{ const {data:tf}=await sb.rpc("ore_timbrate_fasi",{p_chiavi:null}); const tm={};
+      (tf||[]).forEach(r=>{ (tm[r.fase_chiave]=tm[r.fase_chiave]||[]).push({operatore_id:r.operatore_id,operatore_nome:r.operatore_nome,ore:Number(r.ore)||0}); }); setTimbFasi(tm); }catch(e){ setTimbFasi({}); }
     setCommesse(c.data||[]); setImpSg(Number(sg&&sg.data&&sg.data.spese_generali_pct)||0);
     const am={}; (a||[]).forEach(x=>am[x.id]=x); setArtMap(am);
     const om={}; (o.data||[]).forEach(x=>om[x.id]=x); setOpMap(om);
@@ -16067,7 +16113,7 @@ function ModuloReport({profilo,perm}){
   const consunt=useCallback(c=>{
     const consumi=Array.isArray(c.consumi)?c.consumi:[];
     const costoMat=consumi.reduce((s,x)=>{ const a=artMap[x.articolo_id]; return s+(Number(x.quantita)||0)*(a?Number(a.costo)||0:0); },0);
-    const costoMdo=(c.commesse_fasi||[]).reduce((s,fa)=>s+(fa.operatori||[]).reduce((ss,o)=>{ const op=opMap[o.id]; return ss+(Number(o.ore)||0)*(op?Number(op.costo_orario)||0:0); },0),0);
+    const costoMdo=(c.commesse_fasi||[]).reduce((s,fa)=>s+(fa.esterna?0:costoOreEff(oreEffettiveFase(fa,timbFasi[fa.chiave]),opMap)),0);
     const ints=intByComm[c.id]||[];
     const costoInt=ints.reduce((s,it)=>s+(it.interventi_righe||[]).reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0),0);
     const addeb=ints.reduce((s,it)=>s+(it.interventi_righe||[]).filter(r=>r.responsabilita==="cliente").reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.prezzo_addebito)||0),0),0);
@@ -16101,7 +16147,7 @@ function ModuloReport({profilo,perm}){
     const ricavi=(Number(c.valore)||0)+addeb+extraRic+addebExtraImprev;
     const costi=costoMat+costoMdo+costoEsternoR+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos+costiExtraImprev+costoProvv+speseGenR;
     return {ricavi,costi,margine:ricavi-costi,scostForn,extraRic};
-  },[artMap,opMap,intByComm,persiByComm,ofByComm,cliMap,agMap,impSg]);
+  },[artMap,opMap,intByComm,persiByComm,ofByComm,cliMap,agMap,impSg,timbFasi]);
 
   const tot=useMemo(()=>{ let ric=0,cos=0; filtrate.forEach(c=>{ const x=consunt(c); ric+=x.ricavi; cos+=x.costi; });
     return {ric,cos,mar:ric-cos,n:filtrate.length}; },[filtrate,consunt]);
@@ -16152,15 +16198,16 @@ function ModuloReport({profilo,perm}){
     const m={};
     filtrate.forEach(c=>(c.commesse_fasi||[]).forEach(fa=>{
       const k=fa.reparto||"(senza reparto)";
-      const oreEff=(fa.operatori||[]).reduce((s,o)=>s+(Number(o.ore)||0),0);
-      const costo=(fa.operatori||[]).reduce((s,o)=>{ const op=opMap[o.id]; return s+(Number(o.ore)||0)*(op?Number(op.costo_orario)||0:0); },0);
+      const effL=oreEffettiveFase(fa,timbFasi[fa.chiave]);
+      const oreEff=effL.reduce((s,e)=>s+(Number(e.ore)||0),0);
+      const costo=costoOreEff(effL,opMap);
       const e=m[k]||(m[k]={reparto:k,orePrev:0,oreEff:0,costo:0,nfasi:0,qta:0,unita:""});
       e.orePrev+=Number(fa.ore_previste)||0; e.oreEff+=oreEff; e.costo+=costo; e.nfasi++;
       e.qta+=Number(fa.quantita_lavorata)||0;
       if(fa.unita_lavorata && !e.unita) e.unita=fa.unita_lavorata;
     }));
     return Object.values(m).sort((a,b)=>b.oreEff-a.oreEff);
-  },[filtrate,opMap]);
+  },[filtrate,opMap,timbFasi]);
 
   const aiutiAgg=useMemo(()=>{
     const m={};

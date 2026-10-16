@@ -8782,6 +8782,18 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const [cgSel,setCgSel]=useState(null);       // {kind:'articolo'|'tariffa', nome, cont, item}
   const [cgSearch,setCgSearch]=useState("");
   const [cg,setCg]=useState({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true,op:"",n:""});
+  const [cgMisDa,setCgMisDa]=useState("");   // da quale riga del prodotto ho ripreso le misure
+  // misure del PRODOTTO corrente: ultima riga del gruppo con misura (config.mis) o "L×H cm" nella descrizione
+  const misureGruppo=g=>{ const rr=(righe||[]).filter(r=>(r.gruppo||gruppoCorr)===g);
+    for(let k=rr.length-1;k>=0;k--){ const r=rr[k]; const m=r.config&&r.config.mis;
+      if(m && Number(m.L)>0 && Number(m.H)>0) return {L:Number(m.L),H:Number(m.H),da:r.descrizione||""};
+      const t=String(r.descrizione||"").match(/(\d+(?:[.,]\d+)?)\s*[×xX]\s*(\d+(?:[.,]\d+)?)\s*cm/);
+      if(t){ const L=parseFloat(t[1].replace(",",".")),H=parseFloat(t[2].replace(",",".")); if(L>0&&H>0) return {L,H,da:r.descrizione||""}; } }
+    return null; };
+  // scelta del componente: per le lavorazioni/materiali a misura riprendo base×altezza del prodotto
+  const selezionaComp=x=>{ setCgSel(x); setCgMsg(""); setCgMisDa("");
+    if(x && ["mq","mc","perimetro"].includes(x.cont)){ const m=misureGruppo(gruppoCorr);
+      if(m){ setCg(p=>({...p,L:String(m.L),H:String(m.H)})); setCgMisDa(m.da); } } };
   const [cgMsg,setCgMsg]=useState("");
   const cgAbb=Number(imp && imp.abbondanza_cm!=null ? imp.abbondanza_cm : 3);
   const [nuoviComp,setNuoviComp]=useState([]);   // componenti creati al volo dal guidato
@@ -8809,7 +8821,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
         const rec={nome_articolo:nome, tipo:"prodotto", unita:cgN.unita||"mq", costo:Number(cgN.acquisto)||0, prezzo_pubblico:Number(cgN.listino)||0, attivo:true, creato_da:profilo.id};
         const {data,error}=await sb.from("articoli").insert(rec).select("id,nome_articolo,unita,categoria,costo,prezzo_pubblico").single(); if(error) throw error;
         const item={kind:"articolo", nome:data.nome_articolo, sub:data.unita||"", cont:conteggioComponente(data.unita), item:data};
-        setNuoviComp(p=>[item,...p]); setCgSel(item);
+        setNuoviComp(p=>[item,...p]); selezionaComp(item);
       } else {
         const r2=Number(cgN.ricarico)||0, c2=Number(cgN.costo)||0;
         const rec={lavorazione:nome, modo:cgN.modo||"ora", tariffa_oraria:c2, margine_obiettivo:r2};
@@ -8817,7 +8829,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
         try{ const {data:ex}=await sb.from("lavorazioni").select("id").ilike("nome",nome); if(!(ex&&ex.length)) await sb.from("lavorazioni").insert({nome,ordine:1000,attivo:true}); }catch(e){}
         const t={lavorazione:nome, modo:cgN.modo||"ora", tariffa_oraria:c2, margine_obiettivo:r2};
         const item={kind:"tariffa", nome:nome, sub:cgN.modo||"ora", cont:conteggioComponente(cgN.modo), item:t};
-        setNuoviComp(p=>[item,...p]); setCgSel(item);
+        setNuoviComp(p=>[item,...p]); selezionaComp(item);
       }
       setCgNuovo(false); setCg({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true,op:"",n:""});
     }catch(ex){ setCgMsg("Errore: "+(ex.message||ex)); }
@@ -8850,9 +8862,11 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       const cfgMis=(L>0||H>0)?{mis:{L:L||lung||0,H:H||0}}:(lung>0?{mis:{L:lung,H:0}}:null);
       aggiungiRigaInGruppo({tipo:"materiale",descrizione:a.nome_articolo+misTxt,articolo_id:a.id,lavorazione:"",quantita:q,unita:a.unita||"",costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:pc.sconto,gruppo:gruppoCorr,config:cfgMis});
     } else { const t=cgSel.item; const o=(cgSel.cont==="tempo"&&cg.op)?(operatori||[]).find(x=>x.id===cg.op):null;
-      aggiungiRigaInGruppo({tipo:"manodopera",descrizione:("Manodopera "+t.lavorazione)+(o?" · "+o.nome:"")+misTxt,lavorazione:t.lavorazione,quantita:q,unita:(t.modo==="ora"?"ora":(t.modo||"")),costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:0,operatore_id:o?o.id:null,operatore_nome:o?o.nome:"",gruppo:gruppoCorr});
+      // salvo la misura anche sulla lavorazione (mq/mc/perimetro), così il prodotto "ricorda" le sue misure
+      const cfgMisL=((cgSel.cont==="mq"||cgSel.cont==="mc"||cgSel.cont==="perimetro")&&(L>0&&H>0))?{mis:{L,H}}:null;
+      aggiungiRigaInGruppo({tipo:"manodopera",descrizione:("Manodopera "+t.lavorazione)+(o?" · "+o.nome:"")+misTxt,lavorazione:t.lavorazione,quantita:q,unita:(t.modo==="ora"?"ora":(t.modo||"")),costo_unitario:pc.costo,prezzo_unitario:pc.prezzo,sconto_pct:0,operatore_id:o?o.id:null,operatore_nome:o?o.nome:"",gruppo:gruppoCorr,config:cfgMisL});
     }
-    setCgMsg("✓ "+cgSel.nome+" aggiunto ("+q+")"); setCgSel(null); setCg({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true,op:"",n:""}); setCgSearch("");
+    setCgMsg("✓ "+cgSel.nome+" aggiunto ("+q+")"); setCgSel(null); setCgMisDa(""); setCg({L:"",H:"",lung:"",sp:"",pz:"",min:"",qta:"",abbOn:true,op:"",n:""}); setCgSearch("");
   }
   function setLavorazione(i,lav){
     const t=tariffe.find(x=>x.lavorazione===lav);
@@ -9413,7 +9427,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                   </div>
                   <div style={{overflow:"auto",maxHeight:360,border:"1px solid var(--line)",borderRadius:8}}>
                     {cgLista.length===0 && <div className="muted" style={{padding:12}}>Nessun componente trovato. Crealo con <b>➕ Nuovo componente</b>.</div>}
-                    {cgLista.map((x,i)=><div key={i} onClick={()=>{ setCgSel(x); setCgMsg(""); }} style={{padding:"8px 12px",borderBottom:"1px solid var(--line)",cursor:"pointer",display:"flex",justifyContent:"space-between",gap:10}}>
+                    {cgLista.map((x,i)=><div key={i} onClick={()=>selezionaComp(x)} style={{padding:"8px 12px",borderBottom:"1px solid var(--line)",cursor:"pointer",display:"flex",justifyContent:"space-between",gap:10}}>
                       <span>{x.kind==="tariffa"?"🛠️ ":"📦 "}{x.codice? <b style={{fontFamily:"Consolas,monospace",color:"#1e46c4",marginRight:6}}>{x.codice}</b>:null}{x.nome}</span>
                       <span className="muted" style={{fontSize:12}}>{x.sub} · {x.cont}</span>
                     </div>)}
@@ -9424,6 +9438,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                       <div><b>{cgSel.kind==="tariffa"?"🛠️ ":"📦 "}{cgSel.nome}</b> <span className="muted" style={{fontSize:12}}>· conteggio {cont}</span></div>
                       <button type="button" className="btn small" onClick={()=>setCgSel(null)}>← cambia componente</button>
                     </div>
+                    {cgMisDa && (cont==="mq"||cont==="mc"||cont==="perimetro") &&
+                      <div style={{fontSize:12.5,margin:"0 0 6px",color:"#0a7d42",fontWeight:600}}>📐 Misure riprese dal prodotto ({cg.L}×{cg.H} cm, da «{cgMisDa}») — se la lavorazione copre solo una parte, modificale.</div>}
                     <div className="row" style={{alignItems:"flex-end"}}>
                       {(cont==="mq"||cont==="mc"||cont==="perimetro") && <>
                         <div className="field" style={{maxWidth:130}}><label>Larghezza (cm)</label><input type="number" step="1" value={cg.L} onChange={e=>setCg(m=>({...m,L:e.target.value}))} autoFocus/></div>
@@ -14253,7 +14269,7 @@ function CalcolatoreTrasporto({corrieri,articoli,righe,onClose,onApply}){
   const hasMix=cnt.ritiro_cliente>0 || cnt.mezzo_nostro>0;
   const autoPeso=Math.round(corriereRows.map(r=>pesoRiga(r,articoli)).reduce((s,p)=>s+(p||0),0)*1000)/1000;
   const mancanti=corriereRows.filter(r=>{ const art=(r.config&&r.config.articolo_id)||r.articolo_id; return art && pesoRiga(r,articoli)==null; }).length;
-  const autoMq=Math.round(corriereRows.reduce((s,r)=>{ const m=(r.config&&r.config.mis)||{}; const L=Number(m.L)||0,H=Number(m.H)||0,N=Number(r.quantita)||0; return s+(L>0&&H>0?(L/100)*(H/100)*N:0); },0)*100)/100;
+  const autoMq=Math.round(corriereRows.filter(r=>r.tipo!=="manodopera"&&r.tipo!=="impianto").reduce((s,r)=>{ const m=(r.config&&r.config.mis)||{}; const L=Number(m.L)||0,H=Number(m.H)||0,N=Number(r.quantita)||0; return s+(L>0&&H>0?(L/100)*(H/100)*N:0); },0)*100)/100;
   const [peso,setPeso]=useState(String(autoPeso||""));
   const [volume,setVolume]=useState("");
   const [colli,setColli]=useState("1");

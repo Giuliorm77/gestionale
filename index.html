@@ -1330,6 +1330,11 @@ function PostazioneOperatore({profilo,perm}){
     ]);
     if(c.error){ setErr(c.error.message); return; }
     setErr("");
+    const visti=new Set(), fix=[];
+    (c.data||[]).forEach(cm=>(cm.commesse_fasi||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0)).forEach(fa=>{
+      if(!fa.chiave) return;
+      if(visti.has(fa.chiave)){ fa.chiave=uid(); fix.push({id:fa.id, chiave:fa.chiave}); } else visti.add(fa.chiave); }));
+    for(const x of fix){ try{ await sb.from("commesse_fasi").update({chiave:x.chiave}).eq("id",x.id); }catch(e){} }
     setCommesse(c.data||[]); setOperatori(o.data||[]); setSegmenti(s.data||[]);
   },[]);
   useEffect(()=>{ carica(); },[carica]);
@@ -1453,6 +1458,9 @@ function PostazioneOperatore({profilo,perm}){
         <div style={{cursor:"pointer"}} onClick={()=>setDettFase(c)} title="Apri il dettaglio: cosa fare, articoli, misure, note">
           <div className="po-sm">{c.numero||"(commessa)"} · {c.cliente_nome||"—"}</div>
           <div className="ds">{fa.descrizione||fa.reparto||"Lavorazione"} <span style={{fontSize:13,color:"#2f5bea",fontWeight:600}}>ℹ️ cosa fare</span></div>
+          {(()=>{ const tutte=(c.commesse_fasi||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0)); const k=tutte.findIndex(x=>x.id===fa.id);
+            const omonime=tutte.filter(x=>(x.descrizione||x.reparto||"")===(fa.descrizione||fa.reparto||"")).length;
+            return k>=0 ? <div className="po-sm" style={{marginTop:2}}>Fase {k+1} di {tutte.length}{omonime>1?<b style={{color:"#8a6d00"}}> · ⚠ {omonime} lavorazioni con lo stesso nome: controlla la grafica in «cosa fare»</b>:null}</div> : null; })()}
         </div>
         <span className="po-badge" style={{background:st.bg,color:st.c}}>{st.l}</span>
       </div>
@@ -9156,12 +9164,14 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       if(error) throw error;
       // fasi: righe di manodopera + lavorazioni dei prodotti configurati (stampa, taglio, finiture scelte)
       const fasiRaw=[];
+      const nGruppi=new Set(righe.map(r=>r.gruppo||"")).size;
+      const preG=r=>(nGruppi>1 && r.gruppo) ? r.gruppo+" — " : "";   // distingue prodotti identici (stesse misure, grafiche diverse)
       righe.forEach(r=>{
         if(r.tipo==="manodopera" && (r.lavorazione||r.descrizione)){
           const q=Number(r.quantita)||0;
           // lavorazione a TEMPO (unità "ora" o vuota) → ore previste; a QUANTITÀ (battute/pz/mq/mtl…) → q.tà da fare + unità
           const aTempo=(r.unita||"")==="ora" || (r.unita||"")==="";
-          fasiRaw.push({reparto:r.lavorazione||"", descrizione:r.descrizione||r.lavorazione||"",
+          fasiRaw.push({reparto:r.lavorazione||"", descrizione:preG(r)+(r.descrizione||r.lavorazione||""),
             ore_previste: aTempo? q : 0,
             quantita_prevista: aTempo? 0 : q,
             unita_lavorata: aTempo? "" : (r.unita||""),
@@ -9169,7 +9179,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
             costo_orario_prev: (r.operatore_id && aTempo) ? (Number(r.costo_unitario)||null) : null,
             operatori:[]});
         } else if((r.tipo==="materiale"||r.tipo==="altro") && r.config && r.config.prodotto_id){
-          fasiDaConfigurato(r,prodotti).forEach(fx=>fasiRaw.push({reparto:fx.reparto, descrizione:fx.descrizione, ore_previste:0, operatori:[]}));
+          fasiDaConfigurato(r,prodotti).forEach(fx=>fasiRaw.push({reparto:fx.reparto, descrizione:preG(r)+fx.descrizione, ore_previste:0, operatori:[]}));
         }
       });
       const fasi=fasiRaw.map((fx,idx)=>({commessa_id:nc.id, ordine:idx, chiave:uid(), reparto:fx.reparto,
@@ -12713,8 +12723,10 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   }
 
   // extra: campi aggiuntivi da scrivere insieme (es. rilascio in produzione: salva + rilascia + chiudi)
+  const salvaInCorso=React.useRef(false);   // evita due salvataggi sovrapposti (fasi/righe raddoppiate)
   async function salva(e, extra){
     if(e && e.preventDefault) e.preventDefault();
+    if(salvaInCorso.current) return;
     if(!f.cliente_id && !f.cliente_nome){ setErr("Indica un cliente."); return; }
     // REGOLA DI VALIDITÀ (per tutti i ruoli): ogni articolo deve avere la data di consegna
     if(righeSenzaData>0){ setErr("Ogni articolo deve avere la sua data di consegna (obbligatoria): mancano "+righeSenzaData+" data/e."); return; }
@@ -12726,7 +12738,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       const el=extraCosti.map(x=>"• "+(x.descrizione||"(senza descrizione)")+": "+eur(Number(x.costo)||0)+(x.addebita?" (riaddebitato al cliente)":"")).join("\n");
       if(!window.confirm("⚠ Questa commessa ha "+extraCosti.length+" extra costo/i imprevisto/i — totale "+eur(costoExtra)+":\n\n"+el+"\n\nLi hai considerati? Chiudere comunque la commessa?")) return;
     }
-    setBusy(true); setErr("");
+    setBusy(true); setErr(""); salvaInCorso.current=true;
     // calcolo del "cosa è cambiato" PROTETTO: non deve mai bloccare il salvataggio della commessa
     let diffList=null;
     if(chiusaProd && sbloccata){ try{ diffList=calcDiffCommessa(); }catch(e){ diffList=[]; } }
@@ -12764,7 +12776,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         }catch(e){}
         const {error:ef}=await sb.from("commesse_fasi").delete().eq("commessa_id",id); if(ef) throw ef;
         const {error:er}=await sb.from("commesse_righe").delete().eq("commessa_id",id); if(er) throw er; }
-      const rows=fasi.map((fa,idx)=>({commessa_id:id, ordine:idx, chiave:fa.chiave||uid(), reparto:fa.reparto||"",
+      const chiaviViste=new Set();
+      const chiaveUnica=fa=>{ let k=fa.chiave||uid(); if(chiaviViste.has(k)) k=uid(); chiaviViste.add(k); return k; };
+      const rows=fasi.map((fa,idx)=>({commessa_id:id, ordine:idx, chiave:chiaveUnica(fa), reparto:fa.reparto||"",
         descrizione:fa.descrizione||"", stato:fa.stato||(fa.esterna?"da_inviare":"da_fare"),
         ore_previste:Number(fa.ore_previste)||0,
         quantita_prevista:Number(fa.quantita_prevista)||0,
@@ -12799,8 +12813,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       }
       // SNAPSHOT consuntivo congelato alla CHIUSURA della commessa
       if(chiudendo){ try{ await salvaConsuntivo(id); }catch(e){} }
+      salvaInCorso.current=false;
       onSalvato();
-    }catch(ex){ setErr(ex.message); setBusy(false); }
+    }catch(ex){ setErr(ex.message); setBusy(false); salvaInCorso.current=false; }
   }
 
   // SNAPSHOT consuntivo (congelato): usa i valori già calcolati del Consuntivo reale

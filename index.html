@@ -11980,6 +11980,7 @@ function ModuloCommesse({profilo,perm}){
       sb.from("commesse_ultimo_lavoro").select("*"),
     ]);
     if(c.error){ setErr(c.error.message); return; }
+    if(op.error) setErr("Operatori non caricati: "+op.error.message);
     setCommesse(c.data||[]); setClienti(cl.data||[]); setOperatori(op.data||[]);
     setNomiUtenti((pn.data||[]).reduce((m,p)=>{ m[p.id]=p.nome; return m; },{}));
     setUltimoLav((ul.data||[]).reduce((m,r)=>{ m[r.commessa_id]=r; return m; },{}));
@@ -13212,6 +13213,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                               <option value="">+ operatore…</option>
                               {liberi.map(o=><option key={o.id} value={o.id}>{o.nome}</option>)}
                             </select>}
+                          {(operatori||[]).length===0 &&
+                            <span className="tag" style={{background:"#fff4e5",color:"#8a6d00",fontWeight:600}}
+                              title="La lista operatori è vuota: aggiungili nel modulo Operatori (menu Produzione)">⚠ Nessun operatore in anagrafica — aggiungili in 👷 Operatori</span>}
                           <span className="muted" style={{fontSize:12,marginLeft:"auto"}}>tot. {oreFase(fa)} h</span>
                         </div>
                       </div>}

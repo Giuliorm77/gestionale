@@ -1314,10 +1314,12 @@ function PostazioneOperatore({profilo,perm}){
   const [busy,setBusy]=useState(false);
   const [cerca,setCerca]=useState("");           // ricerca in "Altre lavorazioni"
   const [dettFase,setDettFase]=useState(null);    // commessa di cui mostrare "cosa fare"
+  const [presaFor,setPresaFor]=useState(null);    // id fase di un ALTRO operatore: chiedo la motivazione
+  const [presaTxt,setPresaTxt]=useState("");
 
   const carica=useCallback(async()=>{
     const [c,o,s]=await Promise.all([
-      sb.from("commesse").select("id,numero,cliente_nome,stato, commesse_fasi(id,chiave,reparto,descrizione,stato,ore_previste,ordine)").in("stato",["aperta","in_produzione"]).eq("rilasciata_produzione",true).order("data_consegna",{ascending:true}),
+      sb.from("commesse").select("id,numero,cliente_nome,stato, commesse_fasi(id,chiave,reparto,descrizione,stato,ore_previste,ordine,assegnato_id,assegnato_nome,sostituzioni)").in("stato",["aperta","in_produzione"]).eq("rilasciata_produzione",true).order("data_consegna",{ascending:true}),
       sb.from("operatori_nomi").select("id,nome,tipo,has_pin").order("nome"),
       sb.from("segmenti_lavoro").select("*"),
     ]);
@@ -1366,10 +1368,22 @@ function PostazioneOperatore({profilo,perm}){
     if(fa.chiave) return fa.chiave;
     const ch=uid(); await sb.from("commesse_fasi").update({chiave:ch}).eq("id",fa.id); fa.chiave=ch; return ch;
   }
-  async function prendi(fa,c){
+  // lavorazione assegnata a un ALTRO operatore e non ancora presa da me → serve la motivazione
+  const serveMotivo=fa=> !!(fa.assegnato_id && fa.assegnato_id!==me && !(Array.isArray(fa.sostituzioni)?fa.sostituzioni:[]).some(s=>s.a_id===me));
+  async function prendi(fa,c,motivo){
     if(!me){ setErr("Prima scegli chi sei, in alto."); window.scrollTo(0,0); return; }
+    if(serveMotivo(fa) && !String(motivo||"").trim()){ setPresaFor(fa.id); setPresaTxt(""); return; }
     setBusy(true);
     try{
+      // registro la SOSTITUZIONE (visibile in commessa: "fatto da X invece di Y — motivo")
+      if(serveMotivo(fa)){
+        const nuove=[...(Array.isArray(fa.sostituzioni)?fa.sostituzioni:[]),
+          {da_id:fa.assegnato_id, da_nome:fa.assegnato_nome||"", a_id:me, a_nome:meNome, motivo:String(motivo).trim(), il:new Date().toISOString()}];
+        const {error:es}=await sb.from("commesse_fasi").update({sostituzioni:nuove}).eq("id",fa.id);
+        if(es) throw es;
+        fa.sostituzioni=nuove;
+      }
+      setPresaFor(null); setPresaTxt("");
       const ch=await assicuraChiave(fa);
       await sb.from("segmenti_lavoro").insert({commessa_id:c.id, fase_chiave:ch, fase_descr:fa.descrizione||fa.reparto||"", reparto:fa.reparto||"", operatore_id:me, operatore_nome:meNome, inizio:new Date().toISOString()});
       if(fa.stato==="da_fare") await sb.from("commesse_fasi").update({stato:"in_corso"}).eq("id",fa.id);
@@ -1416,9 +1430,11 @@ function PostazioneOperatore({profilo,perm}){
   commesse.forEach(c=>(c.commesse_fasi||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0)).forEach(fa=>{ if(fa.stato!=="fatto") items.push({c,fa}); }));
   const mieOra = me? items.filter(({fa})=>mioAperto(fa.chiave)) : [];
   const q=cerca.trim().toLowerCase();
-  const altre = items
+  const altreTutte = items
     .filter(({fa})=> !(me && mioAperto(fa.chiave)))
-    .filter(({c,fa})=> !q || [c.numero,c.cliente_nome,fa.descrizione,fa.reparto].join(" ").toLowerCase().includes(q));
+    .filter(({c,fa})=> !q || [c.numero,c.cliente_nome,fa.descrizione,fa.reparto,fa.assegnato_nome].join(" ").toLowerCase().includes(q));
+  const assegnateMe = me ? altreTutte.filter(({fa})=>fa.assegnato_id===me) : [];   // il mio lavoro da fare
+  const altre = altreTutte.filter(({fa})=>!(me && fa.assegnato_id===me));        // tutto il resto (anche di altri)
 
   const renderFase=(c,fa,big)=>{
     const ch=fa.chiave;
@@ -1442,7 +1458,27 @@ function PostazioneOperatore({profilo,perm}){
       </div>
       <div className="po-sub">Attraversamento {fmt(attrav(ch))} · previste {Number(fa.ore_previste)||0}h → reali {oreDi(netto(ch)).toFixed(1)}h
         {att.length? <> · ▶ <b>{att.map(s=>s.operatore_nome).join(", ")}</b></> : haSeg? " · ⏸ in pausa" : ""}</div>
-      {pausaFor===ch && ch
+      <div className="po-sub" style={{marginTop:2}}>
+        {fa.assegnato_id
+          ? (fa.assegnato_id===me
+              ? <span style={{color:"#127a3e",fontWeight:700}}>📌 Assegnata a te</span>
+              : <span>👷 Assegnata a <b>{fa.assegnato_nome||"—"}</b></span>)
+          : <span style={{color:"#697386"}}>👷 Non assegnata (la può prendere chiunque)</span>}
+        {(Array.isArray(fa.sostituzioni)?fa.sostituzioni:[]).length>0 && <span style={{color:"#8a6d00"}}> · ↪ presa da {fa.sostituzioni.map(s=>s.a_nome).join(", ")}</span>}
+      </div>
+      {presaFor===fa.id
+        ? <div style={{marginTop:8,padding:10,borderRadius:8,background:"#fff8e1",border:"1px solid #ffe08a"}}>
+            <div style={{fontSize:14,marginBottom:6}}>Questa lavorazione è assegnata a <b>{fa.assegnato_nome||"un altro operatore"}</b>. Perché la prendi tu? <span style={{color:"#c0392b"}}>*</span></div>
+            <input value={presaTxt} onChange={e=>setPresaTxt(e.target.value)} autoFocus
+              onKeyDown={e=>{ if(e.key==="Enter" && presaTxt.trim()){ e.preventDefault(); prendi(fa,c,presaTxt); } }}
+              placeholder="es. ero libero, Andrea è in ferie, urgenza…"
+              style={{width:"100%",padding:"10px 12px",fontSize:15,border:"1px solid var(--line)",borderRadius:8,boxSizing:"border-box"}}/>
+            <div className="po-btns" style={{marginTop:8}}>
+              <button className="po-btn go" disabled={busy||!presaTxt.trim()} onClick={()=>prendi(fa,c,presaTxt)}>▶ Conferma e prendi in carico</button>
+              <button className="po-btn close" disabled={busy} onClick={()=>{setPresaFor(null);setPresaTxt("");}}>Annulla</button>
+            </div>
+          </div>
+        : pausaFor===ch && ch
         ? <div className="po-reasons">
             {Object.keys(MOTIVI).map(k=><button key={k} onClick={()=>mettiPausa(fa,k)}>{MOTIVI[k]}</button>)}
             <button onClick={()=>setPausaFor(null)} style={{background:"#f5f7fb"}}>Annulla</button>
@@ -1500,9 +1536,16 @@ function PostazioneOperatore({profilo,perm}){
         ? <div className="po-empty" style={{padding:"18px 20px"}}>Nessuna lavorazione in corso. Prendine una qui sotto 👇</div>
         : mieOra.map(({c,fa})=>renderFase(c,fa,true))}
 
-      <div className="po-section">Altre lavorazioni <span className="count">({altre.length})</span></div>
       <div className="po-search"><span>🔍</span>
-        <input placeholder="Cerca commessa, cliente o fase…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
+        <input placeholder="Cerca commessa, cliente, fase o operatore…" value={cerca} onChange={e=>setCerca(e.target.value)}/></div>
+
+      <div className="po-section">📌 Assegnate a me <span className="count">({assegnateMe.length})</span></div>
+      {assegnateMe.length===0
+        ? <div className="po-empty" style={{padding:"14px 20px"}}>{q? "Nessun risultato." : "Nessuna lavorazione assegnata a te in attesa. Se sei libero, puoi prendere una di quelle qui sotto."}</div>
+        : assegnateMe.map(({c,fa})=>renderFase(c,fa,false))}
+
+      <div className="po-section">Altre lavorazioni <span className="count">({altre.length})</span></div>
+      <div className="po-empty" style={{padding:"4px 14px",fontSize:12.5,color:"#5b6773"}}>Lavori degli altri o non assegnati: se prendi quello di un collega ti verrà chiesto il motivo.</div>
       {altre.length===0
         ? <div className="po-empty" style={{padding:"18px 20px"}}>{q? "Nessun risultato per «"+cerca+"»." : "Tutto in corso 👍"}</div>
         : altre.map(({c,fa})=>renderFase(c,fa,false))}
@@ -9057,6 +9100,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
             ore_previste: aTempo? q : 0,
             quantita_prevista: aTempo? 0 : q,
             unita_lavorata: aTempo? "" : (r.unita||""),
+            assegnato_id:r.operatore_id||null, assegnato_nome:r.operatore_nome||"",
+            costo_orario_prev: (r.operatore_id && aTempo) ? (Number(r.costo_unitario)||null) : null,
             operatori:r.operatore_id?[{id:r.operatore_id,nome:r.operatore_nome||"",ore: aTempo? q : 0}]:[]});
         } else if((r.tipo==="materiale"||r.tipo==="altro") && r.config && r.config.prodotto_id){
           fasiDaConfigurato(r,prodotti).forEach(fx=>fasiRaw.push({reparto:fx.reparto, descrizione:fx.descrizione, ore_previste:0, operatori:[]}));
@@ -9065,6 +9110,9 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
       const fasi=fasiRaw.map((fx,idx)=>({commessa_id:nc.id, ordine:idx, chiave:uid(), reparto:fx.reparto,
         descrizione:fx.descrizione, stato:"da_fare", ore_previste:fx.ore_previste||0,
         quantita_prevista:fx.quantita_prevista||0, unita_lavorata:fx.unita_lavorata||"",
+        assegnato_id:fx.assegnato_id||null, assegnato_nome:fx.assegnato_nome||"",
+        assegnato_prev_id:fx.assegnato_id||null, assegnato_prev_nome:fx.assegnato_nome||"",
+        costo_orario_prev:fx.costo_orario_prev??null,
         operatori:fx.operatori||[]}));
       if(fasi.length){ const {error:ef}=await sb.from("commesse_fasi").insert(fasi); if(ef) throw ef; }
       // righe articolo dagli articoli/prodotti del preventivo (data consegna da compilare)
@@ -9177,11 +9225,23 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                         <td style={{textTransform:"capitalize",fontSize:12}}>{r.tipo}</td>
                         <td style={{minWidth:220}}>
                           {r.tipo==="manodopera"
-                            ? <select value={r.lavorazione} onChange={e=>setLavorazione(i,e.target.value)}
+                            ? <>
+                              <select value={r.lavorazione} onChange={e=>setLavorazione(i,e.target.value)}
                                       style={{width:"100%",padding:"6px",border:"1px solid var(--line)",borderRadius:7}}>
                                 <option value="">— scegli lavorazione —</option>
                                 {LAV_OPZ.map(l=><option key={l} value={l}>{l}</option>)}
                               </select>
+                              <select value={r.operatore_id||""} title="Operatore che farà il lavoro: passa alla commessa come assegnato"
+                                onChange={e=>{ const op=(operatori||[]).find(o=>o.id===e.target.value);
+                                  setRighe(p=>p.map((x,j)=>{ if(j!==i) return x;
+                                    const nx={...x, operatore_id:op?op.id:null, operatore_nome:op?op.nome:""};
+                                    // lavorazione a TEMPO: il costo orario segue l'operatore scelto
+                                    if(op && ((x.unita||"")==="ora"||(x.unita||"")==="") && (Number(op.costo_orario)||0)>0) nx.costo_unitario=Number(op.costo_orario);
+                                    return nx; })); }}
+                                style={{width:"100%",padding:"5px",marginTop:4,border:"1px solid var(--line)",borderRadius:7,fontSize:12,background:r.operatore_id?"#eef6ff":"#fff"}}>
+                                <option value="">👷 operatore…</option>
+                                {(operatori||[]).map(o=><option key={o.id} value={o.id}>{o.nome}</option>)}
+                              </select></>
                             : <input value={r.descrizione} onChange={e=>setRiga(i,"descrizione",e.target.value)}
                                      style={{width:"100%",padding:"6px",border:"1px solid var(--line)",borderRadius:7}}/>}
                         </td>
@@ -12427,6 +12487,14 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       if((fa.operatori||[]).some(o=>o.id===opId)) return fa;
       return {...fa,operatori:[...(fa.operatori||[]),{id:op.id,nome:op.nome,ore:0}]}; })); };
   const setOpOre=(i,opId,ore)=>setFasi(p=>p.map((fa,j)=>j!==i?fa:{...fa,operatori:fa.operatori.map(o=>o.id===opId?{...o,ore}:o)}));
+  // cambio OPERATORE ASSEGNATO: se le ore effettive contengono solo il vecchio assegnato con le ore
+  // del preventivo (precompilato, mai toccato), lo sostituisco così il consuntivo resta coerente.
+  const cambiaAssegnato=(i,opId)=>setFasi(p=>p.map((fa,j)=>{ if(j!==i) return fa;
+    const op=(operatori||[]).find(o=>o.id===opId)||null;
+    let ops=fa.operatori||[];
+    if(fa.assegnato_id && op && ops.length===1 && ops[0].id===fa.assegnato_id && Number(ops[0].ore)===Number(fa.ore_previste))
+      ops=[{...ops[0], id:op.id, nome:op.nome}];
+    return {...fa, assegnato_id:op?op.id:null, assegnato_nome:op?op.nome:"", operatori:ops}; }));
   const delOpFase=(i,opId)=>setFasi(p=>p.map((fa,j)=>j!==i?fa:{...fa,operatori:fa.operatori.filter(o=>o.id!==opId)}));
 
   const addAiuto=()=>setAiuti(p=>[...p,{operatore_id:"",nome:"",ore:1,data:new Date().toISOString().slice(0,10),nota:""}]);
@@ -12585,9 +12653,12 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         consumi:consumi.map(c=>({...c})), aiuti:aiuti.map(a=>({...a})), straordinari:straordinari.map(a=>({...a})), extra_costi:extraCosti.map(x=>({...x})), aggiornato_il:new Date().toISOString()};
       if(chiusaProd && sbloccata) rec.modifiche_post_chiusura = nModifiche+1;
       let id=commessa?.id;
+      let sostDb={};   // sostituzioni registrate dalla Postazione (non vanno perse riscrivendo le fasi)
       if(nuova){ rec.creato_da=profilo.id;
         const {data,error}=await sb.from("commesse").insert(rec).select("id").single(); if(error) throw error; id=data.id;
       }else{ const {error}=await sb.from("commesse").update(rec).eq("id",id); if(error) throw error;
+        try{ const {data:fv}=await sb.from("commesse_fasi").select("chiave,sostituzioni").eq("commessa_id",id);
+          (fv||[]).forEach(x=>{ if(x.chiave) sostDb[x.chiave]=Array.isArray(x.sostituzioni)?x.sostituzioni:[]; }); }catch(e){}
         // Scollega eventuali DDT dalle righe PRIMA di cancellarle: il vincolo ddt_righe.commessa_riga_id
         // altrimenti impedisce la cancellazione (silenziosa) e le righe si RADDOPPIANO a ogni salvataggio.
         try{ const {data:vecchie}=await sb.from("commesse_righe").select("id").eq("commessa_id",id);
@@ -12607,6 +12678,10 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         data_invio:fa.data_invio||null, data_rientro_prevista:fa.data_rientro_prevista||null, data_rientro:fa.data_rientro||null,
         aggiunta:!!fa.aggiunta,
         chiusa_da_id:fa.chiusa_da_id||null, chiusa_da_nome:fa.chiusa_da_nome||"", chiusa_il:fa.chiusa_il||null,
+        assegnato_id:fa.assegnato_id||null, assegnato_nome:fa.assegnato_nome||"",
+        assegnato_prev_id:fa.assegnato_prev_id||null, assegnato_prev_nome:fa.assegnato_prev_nome||"",
+        costo_orario_prev:fa.costo_orario_prev??null,
+        sostituzioni:(fa.chiave && sostDb[fa.chiave]) ? sostDb[fa.chiave] : (Array.isArray(fa.sostituzioni)?fa.sostituzioni:[]),
         note:fa.note||""}));
       if(rows.length){ const {error}=await sb.from("commesse_fasi").insert(rows); if(error) throw error; }
       const rowsR=righe.map((r,idx)=>({commessa_id:id, ordine:idx, descrizione:r.descrizione||"",
@@ -13196,6 +13271,35 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                           <input type="date" value={fa.data_rientro||""} onChange={e=>setFase(i,"data_rientro",e.target.value)}/></div>
                       </div>
                     : <div style={{marginTop:8}}>
+                        {/* OPERATORE ASSEGNATO (dal preventivo): si conferma o si cambia */}
+                        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:8}}>
+                          <label className="muted" style={{fontSize:11,textTransform:"uppercase",letterSpacing:".05em"}}>👷 Assegnato a</label>
+                          <select value={fa.assegnato_id||""} onChange={e=>cambiaAssegnato(i,e.target.value)}
+                            style={{padding:"6px 8px",border:"1px solid var(--line)",borderRadius:8,fontWeight:600,background:fa.assegnato_id?"#eef6ff":"#fff"}}>
+                            <option value="">— nessuno (chiunque) —</option>
+                            {(operatori||[]).map(o=><option key={o.id} value={o.id}>{o.nome}</option>)}
+                          </select>
+                          {fa.assegnato_prev_id && fa.assegnato_id===fa.assegnato_prev_id && <span className="muted" style={{fontSize:12}}>✓ come da preventivo</span>}
+                        </div>
+                        {(()=>{ const prevId=fa.assegnato_prev_id; if(!prevId || !fa.assegnato_id || fa.assegnato_id===prevId) return null;
+                          const nuovoOp=opMap[fa.assegnato_id], vecchioOp=opMap[prevId];
+                          const base = fa.costo_orario_prev!=null ? Number(fa.costo_orario_prev) : (vecchioOp?Number(vecchioOp.costo_orario)||0:0);
+                          const nC = nuovoOp?Number(nuovoOp.costo_orario)||0:0;
+                          const ore=Number(fa.ore_previste)||0;
+                          const diff=Math.round((nC-base)*ore*100)/100;
+                          return <div style={{marginBottom:8,padding:"6px 10px",borderRadius:7,fontSize:12.5,background:diff>0?"#fdecec":"#eafaef",border:"1px solid "+(diff>0?"#f3c0c0":"#bfe6cd")}}>
+                            🔄 Operatore cambiato rispetto al preventivo: <b>{fa.assegnato_prev_nome||"—"}</b> → <b>{fa.assegnato_nome||"—"}</b>
+                            {perm.economici && ore>0 && <> · costo previsto <b style={{color:diff>0?"#c0392b":"#127a3e"}}>{diff>0?"+":""}{eur(diff)}</b> <span className="muted">({ore} h × {eur(nC)} invece di {eur(base)})</span></>}
+                          </div>; })()}
+                        {(Array.isArray(fa.sostituzioni)?fa.sostituzioni:[]).length>0 &&
+                          <div style={{marginBottom:8,padding:"6px 10px",borderRadius:7,fontSize:12.5,background:"#fff8e1",border:"1px solid #ffe08a"}}>
+                            {fa.sostituzioni.map((s,k)=>{ const cf=consuntivoFase[fa.chiave]; const ms=cf&&cf.perOp?(cf.perOp[s.a_nome]||0):0; const h=ms/3600000;
+                              const cA=opMap[s.a_id]?Number(opMap[s.a_id].costo_orario)||0:0, cD=opMap[s.da_id]?Number(opMap[s.da_id].costo_orario)||0:0;
+                              const d=Math.round((cA-cD)*h*100)/100;
+                              return <div key={k} style={{padding:"2px 0"}}>↪ Fatto da <b>{s.a_nome||"—"}</b> invece di <b>{s.da_nome||"—"}</b> — «{s.motivo||""}»
+                                <span className="muted"> · {s.il?new Date(s.il).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""}</span>
+                                {perm.economici && h>0 && <span> · {Math.round(h*100)/100} h timbrate · costo <b style={{color:d>0?"#c0392b":"#127a3e"}}>{d>0?"+":""}{eur(d)}</b></span>}</div>; })}
+                          </div>}
                         <label className="muted" style={{fontSize:11,textTransform:"uppercase",letterSpacing:".05em"}}>Operatori &amp; ore effettive</label>
                         <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",marginTop:5}}>
                           {(fa.operatori||[]).map(o=>(

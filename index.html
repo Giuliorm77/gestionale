@@ -12494,13 +12494,10 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     if(nuova || !commessa?.id){ setErr("Salva prima la commessa, poi rilasciala in produzione."); return; }
     if(righe.length===0){ setErr("⛔ La commessa non ha righe: non puoi mandarla in produzione."); return; }
     if(righeSenzaData>0){ setErr("⛔ Imposta la DATA DI CONSEGNA su tutte le righe prima di mandare in produzione ("+righeSenzaData+" senza data)."); return; }
-    setBusy(true); setErr("");
-    try{ const il=new Date().toISOString();
-      const nuovoStato=(f.stato==="aperta")?"in_produzione":f.stato;
-      const {error}=await sb.from("commesse").update({rilasciata_produzione:true, rilasciata_il:il, stato:nuovoStato, aggiornato_il:il}).eq("id",commessa.id);
-      if(error) throw error; setRilasciata(true); setRilasciataIl(il); if(nuovoStato!==f.stato) set("stato",nuovoStato);
-      setConsMsg("🚀 Commessa rilasciata in produzione: ora è visibile agli operatori in Postazione.");
-    }catch(ex){ setErr(ex.message); } setBusy(false);
+    // salva tutta la commessa + rilascia in produzione, poi chiude la finestra (onSalvato)
+    const il=new Date().toISOString();
+    const nuovoStato=(f.stato==="aperta")?"in_produzione":f.stato;
+    await salva(null, {rilasciata_produzione:true, rilasciata_il:il, stato:nuovoStato});
   }
   async function riportaInPreparazione(){
     if(nuova || !commessa?.id) return;
@@ -12715,8 +12712,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     setBusy(false);
   }
 
-  async function salva(e){
-    e.preventDefault();
+  // extra: campi aggiuntivi da scrivere insieme (es. rilascio in produzione: salva + rilascia + chiudi)
+  async function salva(e, extra){
+    if(e && e.preventDefault) e.preventDefault();
     if(!f.cliente_id && !f.cliente_nome){ setErr("Indica un cliente."); return; }
     // REGOLA DI VALIDITÀ (per tutti i ruoli): ogni articolo deve avere la data di consegna
     if(righeSenzaData>0){ setErr("Ogni articolo deve avere la sua data di consegna (obbligatoria): mancano "+righeSenzaData+" data/e."); return; }
@@ -12750,6 +12748,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         sconto_fattura:Math.round(Math.max(0,Number(f.sconto_fattura)||0)*100)/100,
         sconto_nota:(Number(f.sconto_fattura)>0 ? (f.sconto_nota||testoScontoCliente(f.numero||commessa?.numero, f.sconto_fattura)) : "")};
       if(chiusaProd && sbloccata) rec.modifiche_post_chiusura = nModifiche+1;
+      if(extra) Object.assign(rec, extra);
       let id=commessa?.id;
       let sostDb={};   // sostituzioni registrate dalla Postazione (non vanno perse riscrivendo le fasi)
       if(nuova){ rec.creato_da=profilo.id;

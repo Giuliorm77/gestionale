@@ -351,7 +351,7 @@ const CATEGORIE_EMAIL = [
 ];
 // Etichette dei ruoli mostrate agli utenti. La CHIAVE interna resta invariata
 // ('commerciale'): permessi e RLS non cambiano, cambia solo il nome visualizzato.
-const RUOLI_LABEL={amministratore:"Amministratore", commerciale:"Back office", agente:"Agente", produzione:"Produzione", magazzino:"Magazzino", reception:"Reception"};
+const RUOLI_LABEL={amministratore:"Amministratore", commerciale:"Back office", agente:"Agente", produzione:"Produzione", magazzino:"Magazzino", reception:"Reception", allestitore:"Allestitore (solo trasferte)"};
 const labelRuolo=r=> RUOLI_LABEL[r]||r||"";
 const CATEGORIE_STRUTTURA = [
   {v:"personale_indiretto",label:"Personale indiretto"},
@@ -497,6 +497,7 @@ const PERMESSI = {
   produzione:    {scrivi:false,elimina:false, economici:false, fiscali:false, utenti:false, commesse:true,  magazzino:false, crm:false},
   magazzino:     {scrivi:true, elimina:false, economici:false, fiscali:false, utenti:false, commesse:true,  magazzino:true,  crm:false},
   reception:     {scrivi:true, elimina:false, economici:false, fiscali:true,  utenti:false, commesse:false, magazzino:false, crm:false},
+  allestitore:   {scrivi:false,elimina:false, economici:false, fiscali:false, utenti:false, commesse:false, magazzino:false, crm:false},   // vede SOLO le sue trasferte
 };
 // Requisito di accesso di ogni modulo (usato per i permessi per-utente)
 const MODULO_REQ = {
@@ -505,7 +506,7 @@ const MODULO_REQ = {
   imballi:"economici", commesse:"commesse", postazione:"commesse", ordinifor:"economici", trasporti:"economici",
   report:"economici", utenti:"utenti", crm:"crm", agenda:"crm", mezzi:"commesse", ddt:"magazzino", scadenzario:"economici", consuntivi:"economici",
   vetrina:"economici", ordinishop:"commesse", clientikomunigo:"economici", qualita:"economici", catalogofor:"economici",
-  inarrivo:"magazzino",
+  inarrivo:"magazzino", trasferte:"economici", miespese:"sempre",
 };
 const PERM_FLAGS = ["scrivi","elimina","economici","fiscali","utenti","commesse","magazzino","crm"];
 // permessi EFFETTIVI = default del ruolo + deroghe per-utente (profiles.permessi)
@@ -538,6 +539,8 @@ const NAV_ITEMS = [
   {g:"Produzione", m:"commesse", ico:"🏭", label:"Commesse"},
   {g:"Produzione", m:"postazione", ico:"⏱️", label:"Postazione operatore"},
   {g:"Produzione", m:"consuntivi", ico:"📋", label:"Consuntivi"},
+  {g:"Produzione", m:"trasferte", ico:"🧳", label:"Trasferte e spese"},
+  {g:"Produzione", m:"miespese", ico:"🧾", label:"Le mie trasferte"},
   {g:"Produzione", m:"operatori", ico:"👷", label:"Operatori"},
   // 🏬 Magazzino
   {g:"Magazzino", m:"catalogo", ico:"📦", label:"Catalogo"},
@@ -955,6 +958,7 @@ function Gestionale({profilo}){
   useEffect(()=>{ const h=()=>{ setModulo("commesse"); setMenuAperto(false); };
     window.addEventListener("gest-apri-commessa",h); return ()=>window.removeEventListener("gest-apri-commessa",h); },[]);
   const perm = permEffettivi(profilo);
+  if(profilo.ruolo==="allestitore") return <AppTrasferte profilo={profilo}/>;   // solo le sue trasferte, su qualsiasi schermo
   if(mobile && !forzaCompleto && profilo.ruolo==="agente") return <CruscottoAgente profilo={profilo} perm={perm} onApriCompleto={()=>setForzaCompleto(true)}/>;
   if(mobile && !forzaCompleto) return <CruscottoMobile profilo={profilo} perm={perm} onApriCompleto={()=>setForzaCompleto(true)}/>;
   const moduloLbl=(NAV_ITEMS.find(it=>it.m===modulo)||{}).label||"Gestionale";
@@ -1014,6 +1018,8 @@ function Gestionale({profilo}){
         {modulo==="trasporti" && <ModuloTrasporti profilo={profilo} perm={perm}/>}
         {modulo==="scadenzario" && <ModuloScadenzario profilo={profilo} perm={perm}/>}
         {modulo==="consuntivi" && <ModuloConsuntivi profilo={profilo} perm={perm}/>}
+        {modulo==="trasferte" && <ModuloTrasferte profilo={profilo} perm={perm}/>}
+        {modulo==="miespese" && <div className="content"><AppTrasferte profilo={profilo} incorporata/></div>}
         {modulo==="report" && <ModuloReport profilo={profilo} perm={perm}/>}
         {modulo==="qualita" && <ModuloQualita profilo={profilo} perm={perm}/>}
         {modulo==="utenti"  && <ModuloUtenti profilo={profilo}/>}
@@ -4219,6 +4225,342 @@ function ImportArticoli({onClose,onImport,isAdmin,fornitori}){
 }
 
 /* ================================================================ MAGAZZINO (Fase 2) */
+/* ================================================================ TRASFERTE E SPESE (v178)
+   Il Back office apre una TRASFERTA sulla commessa; gli allestitori (ruolo 'allestitore', vedono solo questo)
+   caricano dal telefono le SPESE con la foto dello scontrino; l'amministrazione APPROVA: solo le approvate
+   entrano negli extra costi della commessa (consuntivo, margine, Report). Pagate con soldi propri → rimborsi. */
+const CATEGORIE_SPESA=[
+  {v:"carburante",l:"⛽ Carburante"},{v:"pedaggio",l:"🛣️ Pedaggio"},{v:"parcheggio",l:"🅿️ Parcheggio"},
+  {v:"vitto",l:"🍽️ Vitto"},{v:"alloggio",l:"🏨 Alloggio"},{v:"trasporto",l:"🚆 Treno / taxi / traghetto"},
+  {v:"materiale",l:"🧰 Materiale"},{v:"altro",l:"📎 Altro"}];
+const catSpesa=v=>(CATEGORIE_SPESA.find(c=>c.v===v)||{l:v||"—"}).l;
+const STATI_SPESA={
+  da_approvare:{l:"⏳ Da approvare",bg:"#fff4e5",c:"#b26a00"},
+  approvata:{l:"✓ Approvata",bg:"#e6f4ee",c:"#127a3e"},
+  rifiutata:{l:"✕ Rifiutata",bg:"#fdecea",c:"#c0392b"}};
+const BUCKET_SCONTRINI="scontrini";
+// foto dal telefono → JPEG ridotto (lato max 1600px): upload più veloce anche con poco campo
+async function comprimiFoto(file, maxDim=1600, q=0.72){
+  try{
+    const url=URL.createObjectURL(file);
+    const img=await new Promise((ok,ko)=>{ const im=new Image(); im.onload=()=>ok(im); im.onerror=ko; im.src=url; });
+    const k=Math.min(1, maxDim/Math.max(img.width,img.height));
+    const cv=document.createElement("canvas"); cv.width=Math.round(img.width*k); cv.height=Math.round(img.height*k);
+    cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height); URL.revokeObjectURL(url);
+    const blob=await new Promise(ok=>cv.toBlob(ok,"image/jpeg",q));
+    return blob||file;
+  }catch(e){ return file; }
+}
+function FotoScontrino({path,size}){
+  const [url,setUrl]=useState("");
+  useEffect(()=>{ let vivo=true; if(!path){ setUrl(""); return; }
+    sb.storage.from(BUCKET_SCONTRINI).createSignedUrl(path,3600).then(({data})=>{ if(vivo&&data) setUrl(data.signedUrl); });
+    return ()=>{vivo=false;}; },[path]);
+  if(!path) return <span className="muted" style={{fontSize:11}}>senza foto</span>;
+  const d=size||52;
+  return url ? <a href={url} target="_blank" rel="noreferrer" title="Apri lo scontrino"><img src={url} alt="scontrino" style={{width:d,height:d,objectFit:"cover",borderRadius:7,border:"1px solid var(--line)",display:"block"}}/></a>
+    : <span className="muted" style={{fontSize:11}}>📷…</span>;
+}
+const fmtGG=d=>d?new Date(d).toLocaleDateString("it-IT"):"—";
+
+/* ---- App dal telefono: le MIE trasferte e le mie spese ---- */
+function AppTrasferte({profilo, incorporata}){
+  const [trasf,setTrasf]=useState(null);
+  const [spese,setSpese]=useState([]);
+  const [form,setForm]=useState(null);
+  const [err,setErr]=useState("");
+  const [msg,setMsg]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [cambiaPw,setCambiaPw]=useState(false);
+  const [storico,setStorico]=useState(false);
+  const oggi=new Date().toISOString().slice(0,10);
+  const carica=useCallback(async()=>{
+    const [t,s]=await Promise.all([
+      sb.from("trasferte").select("*").contains("partecipanti",[profilo.id]).order("dal",{ascending:false}),
+      sb.from("trasferte_spese").select("*").eq("utente_id",profilo.id).order("data",{ascending:false}).order("creato_il",{ascending:false}),
+    ]);
+    if(t.error){ setErr(t.error.message); setTrasf([]); return; }
+    setErr(""); setTrasf(t.data||[]); setSpese(s.data||[]);
+  },[profilo.id]);
+  useEffect(()=>{ carica(); },[carica]);
+  const nuova=t=>{ setMsg(""); setErr(""); setForm({trasferta_id:t.id, titolo:t.titolo||t.commessa_numero, categoria:"carburante", importo:"", data:oggi, pagamento:"carta", nota:"", file:null, preview:"", senzaFoto:false}); };
+  const setF=(k,v)=>setForm(p=>({...p,[k]:v}));
+  async function salva(){
+    const imp=numLoc(form.importo);
+    if(!(imp>0)){ setErr("Scrivi l'importo della spesa."); return; }
+    if(!form.file && !form.senzaFoto){ setErr("Fai la foto dello scontrino (oppure spunta «scontrino non disponibile» e scrivi il motivo)."); return; }
+    if(form.senzaFoto && !String(form.nota||"").trim()){ setErr("Senza scontrino scrivi nella nota il motivo."); return; }
+    setBusy(true); setErr("");
+    try{
+      let path=null;
+      if(form.file){ const blob=await comprimiFoto(form.file); path=profilo.id+"/"+uid()+".jpg";
+        const {error:eu}=await sb.storage.from(BUCKET_SCONTRINI).upload(path,blob,{contentType:"image/jpeg",upsert:false}); if(eu) throw eu; }
+      const {error}=await sb.from("trasferte_spese").insert({trasferta_id:form.trasferta_id, utente_id:profilo.id, data:form.data||oggi,
+        categoria:form.categoria, importo:Math.round(imp*100)/100, pagamento:form.pagamento, nota:String(form.nota||"").trim(), foto_path:path});
+      if(error) throw error;
+      if(form.preview) try{ URL.revokeObjectURL(form.preview); }catch(e){}
+      setForm(null); setMsg("✓ Spesa inviata: la vede subito l'amministrazione per l'approvazione."); await carica();
+    }catch(ex){ setErr(ex.message||String(ex)); }
+    setBusy(false);
+  }
+  async function elimina(s){
+    if(!window.confirm("Eliminare questa spesa di "+eur(s.importo)+"?")) return;
+    setBusy(true); setErr("");
+    try{ const {error}=await sb.from("trasferte_spese").delete().eq("id",s.id); if(error) throw error;
+      if(s.foto_path){ try{ await sb.storage.from(BUCKET_SCONTRINI).remove([s.foto_path]); }catch(e){} }
+      await carica(); }catch(ex){ setErr(ex.message); }
+    setBusy(false);
+  }
+  const aperte=(trasf||[]).filter(t=>t.stato==="aperta");
+  const chiuse=(trasf||[]).filter(t=>t.stato!=="aperta");
+  const speseDi=t=>spese.filter(s=>s.trasferta_id===t.id);
+  const rigaSpesa=s=>{ const st=STATI_SPESA[s.stato]||STATI_SPESA.da_approvare;
+    return <div key={s.id} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 0",borderTop:"1px solid var(--line)"}}>
+      <FotoScontrino path={s.foto_path}/>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontWeight:700}}>{catSpesa(s.categoria)} · {eur(s.importo)}</div>
+        <div className="muted" style={{fontSize:12}}>{fmtGG(s.data)} · {s.pagamento==="propri"?"💶 pagato da me":"💳 carta aziendale"}{s.nota?" · "+s.nota:""}</div>
+        {s.stato==="rifiutata" && s.motivo_rifiuto && <div style={{fontSize:12,color:"#c0392b"}}>Motivo: {s.motivo_rifiuto}</div>}
+        {s.pagamento==="propri" && s.stato==="approvata" && <div style={{fontSize:12,color:s.rimborsata?"#127a3e":"#b26a00"}}>{s.rimborsata?"💶 rimborsata il "+fmtGG(s.rimborsata_il):"💶 rimborso in arrivo"}</div>}
+      </div>
+      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+        <span className="tag" style={{background:st.bg,color:st.c,fontWeight:700,fontSize:11}}>{st.l}</span>
+        {s.stato==="da_approvare" && <button type="button" className="btn small" disabled={busy} onClick={()=>elimina(s)}>Elimina</button>}
+      </div>
+    </div>; };
+  const cardTrasf=(t,attiva)=>{ const mie=speseDi(t); const tot=mie.filter(s=>s.stato!=="rifiutata").reduce((x,s)=>x+(Number(s.importo)||0),0);
+    return <div key={t.id} className="card" style={{padding:14,marginBottom:12,borderLeft:"5px solid "+(attiva?"#1f9c68":"#9aa5b1")}}>
+      <div style={{fontWeight:800,fontSize:16}}>{t.titolo||"Trasferta"}</div>
+      <div className="muted" style={{fontSize:13}}>{t.commessa_numero||""}{t.cliente_nome?" · "+t.cliente_nome:""}{t.luogo?" · 📍 "+t.luogo:""}</div>
+      <div className="muted" style={{fontSize:12.5}}>📅 {fmtGG(t.dal)}{t.al&&t.al!==t.dal?" → "+fmtGG(t.al):""} · le mie spese <b>{eur(tot)}</b> ({mie.length})</div>
+      {t.note && <div style={{fontSize:12.5,marginTop:4}}>📝 {t.note}</div>}
+      {attiva && <button type="button" className="btn primary" style={{width:"100%",marginTop:10,padding:"14px",fontSize:17,fontWeight:800}} onClick={()=>nuova(t)}>＋ Aggiungi spesa</button>}
+      {mie.length>0 && <div style={{marginTop:8}}>{mie.map(rigaSpesa)}</div>}
+    </div>; };
+  const wrap={maxWidth:620,margin:"0 auto",padding:incorporata?"0":"12px 14px 40px"};
+  return <div style={incorporata?null:{minHeight:"100vh",background:"#f4f6f9"}}>
+    {!incorporata && <div style={{background:"#14202b",color:"#fff",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
+      <div style={{flex:1}}><div style={{fontWeight:800,fontSize:17}}>🧳 Le mie trasferte</div><div style={{fontSize:12,opacity:.8}}>{profilo.nome}</div></div>
+      <button type="button" className="btn small" onClick={()=>setCambiaPw(true)}>🔑</button>
+      <button type="button" className="btn small" onClick={()=>sb.auth.signOut()}>Esci</button>
+    </div>}
+    <div style={wrap}>
+      {incorporata && <div className="topbar"><h1>🧾 Le mie trasferte</h1></div>}
+      {err && <div className="banner err">{err}</div>}
+      {msg && <div className="banner" style={{background:"#e6f4ee",color:"#127a3e",border:"1px solid #9fd8bd"}}>{msg}</div>}
+      {trasf===null ? <div className="empty">Caricamento…</div> : <>
+        {aperte.length===0 && <div className="card empty">Nessuna trasferta aperta a tuo nome. Quando parti, l'ufficio te ne apre una sulla commessa e la trovi qui.</div>}
+        {aperte.map(t=>cardTrasf(t,true))}
+        {chiuse.length>0 && <button type="button" className="btn" style={{width:"100%"}} onClick={()=>setStorico(v=>!v)}>{storico?"Nascondi":"Mostra"} le trasferte chiuse ({chiuse.length})</button>}
+        {storico && <div style={{marginTop:10}}>{chiuse.map(t=>cardTrasf(t,false))}</div>}
+      </>}
+    </div>
+    {form && <div className="overlay" style={{zIndex:70}}><div className="modal" style={{maxWidth:560}} onClick={e=>e.stopPropagation()}>
+      <header><h2>＋ Spesa · {form.titolo||""}</h2><button type="button" className="x" onClick={()=>setForm(null)}>×</button></header>
+      <div className="body">
+        {err && <div className="banner err">{err}</div>}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:6,marginBottom:12}}>
+          {CATEGORIE_SPESA.map(c=><button key={c.v} type="button" className="btn" onClick={()=>setF("categoria",c.v)}
+            style={form.categoria===c.v?{background:"#0e7c5a",color:"#fff",borderColor:"#0e7c5a",padding:"10px 6px"}:{padding:"10px 6px"}}>{c.l}</button>)}
+        </div>
+        <div className="row">
+          <div className="field"><label>Importo €</label><input inputMode="decimal" value={form.importo} onChange={e=>setF("importo",e.target.value)} placeholder="0,00" autoFocus style={{fontSize:22,fontWeight:800,textAlign:"right"}}/></div>
+          <div className="field"><label>Data</label><input type="date" value={form.data} onChange={e=>setF("data",e.target.value)}/></div>
+        </div>
+        <div style={{display:"flex",gap:6,margin:"4px 0 12px"}}>
+          <button type="button" className="btn" style={{flex:1,padding:"10px",...(form.pagamento==="carta"?{background:"#1e46c4",color:"#fff",borderColor:"#1e46c4"}:{})}} onClick={()=>setF("pagamento","carta")}>💳 Carta aziendale</button>
+          <button type="button" className="btn" style={{flex:1,padding:"10px",...(form.pagamento==="propri"?{background:"#b26a00",color:"#fff",borderColor:"#b26a00"}:{})}} onClick={()=>setF("pagamento","propri")}>💶 Pagato da me</button>
+        </div>
+        <label className="btn" style={{display:"block",textAlign:"center",padding:"14px",fontSize:16,fontWeight:700,cursor:"pointer",background:form.file?"#e6f4ee":"#fff"}}>
+          📷 {form.file?"Rifai la foto dello scontrino":"Fotografa lo scontrino"}
+          <input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>{ const fl=e.target.files&&e.target.files[0]; if(!fl) return; if(form.preview) try{URL.revokeObjectURL(form.preview);}catch(x){} setForm(p=>({...p,file:fl,preview:URL.createObjectURL(fl),senzaFoto:false})); }}/>
+        </label>
+        {form.preview && <img src={form.preview} alt="anteprima" style={{width:"100%",maxHeight:260,objectFit:"contain",marginTop:8,borderRadius:8,border:"1px solid var(--line)"}}/>}
+        {!form.file && <label style={{display:"flex",alignItems:"center",gap:6,fontSize:13,marginTop:8}}><input type="checkbox" checked={form.senzaFoto} onChange={e=>setF("senzaFoto",e.target.checked)} style={{width:"auto"}}/> Scontrino non disponibile (scrivi il motivo nella nota)</label>}
+        <div className="field" style={{marginTop:10}}><label>Nota</label><input value={form.nota} onChange={e=>setF("nota",e.target.value)} placeholder="es. gasolio furgone, pranzo 2 persone…"/></div>
+      </div>
+      <footer><button type="button" className="btn" onClick={()=>setForm(null)}>Annulla</button>
+        <button type="button" className="btn primary" disabled={busy} onClick={salva}>{busy?"Invio…":"Invia spesa"}</button></footer>
+    </div></div>}
+    {cambiaPw && <CambiaPasswordModal onClose={()=>setCambiaPw(false)}/>}
+  </div>;
+}
+
+/* ---- Azioni dell'amministrazione su una spesa ---- */
+async function azioneSpesa(s, az, profilo){
+  let patch=null;
+  if(az==="approva") patch={stato:"approvata", approvata_da_nome:profilo.nome||"", approvata_il:new Date().toISOString(), motivo_rifiuto:null};
+  else if(az==="rifiuta"){ const m=window.prompt("Motivo del rifiuto (lo vede chi ha caricato la spesa):",""); if(m===null) return false; patch={stato:"rifiutata", motivo_rifiuto:m.trim()||"non specificato", approvata_da_nome:profilo.nome||"", approvata_il:new Date().toISOString()}; }
+  else if(az==="riapri") patch={stato:"da_approvare", approvata_da_nome:null, approvata_il:null, motivo_rifiuto:null};
+  else if(az==="riaddebita") patch={riaddebita:!s.riaddebita};
+  else if(az==="rimborsa") patch={rimborsata:!s.rimborsata, rimborsata_il:s.rimborsata?null:new Date().toISOString()};
+  if(!patch) return false;
+  const {error}=await sb.from("trasferte_spese").update(patch).eq("id",s.id); if(error) throw error;
+  return true;
+}
+function TabellaSpese({spese, trasfMap, mostraTrasf, profilo, onCambio, busy, setBusy, setErr}){
+  const fai=async(s,az)=>{ setBusy(true); setErr("");
+    try{ if(await azioneSpesa(s,az,profilo)) await onCambio(); }catch(ex){ setErr(ex.message); } setBusy(false); };
+  if(!spese.length) return <div className="muted" style={{fontSize:13,padding:"6px 0"}}>Nessuna spesa.</div>;
+  return <div style={{overflowX:"auto"}}><table><thead><tr><th>Scontrino</th><th>Data</th><th>Chi</th>{mostraTrasf&&<th>Trasferta</th>}<th>Spesa</th><th style={{textAlign:"right"}}>Importo</th><th>Stato</th><th></th></tr></thead><tbody>
+    {spese.map(s=>{ const st=STATI_SPESA[s.stato]||STATI_SPESA.da_approvare; const t=trasfMap&&trasfMap[s.trasferta_id];
+      return <tr key={s.id}>
+        <td><FotoScontrino path={s.foto_path} size={44}/></td>
+        <td className="muted" style={{fontSize:12.5,whiteSpace:"nowrap"}}>{fmtGG(s.data)}</td>
+        <td style={{fontSize:13}}>{s.utente_nome||"—"}</td>
+        {mostraTrasf && <td style={{fontSize:12.5}}>{t?<><b>{t.commessa_numero||""}</b> {t.titolo||""}<div className="muted" style={{fontSize:11}}>{t.cliente_nome||""}</div></>:"—"}</td>}
+        <td style={{fontSize:13}}>{catSpesa(s.categoria)}<div className="muted" style={{fontSize:11.5}}>{s.pagamento==="propri"?"💶 pagata dal dipendente":"💳 carta aziendale"}{s.nota?" · "+s.nota:""}</div>
+          {s.stato==="rifiutata"&&s.motivo_rifiuto&&<div style={{fontSize:11.5,color:"#c0392b"}}>Rifiutata: {s.motivo_rifiuto}</div>}</td>
+        <td style={{textAlign:"right",fontWeight:700}}>{eur(s.importo)}</td>
+        <td><span className="tag" style={{background:st.bg,color:st.c,fontWeight:700,fontSize:11}}>{st.l}</span>
+          {s.stato!=="da_approvare"&&s.approvata_da_nome&&<div className="muted" style={{fontSize:10.5}}>{s.approvata_da_nome}</div>}</td>
+        <td style={{whiteSpace:"nowrap"}}>
+          {s.stato==="da_approvare" && <><button type="button" className="btn small primary" disabled={busy} onClick={()=>fai(s,"approva")}>✓ Approva</button> <button type="button" className="btn small danger" disabled={busy} onClick={()=>fai(s,"rifiuta")}>✕</button></>}
+          {s.stato!=="da_approvare" && <button type="button" className="btn small" disabled={busy} onClick={()=>fai(s,"riapri")} title="Rimetti da approvare">↩</button>}
+          {s.stato==="approvata" && <label style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11.5,marginLeft:6}} title="Riaddebita questa spesa al cliente (entra nei ricavi)"><input type="checkbox" checked={!!s.riaddebita} disabled={busy} onChange={()=>fai(s,"riaddebita")} style={{width:"auto"}}/> al cliente</label>}
+        </td></tr>; })}
+  </tbody></table></div>;
+}
+
+/* ---- Nella scheda commessa: trasferte di questa commessa ---- */
+function TrasferteCommessa({commessa, profilo, onCambio}){
+  const [trasf,setTrasf]=useState(null);
+  const [spese,setSpese]=useState([]);
+  const [utenti,setUtenti]=useState([]);
+  const [nuova,setNuova]=useState(null);
+  const [err,setErr]=useState("");
+  const [busy,setBusy]=useState(false);
+  const carica=useCallback(async()=>{
+    const [t,s,u]=await Promise.all([
+      sb.from("trasferte").select("*").eq("commessa_id",commessa.id).order("dal",{ascending:false}),
+      sb.from("trasferte_spese").select("*").eq("commessa_id",commessa.id).order("data",{ascending:false}),
+      sb.from("profili_nomi").select("id,nome").order("nome"),
+    ]);
+    if(t.error){ setErr(t.error.message.includes("trasferte")?"Esegui la migrazione v178 per usare le trasferte.":t.error.message); setTrasf([]); return; }
+    setErr(""); setTrasf(t.data||[]); setSpese(s.data||[]); setUtenti(u.data||[]);
+  },[commessa.id]);
+  useEffect(()=>{ carica(); },[carica]);
+  const aggiorna=async()=>{ await carica(); if(onCambio) onCambio(); };
+  const apri=()=>{ const oggi=new Date().toISOString().slice(0,10);
+    setNuova({titolo:"Allestimento "+(commessa.cliente_nome||""), luogo:"", dal:oggi, al:oggi, budget:"", note:"", partecipanti:[]}); };
+  async function salvaNuova(){
+    if(!nuova.partecipanti.length){ setErr("Scegli chi parte (almeno una persona)."); return; }
+    setBusy(true); setErr("");
+    try{ const nomi=nuova.partecipanti.map(id=>(utenti.find(u=>u.id===id)||{}).nome||"");
+      const {error}=await sb.from("trasferte").insert({commessa_id:commessa.id, commessa_numero:commessa.numero||"", cliente_nome:commessa.cliente_nome||"",
+        titolo:nuova.titolo||"", luogo:nuova.luogo||"", dal:nuova.dal||null, al:nuova.al||nuova.dal||null, budget:numLoc(nuova.budget),
+        partecipanti:nuova.partecipanti, partecipanti_nomi:nomi, note:nuova.note||"", creato_da:profilo.id});
+      if(error) throw error; setNuova(null); await aggiorna(); }catch(ex){ setErr(ex.message); }
+    setBusy(false);
+  }
+  async function cambiaStato(t){
+    const chiudi=t.stato==="aperta";
+    if(chiudi && spese.some(s=>s.trasferta_id===t.id && s.stato==="da_approvare") && !window.confirm("Ci sono spese ancora DA APPROVARE su questa trasferta. Chiuderla comunque?")) return;
+    setBusy(true); setErr("");
+    try{ const {error}=await sb.from("trasferte").update({stato:chiudi?"chiusa":"aperta", chiusa_il:chiudi?new Date().toISOString():null}).eq("id",t.id); if(error) throw error; await aggiorna(); }
+    catch(ex){ setErr(ex.message); }
+    setBusy(false);
+  }
+  if(trasf===null) return <div className="muted" style={{fontSize:13}}>Caricamento trasferte…</div>;
+  return <div>
+    {err && <div className="banner err">{err}</div>}
+    {trasf.length===0 && !nuova && <div className="muted" style={{fontSize:13,marginBottom:8}}>Nessuna trasferta. Aprila quando i ragazzi partono per l'allestimento: dal telefono caricheranno le spese con lo scontrino.</div>}
+    {trasf.map(t=>{ const ss=spese.filter(s=>s.trasferta_id===t.id);
+      const app=ss.filter(s=>s.stato==="approvata").reduce((x,s)=>x+(Number(s.importo)||0),0);
+      const att=ss.filter(s=>s.stato==="da_approvare").reduce((x,s)=>x+(Number(s.importo)||0),0);
+      const bud=Number(t.budget)||0;
+      return <div key={t.id} style={{border:"1px solid var(--line)",borderLeft:"4px solid "+(t.stato==="aperta"?"#1f9c68":"#9aa5b1"),borderRadius:10,padding:"10px 12px",marginBottom:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          <b>🧳 {t.titolo||"Trasferta"}</b>
+          <span className="muted" style={{fontSize:12.5}}>{t.luogo?"📍 "+t.luogo+" · ":""}📅 {fmtGG(t.dal)}{t.al&&t.al!==t.dal?" → "+fmtGG(t.al):""} · 👷 {(t.partecipanti_nomi||[]).join(", ")||"—"}</span>
+          <span className="tag" style={{marginLeft:"auto",background:t.stato==="aperta"?"#e6f4ee":"#eef1f5",color:t.stato==="aperta"?"#127a3e":"#697386",fontWeight:700}}>{t.stato==="aperta"?"Aperta":"Chiusa"}</span>
+          <button type="button" className="btn small" disabled={busy} onClick={()=>cambiaStato(t)}>{t.stato==="aperta"?"Chiudi trasferta":"Riapri"}</button>
+        </div>
+        <div style={{fontSize:13,margin:"6px 0"}}>Approvate <b>{eur(app)}</b> (negli extra costi){att>0?<> · <span style={{color:"#b26a00",fontWeight:700}}>da approvare {eur(att)}</span></>:null}
+          {bud>0 && <> · budget {eur(bud)} <b style={{color:(app+att)>bud?"#c0392b":"#127a3e"}}>{(app+att)>bud?"⚠ superato di "+eur(app+att-bud):"residuo "+eur(bud-app-att)}</b></>}</div>
+        <TabellaSpese spese={ss} profilo={profilo} onCambio={aggiorna} busy={busy} setBusy={setBusy} setErr={setErr}/>
+      </div>; })}
+    {nuova ? <div style={{border:"1px dashed var(--line)",borderRadius:10,padding:12,background:"#fafbfc"}}>
+        <div style={{fontWeight:700,marginBottom:6}}>🧳 Nuova trasferta</div>
+        <div className="row">
+          <div className="field" style={{flex:2}}><label>Titolo</label><input value={nuova.titolo} onChange={e=>setNuova(p=>({...p,titolo:e.target.value}))}/></div>
+          <div className="field" style={{flex:2}}><label>Luogo</label><input value={nuova.luogo} onChange={e=>setNuova(p=>({...p,luogo:e.target.value}))} placeholder="es. Fiera di Rimini, pad. B5"/></div>
+        </div>
+        <div className="row">
+          <div className="field" style={{maxWidth:170}}><label>Dal</label><input type="date" value={nuova.dal} onChange={e=>setNuova(p=>({...p,dal:e.target.value}))}/></div>
+          <div className="field" style={{maxWidth:170}}><label>Al</label><input type="date" value={nuova.al} onChange={e=>setNuova(p=>({...p,al:e.target.value}))}/></div>
+          <div className="field" style={{maxWidth:160}}><label>Budget € (facolt.)</label><input inputMode="decimal" value={nuova.budget} onChange={e=>setNuova(p=>({...p,budget:e.target.value}))}/></div>
+        </div>
+        <div className="field"><label>Chi parte *</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{utenti.map(u=>{ const on=nuova.partecipanti.includes(u.id);
+            return <button key={u.id} type="button" className="btn small" onClick={()=>setNuova(p=>({...p,partecipanti:on?p.partecipanti.filter(x=>x!==u.id):[...p.partecipanti,u.id]}))}
+              style={on?{background:"#0e7c5a",color:"#fff",borderColor:"#0e7c5a"}:null}>{on?"✓ ":""}{u.nome}</button>; })}</div>
+          <div className="muted" style={{fontSize:11.5,marginTop:4}}>Compaiono gli utenti del gestionale: chi va in trasferta deve avere un suo utente (ruolo «Allestitore» se deve vedere solo le trasferte).</div></div>
+        <div className="field"><label>Note per i ragazzi</label><input value={nuova.note} onChange={e=>setNuova(p=>({...p,note:e.target.value}))} placeholder="es. vitto max 25 €/persona a pasto"/></div>
+        <div style={{display:"flex",gap:6}}><button type="button" className="btn primary" disabled={busy} onClick={salvaNuova}>Apri trasferta</button><button type="button" className="btn" onClick={()=>setNuova(null)}>Annulla</button></div>
+      </div>
+      : <button type="button" className="btn small primary" onClick={apri}>＋ Apri trasferta</button>}
+  </div>;
+}
+
+/* ---- Modulo amministrazione: da approvare · trasferte · rimborsi ---- */
+function ModuloTrasferte({profilo,perm}){
+  const [vista,setVista]=useState("approva");
+  const [trasf,setTrasf]=useState(null);
+  const [spese,setSpese]=useState([]);
+  const [err,setErr]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [mostraRimb,setMostraRimb]=useState(false);
+  const carica=useCallback(async()=>{
+    const [t,s]=await Promise.all([
+      sb.from("trasferte").select("*").order("dal",{ascending:false}).limit(500),
+      sb.from("trasferte_spese").select("*").order("data",{ascending:false}).limit(3000),
+    ]);
+    if(t.error){ setErr(t.error.message.includes("trasferte")?"Esegui la migrazione v178 per usare le trasferte.":t.error.message); setTrasf([]); return; }
+    setErr(""); setTrasf(t.data||[]); setSpese(s.data||[]);
+  },[]);
+  useEffect(()=>{ carica(); },[carica]);
+  const tm={}; (trasf||[]).forEach(t=>tm[t.id]=t);
+  const daApp=spese.filter(s=>s.stato==="da_approvare");
+  const rimb=spese.filter(s=>s.stato==="approvata" && s.pagamento==="propri" && (mostraRimb || !s.rimborsata));
+  const perUt={}; rimb.forEach(s=>{ (perUt[s.utente_nome||"—"]=perUt[s.utente_nome||"—"]||[]).push(s); });
+  const fai=async(s,az)=>{ setBusy(true); setErr(""); try{ if(await azioneSpesa(s,az,profilo)) await carica(); }catch(ex){ setErr(ex.message); } setBusy(false); };
+  return <>
+    <div className="topbar"><h1>🧳 Trasferte e spese</h1></div>
+    <div className="content">
+      {err && <div className="banner err">{err}</div>}
+      <div className="banner info">Le trasferte si aprono dalla <b>scheda commessa</b> (sezione 🧳 Trasferte e spese). Qui approvi le spese caricate dai ragazzi: solo quelle <b>approvate</b> entrano negli extra costi della commessa. Le spese pagate con soldi propri finiscono nei <b>Rimborsi</b>.</div>
+      <div className="toolbar" style={{gap:8}}>
+        <button className={"btn"+(vista==="approva"?" primary":"")} onClick={()=>setVista("approva")}>⏳ Da approvare ({daApp.length})</button>
+        <button className={"btn"+(vista==="trasferte"?" primary":"")} onClick={()=>setVista("trasferte")}>🧳 Trasferte ({(trasf||[]).length})</button>
+        <button className={"btn"+(vista==="rimborsi"?" primary":"")} onClick={()=>setVista("rimborsi")}>💶 Rimborsi</button>
+      </div>
+      {trasf===null ? <div className="empty">Caricamento…</div>
+       : vista==="approva" ? <div className="card" style={{padding:12}}><TabellaSpese spese={daApp} trasfMap={tm} mostraTrasf profilo={profilo} onCambio={carica} busy={busy} setBusy={setBusy} setErr={setErr}/></div>
+       : vista==="trasferte" ? <div className="card" style={{overflow:"auto"}}><table><thead><tr><th>Commessa</th><th>Trasferta</th><th>Date</th><th>Chi</th><th style={{textAlign:"right"}}>Approvate</th><th style={{textAlign:"right"}}>Da approvare</th><th style={{textAlign:"right"}}>Budget</th><th>Stato</th></tr></thead><tbody>
+          {(trasf||[]).map(t=>{ const ss=spese.filter(s=>s.trasferta_id===t.id); const app=ss.filter(s=>s.stato==="approvata").reduce((x,s)=>x+(Number(s.importo)||0),0); const att=ss.filter(s=>s.stato==="da_approvare").reduce((x,s)=>x+(Number(s.importo)||0),0);
+            return <tr key={t.id}><td className="rs">{t.commessa_numero||"—"}<div className="muted" style={{fontSize:11,fontWeight:400}}>{t.cliente_nome||""}</div></td><td>{t.titolo||"—"}{t.luogo?<div className="muted" style={{fontSize:11}}>📍 {t.luogo}</div>:null}</td>
+              <td className="muted" style={{fontSize:12}}>{fmtGG(t.dal)}{t.al&&t.al!==t.dal?" → "+fmtGG(t.al):""}</td><td style={{fontSize:12}}>{(t.partecipanti_nomi||[]).join(", ")}</td>
+              <td style={{textAlign:"right",fontWeight:700}}>{eur(app)}</td><td style={{textAlign:"right",color:att>0?"#b26a00":undefined}}>{att>0?eur(att):"—"}</td>
+              <td style={{textAlign:"right",color:Number(t.budget)>0&&(app+att)>Number(t.budget)?"#c0392b":undefined}}>{Number(t.budget)>0?eur(t.budget):"—"}</td>
+              <td><span className="tag" style={{background:t.stato==="aperta"?"#e6f4ee":"#eef1f5",color:t.stato==="aperta"?"#127a3e":"#697386"}}>{t.stato==="aperta"?"Aperta":"Chiusa"}</span></td></tr>; })}
+        </tbody></table></div>
+       : <div>
+          <label style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,marginBottom:8}}><input type="checkbox" checked={mostraRimb} onChange={e=>setMostraRimb(e.target.checked)} style={{width:"auto"}}/> mostra anche quelle già rimborsate</label>
+          {Object.keys(perUt).length===0 && <div className="card empty">Nessun rimborso da fare 👍</div>}
+          {Object.keys(perUt).sort().map(nome=>{ const ss=perUt[nome]; const daR=ss.filter(s=>!s.rimborsata).reduce((x,s)=>x+(Number(s.importo)||0),0);
+            return <div key={nome} className="card" style={{padding:12,marginBottom:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}><b>👷 {nome}</b><span style={{marginLeft:"auto",fontWeight:800,color:daR>0?"#b26a00":"#127a3e"}}>{daR>0?"da rimborsare "+eur(daR):"tutto rimborsato"}</span></div>
+              <table><tbody>{ss.map(s=>{ const t=tm[s.trasferta_id]; return <tr key={s.id}>
+                <td className="muted" style={{fontSize:12}}>{fmtGG(s.data)}</td><td style={{fontSize:12.5}}>{catSpesa(s.categoria)}{s.nota?<span className="muted"> · {s.nota}</span>:null}</td>
+                <td style={{fontSize:12}}>{t?(t.commessa_numero||"")+" "+(t.titolo||""):""}</td><td style={{textAlign:"right",fontWeight:700}}>{eur(s.importo)}</td>
+                <td><label style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:12}}><input type="checkbox" checked={!!s.rimborsata} disabled={busy} onChange={()=>fai(s,"rimborsa")} style={{width:"auto"}}/> {s.rimborsata?"rimborsata "+fmtGG(s.rimborsata_il):"rimborsata"}</label></td></tr>; })}</tbody></table>
+            </div>; })}
+        </div>}
+    </div>
+  </>;
+}
+
 /* ---- Magazzino: commesse con lavorazione terminata da imballare → pronte per la spedizione (v174) ---- */
 function DaImballare({profilo,perm}){
   const [lista,setLista]=useState(null);
@@ -12906,8 +13248,15 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const costoOrig=costoMateriali+costoManodopera+(Number(f.trasporto)||0);
   const costoInterventi=interventi.reduce((s,it)=>s+(it.interventi_righe||[]).reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.costo_unitario)||0),0),0);
   const addebitiInterventi=interventi.reduce((s,it)=>s+(it.interventi_righe||[]).filter(r=>r.responsabilita==="cliente").reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.prezzo_addebito)||0),0),0);
-  const costoExtra=extraCosti.reduce((s,x)=>s+(Number(x.costo)||0),0);
-  const addebitiExtra=extraCosti.filter(x=>x.addebita).reduce((s,x)=>s+(Number(x.costo)||0),0);
+  // spese di TRASFERTA approvate dall'amministrazione (v178): entrano negli extra costi della commessa
+  const [speseTr,setSpeseTr]=useState({costo:0,addebito:0,n:0});
+  const caricaSpeseTr=useCallback(async()=>{ if(!commessa?.id || !perm.economici) return;
+    const {data,error}=await sb.from("trasferte_spese").select("importo,riaddebita").eq("commessa_id",commessa.id).eq("stato","approvata");
+    if(error) return; const l=data||[];
+    setSpeseTr({costo:l.reduce((s,x)=>s+(Number(x.importo)||0),0), addebito:l.filter(x=>x.riaddebita).reduce((s,x)=>s+(Number(x.importo)||0),0), n:l.length}); },[commessa?.id, perm.economici]);
+  useEffect(()=>{ caricaSpeseTr(); },[caricaSpeseTr]);
+  const costoExtra=extraCosti.reduce((s,x)=>s+(Number(x.costo)||0),0)+speseTr.costo;
+  const addebitiExtra=extraCosti.filter(x=>x.addebita).reduce((s,x)=>s+(Number(x.costo)||0),0)+speseTr.addebito;
   const ricaviTot=(Number(f.valore)||0)+addebitiInterventi+addebitiExtra;
   const scontoF=Math.max(0,Number(f.sconto_fattura)||0);   // sconto commerciale in fattura
   const ricaviNetti=ricaviTot-scontoF;
@@ -13894,7 +14243,14 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                 </div>}
               </div>); })}
             <button type="button" className="btn small" style={{marginTop:6}} onClick={addExtra}>+ Aggiungi extra costo</button>
-            {extraCosti.length>0 && <div className="muted" style={{fontSize:12,marginTop:8}}>Totale extra costi: <b style={{color:"var(--danger)"}}>{eur(costoExtra)}</b>{addebitiExtra>0?<> · di cui riaddebitati al cliente: <b style={{color:"var(--ok)"}}>{eur(addebitiExtra)}</b></>:null}</div>}
+            {speseTr.n>0 && <div className="muted" style={{fontSize:12,marginTop:8}}>🧳 + spese di trasferta approvate: <b style={{color:"var(--danger)"}}>{eur(speseTr.costo)}</b> ({speseTr.n}){speseTr.addebito>0?<> · di cui riaddebitate al cliente {eur(speseTr.addebito)}</>:null} — dettaglio nella sezione Trasferte qui sotto.</div>}
+            {(extraCosti.length>0||speseTr.n>0) && <div className="muted" style={{fontSize:12,marginTop:8}}>Totale extra costi: <b style={{color:"var(--danger)"}}>{eur(costoExtra)}</b>{addebitiExtra>0?<> · di cui riaddebitati al cliente: <b style={{color:"var(--ok)"}}>{eur(addebitiExtra)}</b></>:null}</div>}
+          </div>}
+
+          {perm.economici && !nuova && commessa?.id && <div className="section">
+            <h3>🧳 Trasferte e spese</h3>
+            <div className="muted" style={{fontSize:12,marginBottom:8}}>Apri una trasferta quando i ragazzi partono per l'allestimento: dal telefono caricano le spese con la foto dello scontrino. Le spese <b>approvate</b> entrano negli extra costi (e nel consuntivo); quelle pagate con soldi propri finiscono nei rimborsi (modulo 🧳 Trasferte e spese).</div>
+            <TrasferteCommessa commessa={{id:commessa.id, numero:f.numero||commessa.numero, cliente_nome:commessa.cliente_nome}} profilo={profilo} onCambio={caricaSpeseTr}/>
           </div>}
 
           {perm.economici && <div className="section">
@@ -16455,6 +16811,7 @@ function ModuloReport({profilo,perm}){
   const [opMap,setOpMap]=useState({});
   const [intByComm,setIntByComm]=useState({});
   const [persiByComm,setPersiByComm]=useState({});
+  const [speseTrByComm,setSpeseTrByComm]=useState({});   // spese di trasferta APPROVATE per commessa (v178)
   const [ofByComm,setOfByComm]=useState({});   // ordini fornitore collegati, per correzione costo reale
   const [timbFasi,setTimbFasi]=useState({});   // ore TIMBRATE per fase e operatore (consuntivo reale)
   const [err,setErr]=useState("");
@@ -16515,6 +16872,8 @@ function ModuloReport({profilo,perm}){
     const om={}; (o.data||[]).forEach(x=>om[x.id]=x); setOpMap(om);
     const ibc={}; (it.data||[]).forEach(x=>{ (ibc[x.commessa_id]=ibc[x.commessa_id]||[]).push(x); }); setIntByComm(ibc);
     const pbc={}; (pz.data||[]).forEach(x=>{ if(x.commessa_id){ (pbc[x.commessa_id]=pbc[x.commessa_id]||[]).push(x); } }); setPersiByComm(pbc);
+    try{ const {data:tsp}=await sb.from("trasferte_spese").select("commessa_id,importo,riaddebita").eq("stato","approvata"); const m={};
+      (tsp||[]).forEach(x=>{ if(!x.commessa_id) return; const o=m[x.commessa_id]||(m[x.commessa_id]={costo:0,addebito:0}); o.costo+=Number(x.importo)||0; if(x.riaddebita) o.addebito+=Number(x.importo)||0; }); setSpeseTrByComm(m); }catch(e){ setSpeseTrByComm({}); }
     const obc={}; (of&&of.data||[]).forEach(x=>{ if(x.commessa_id){ (obc[x.commessa_id]=obc[x.commessa_id]||[]).push(x); } }); setOfByComm(obc);
     const cm={}; (cl.data||[]).forEach(x=>cm[x.id]=x); setCliMap(cm);
     const gm={}; (ag.data||[]).forEach(x=>gm[x.id]=x); setAgMap(gm);
@@ -16537,8 +16896,9 @@ function ModuloReport({profilo,perm}){
     const addeb=ints.reduce((s,it)=>s+(it.interventi_righe||[]).filter(r=>r.responsabilita==="cliente").reduce((ss,r)=>ss+(Number(r.quantita)||0)*(Number(r.prezzo_addebito)||0),0),0);
     const costiAiuti=(Array.isArray(c.aiuti)?c.aiuti:[]).reduce((s,a)=>{ const op=opMap[a.operatore_id]; return s+(Number(a.ore)||0)*(op?Number(op.costo_orario)||0:0); },0);
     const costoStraord=(Array.isArray(c.straordinari)?c.straordinari:[]).reduce((s,a)=>s+(Number(a.ore)||0)*COSTO_STRAORDINARIO,0);
-    const costiExtraImprev=(Array.isArray(c.extra_costi)?c.extra_costi:[]).reduce((s,x)=>s+(Number(x.costo)||0),0);
-    const addebExtraImprev=(Array.isArray(c.extra_costi)?c.extra_costi:[]).filter(x=>x.addebita).reduce((s,x)=>s+(Number(x.costo)||0),0);
+    const spTr=speseTrByComm[c.id]||{costo:0,addebito:0};   // spese di trasferta approvate
+    const costiExtraImprev=(Array.isArray(c.extra_costi)?c.extra_costi:[]).reduce((s,x)=>s+(Number(x.costo)||0),0)+spTr.costo;
+    const addebExtraImprev=(Array.isArray(c.extra_costi)?c.extra_costi:[]).filter(x=>x.addebita).reduce((s,x)=>s+(Number(x.costo)||0),0)+spTr.addebito;
     const costoPerdite=(persiByComm[c.id]||[]).reduce((s,p)=>{ const a=artMap[p.articolo_id];
       const mq=(Number(p.larghezza_cm)||0)*(Number(p.altezza_cm)||0)/10000*(Number(p.quantita)||1);
       return s+mq*(a?Number(a.costo)||0:0); },0);
@@ -16565,7 +16925,7 @@ function ModuloReport({profilo,perm}){
     const ricavi=(Number(c.valore)||0)+addeb+extraRic+addebExtraImprev-(Number(c.sconto_fattura)||0);   // al netto dello sconto commerciale
     const costi=costoMat+costoMdo+costoEsternoR+(Number(c.trasporto)||0)+costoInt+costiAiuti+costoPerdite+costoStraord+scostForn+extraCos+costiExtraImprev+costoProvv+speseGenR;
     return {ricavi,costi,margine:ricavi-costi,scostForn,extraRic};
-  },[artMap,opMap,intByComm,persiByComm,ofByComm,cliMap,agMap,impSg,timbFasi]);
+  },[artMap,opMap,intByComm,persiByComm,ofByComm,cliMap,agMap,impSg,timbFasi,speseTrByComm]);
 
   const tot=useMemo(()=>{ let ric=0,cos=0; filtrate.forEach(c=>{ const x=consunt(c); ric+=x.ricavi; cos+=x.costi; });
     return {ric,cos,mar:ric-cos,n:filtrate.length}; },[filtrate,consunt]);
@@ -17090,7 +17450,7 @@ function ModuloUtenti({profilo}){
   const [agenti,setAgenti]=useState([]);
   const [err,setErr]=useState("");
   const [permEditor,setPermEditor]=useState(null);
-  const RUOLI=["amministratore","commerciale","agente","produzione","magazzino","reception"];
+  const RUOLI=["amministratore","commerciale","agente","produzione","magazzino","reception","allestitore"];
 
   const carica=useCallback(async()=>{
     const [u,a]=await Promise.all([

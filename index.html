@@ -12660,6 +12660,22 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       .sort((a,b)=>b.ore-a.ore);
   },[segmenti,fasi,aiuti]);
 
+  // dettaglio "Chi ci ha lavorato": una riga per persona E lavorazione (non sommate)
+  const partecipantiLav=React.useMemo(()=>{
+    const nomeFase=ch=>{ const fa=(fasi||[]).find(x=>x.chiave&&x.chiave===ch); return fa?(fa.descrizione||fa.reparto||"Lavorazione"):null; };
+    const m={};
+    const get=(nome,lav)=>{ const pn=(nome||"—").trim(), k=pn+"||"+lav; if(!m[k]) m[k]={nome:pn,lav,sessioni:0,oreCrono:0,oreMano:0,dal:null,al:null,inCorso:false}; return m[k]; };
+    segmenti.forEach(s=>{ const p=get(s.operatore_nome, nomeFase(s.fase_chiave)||s.fase_descr||s.reparto||"Lavorazione"); p.sessioni++;
+      const a=new Date(s.inizio).getTime(), b=s.fine?new Date(s.fine).getTime():null;
+      if(b) p.oreCrono+=(b-a)/3600000; else p.inCorso=true;
+      if(!p.dal||a<p.dal) p.dal=a; const ult=b||a; if(!p.al||ult>p.al) p.al=ult; });
+    (fasi||[]).forEach(fa=>(fa.operatori||[]).forEach(o=>{ const ore=Number(o.ore)||0; if(!o.nome && !ore) return;
+      get(o.nome, fa.descrizione||fa.reparto||"Lavorazione").oreMano+=ore; }));
+    (aiuti||[]).forEach(a=>{ const ore=Number(a.ore)||0; if(!a.nome && !ore) return; get(a.nome,"🆘 Aiuto in produzione").oreMano+=ore; });
+    const righe=Object.values(m).map(p=>({...p, ore:p.oreCrono+p.oreMano}));
+    const tot={}; righe.forEach(r=>{ tot[r.nome]=(tot[r.nome]||0)+r.ore; });
+    return righe.sort((a,b)=>(tot[b.nome]-tot[a.nome]) || a.nome.localeCompare(b.nome) || (b.ore-a.ore));
+  },[segmenti,fasi,aiuti]);
   const ultimoLavoro=segmenti.length? segmenti[segmenti.length-1] : null;
   // tutte le lavorazioni APERTE adesso (una persona può averne più di una: es. stampa + taglio)
   const inCorsoOra=segmenti.filter(s=>!s.fine).slice().sort((a,b)=>new Date(a.inizio)-new Date(b.inizio));
@@ -13703,24 +13719,33 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
               </div>
               <div style={{overflow:"auto"}}>
                 <table>
-                  <thead><tr><th>Persona</th><th>Reparti</th><th style={{textAlign:"right"}}>Sessioni</th>
+                  <thead><tr><th>Persona</th><th>Lavorazione</th><th style={{textAlign:"right"}}>Sessioni</th>
                     <th style={{textAlign:"right"}}>Ore cronometrate</th><th style={{textAlign:"right"}}>Ore a mano</th>
                     <th style={{textAlign:"right"}}>Totale ore</th><th>Periodo</th></tr></thead>
                   <tbody>
-                    {partecipanti.map(p=>
-                      <tr key={p.nome}>
-                        <td className="rs">{p.nome}{p.inCorso && (()=>{ const k=inCorsoOra.filter(s=>(s.operatore_nome||"—").trim()===p.nome).length;
-                          return <span className="tag" style={{background:"#e6f4ee",color:"#1f9c68",marginLeft:6}}>al lavoro ora{k>1?" su "+k+" lavorazioni":""}</span>; })()}</td>
-                        <td className="muted" style={{fontSize:12}}>{p.reparti.join(", ")||"—"}</td>
+                    {partecipantiLav.map((p,i)=>{ const prima=i===0||partecipantiLav[i-1].nome!==p.nome;
+                      const sue=partecipantiLav.filter(x=>x.nome===p.nome); const ultima=i===partecipantiLav.length-1||partecipantiLav[i+1].nome!==p.nome;
+                      return <React.Fragment key={p.nome+"|"+p.lav}>
+                      <tr style={prima&&i>0?{borderTop:"2px solid var(--line)"}:null}>
+                        <td className="rs">{prima? p.nome : ""}</td>
+                        <td style={{fontSize:12.5}}>{p.lav}{p.inCorso && <span className="tag" style={{background:"#e6f4ee",color:"#1f9c68",marginLeft:6}}>▶ in corso</span>}</td>
                         <td style={{textAlign:"right"}}>{p.sessioni||"—"}</td>
                         <td style={{textAlign:"right"}} title={p.oreCrono?p.oreCrono.toFixed(3)+" h":""}>{durataOre(p.oreCrono)}</td>
-                        <td style={{textAlign:"right"}}>{(p.oreMano+p.oreAiuto)? (p.oreMano+p.oreAiuto).toFixed(2):"—"}</td>
+                        <td style={{textAlign:"right"}}>{p.oreMano? p.oreMano.toFixed(2):"—"}</td>
                         <td style={{textAlign:"right",fontWeight:700}}>{p.ore.toFixed(2)}</td>
                         <td className="muted" style={{fontSize:12}}>{p.dal
                           ? new Date(p.dal).toLocaleDateString("it-IT")+(p.al&&new Date(p.al).toDateString()!==new Date(p.dal).toDateString()
                               ? " → "+new Date(p.al).toLocaleDateString("it-IT"):"")
                           : "—"}</td>
-                      </tr>)}
+                      </tr>
+                      {ultima && sue.length>1 && <tr style={{background:"#fafbfc"}}>
+                        <td></td><td className="muted" style={{fontSize:12,fontWeight:700}}>Totale {p.nome}</td>
+                        <td style={{textAlign:"right"}} className="muted">{sue.reduce((t,x)=>t+x.sessioni,0)}</td>
+                        <td style={{textAlign:"right"}} className="muted">{durataOre(sue.reduce((t,x)=>t+x.oreCrono,0))}</td>
+                        <td style={{textAlign:"right"}} className="muted">{(()=>{ const v=sue.reduce((t,x)=>t+x.oreMano,0); return v?v.toFixed(2):"—"; })()}</td>
+                        <td style={{textAlign:"right",fontWeight:800}}>{sue.reduce((t,x)=>t+x.ore,0).toFixed(2)}</td><td></td>
+                      </tr>}
+                      </React.Fragment>; })}
                   </tbody>
                 </table>
               </div>

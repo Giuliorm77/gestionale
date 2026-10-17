@@ -4223,17 +4223,19 @@ function ImportArticoli({onClose,onImport,isAdmin,fornitori}){
 function DaImballare({profilo,perm}){
   const [lista,setLista]=useState(null);
   const [imballi,setImballi]=useState([]);
+  const [bobine,setBobine]=useState([]);   // bobine di pluriball a magazzino (per proporre l'imballo quando manca)
   const [err,setErr]=useState("");
   const [msg,setMsg]=useState("");
   const [busy,setBusy]=useState(false);
   const carica=useCallback(async()=>{
     setErr("");
-    const [c,im]=await Promise.all([
-      sb.from("commesse").select("id,numero,cliente_nome,data_consegna,riferimento,priorita,stato,imballo_da_nome,imballo_il,spedibile_da_nome,spedibile_il, commesse_righe(id,ordine,descrizione,quantita,unita,modalita_consegna,data_consegna,imballo_id,imballo_ids,imballo_pluriball,imballo_input,config)").eq("stato","pronta").order("data_consegna",{ascending:true}),
+    const [c,im,bb]=await Promise.all([
+      sb.from("commesse").select("id,numero,cliente_nome,data_consegna,riferimento,priorita,stato,note,imballo_da_nome,imballo_il,spedibile_da_nome,spedibile_il, commesse_righe(id,ordine,descrizione,quantita,unita,modalita_consegna,data_consegna,imballo_id,imballo_ids,imballo_pluriball,imballo_input,config,note)").eq("stato","pronta").order("data_consegna",{ascending:true}),
       sb.from("imballi").select("*, imballi_voci(*)"),
+      sb.from("articoli_magazzino").select("id,codice,nome_articolo,giacenza,unita").or("codice.ilike.%pluriball%,nome_articolo.ilike.%pluriball%"),
     ]);
     if(c.error){ setErr(c.error.message); setLista([]); return; }
-    setLista(c.data||[]); setImballi((im&&im.data)||[]);
+    setLista(c.data||[]); setImballi((im&&im.data)||[]); setBobine(bobinePluriball((bb&&bb.data)||[]));
   },[]);
   useEffect(()=>{ carica(); },[carica]);
   async function azione(c,az){
@@ -4247,7 +4249,13 @@ function DaImballare({profilo,perm}){
   }
   const fmt=d=>d?new Date(d).toLocaleDateString("it-IT"):"—";
   const fdt=d=>d?new Date(d).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
-    const imballoRiga=r=>{ const parts=[];
+    const pzTxt=r=>{ const m=(r.config&&r.config.mis)||{}; const L=Number(m.L)||0,H=Number(m.H)||0; const pz=pezziRiga(r);
+    return (L>0&&H>0) ? pz+" pz da "+L+"×"+H+" cm" : null; };
+  // nessun imballo salvato sulla riga: propongo il pluriball calcolato dalle misure (stessa regola del preventivo)
+  const imballoSuggerito=r=>{ const m=(r.config&&r.config.mis)||{}; const pa=calcolaPluriball(m,bobine); if(!pa) return [];
+    const pz=pezziRiga(r); const mtl=Math.round(pa.metri*pz*100)/100; const b=pa.bobina;
+    return [(b.nome_articolo||"Pluriball")+": "+mtl+" mtl ("+pz+" × "+pa.metri+" m: 2 × lato lungo + 2%)"+(b.giacenza!=null?" — a magazzino "+b.giacenza+" "+(b.unita||""):"")+(pa.coperto?"":" ⚠ la bobina non copre il lato corto: avvolgi in due passate")]; };
+  const imballoRiga=r=>{ const parts=[];
     const p=r.imballo_pluriball; if(p&&p.articolo_id&&Number(p.mtl_tot)>0) parts.push((p.nome||"Pluriball")+": "+mtlPluriball(r)+" mtl");
     const ids=Array.isArray(r.imballo_ids)&&r.imballo_ids.length?r.imballo_ids:(r.imballo_id?[r.imballo_id]:[]);
     ids.forEach(id=>{ const imbo=(imballi||[]).find(x=>x.id===id); if(imbo){ try{ vociImballoQty(imbo,(r.config&&r.config.mis)||{},pezziRiga(r),r.imballo_input).forEach(q=>parts.push(q.descrizione+": "+q.qty+(q.um?" "+q.um:""))); }catch(e){ parts.push(imbo.nome||"imballo"); } } });
@@ -4263,11 +4271,17 @@ function DaImballare({profilo,perm}){
           <div className="muted" style={{fontSize:12.5,color:rit?"var(--danger)":undefined,fontWeight:rit?700:400}}>📅 Consegna {fmt(c.data_consegna)}{rit?" — in ritardo":""}</div></div>
         <span className="tag" style={{background:st.bg,color:st.c,fontWeight:700}}>{st.l}</span>
       </div>
-      {righe.length>0 && <div style={{overflowX:"auto",marginTop:8}}><table><thead><tr><th>Articolo</th><th>Q.tà</th><th>Consegna</th><th>Imballo da usare</th></tr></thead><tbody>
-        {righe.map(r=>{ const parts=imballoRiga(r); return <tr key={r.id}>
-          <td className="rs">{r.descrizione||"—"}</td><td>{r.quantita}{r.unita?" "+r.unita:""}</td>
+      {c.note && <div style={{marginTop:6,fontSize:12.5,padding:"6px 10px",background:"#fff8e1",border:"1px solid #ffe08a",borderRadius:7}}>📝 Note commessa: {c.note}</div>}
+      {righe.length>0 && <div style={{overflowX:"auto",marginTop:8}}><table><thead><tr><th>Articolo</th><th>Q.tà</th><th>Consegna</th><th>Come imballare</th></tr></thead><tbody>
+        {righe.map(r=>{ const parts=imballoRiga(r); const sugg=parts.length?[]:imballoSuggerito(r); const pt=pzTxt(r); return <tr key={r.id}>
+          <td className="rs">{r.descrizione||"—"}{pt && <div className="muted" style={{fontSize:11.5,fontWeight:400}}>📐 {pt}</div>}{r.note && <div style={{fontSize:11.5,color:"#8a6d00",fontWeight:400}}>📝 {r.note}</div>}</td>
+          <td>{r.quantita}{r.unita?" "+r.unita:""}</td>
           <td style={{fontSize:12.5}}>{(MODALITA_CONSEGNA[r.modalita_consegna||"corriere"]||{}).l||r.modalita_consegna||"—"}</td>
-          <td style={{fontSize:12.5}}>{parts.length? parts.join(" · ") : <span className="muted">—</span>}</td></tr>; })}
+          <td style={{fontSize:12.5}}>{parts.length
+            ? parts.map((x,k)=><div key={k}>• {x}</div>)
+            : sugg.length
+              ? <>{sugg.map((x,k)=><div key={k}>• {x}</div>)}<div style={{fontSize:11,color:"#8a6d00"}}>💡 suggerito: nel preventivo non era indicato un imballo</div></>
+              : <span className="muted">Nessun imballo indicato{pt?"":" (riga senza misure)"} — imballa secondo prassi</span>}</td></tr>; })}
       </tbody></table></div>}
       <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginTop:10}}>
         {c.spedibile_il

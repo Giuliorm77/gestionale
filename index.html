@@ -1324,19 +1324,23 @@ function PostazioneOperatore({profilo,perm}){
   const [presaTxt,setPresaTxt]=useState("");
 
   const carica=useCallback(async()=>{
-    const [c,o,s]=await Promise.all([
+    const [c,o]=await Promise.all([
       sb.from("commesse").select("id,numero,cliente_nome,stato, commesse_fasi(id,chiave,reparto,descrizione,stato,ore_previste,ordine,assegnato_id,assegnato_nome,sostituzioni)").in("stato",["aperta","in_produzione"]).eq("rilasciata_produzione",true).order("data_consegna",{ascending:true}),
       sb.from("operatori_nomi").select("id,nome,tipo,has_pin").order("nome"),
-      sb.from("segmenti_lavoro").select("*"),
     ]);
     if(c.error){ setErr(c.error.message); return; }
     setErr("");
-    const visti=new Set(), fix=[];
-    (c.data||[]).forEach(cm=>(cm.commesse_fasi||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0)).forEach(fa=>{
-      if(!fa.chiave) return;
-      if(visti.has(fa.chiave)){ fa.chiave=uid(); fix.push({id:fa.id, chiave:fa.chiave}); } else visti.add(fa.chiave); }));
-    for(const x of fix){ try{ await sb.from("commesse_fasi").update({chiave:x.chiave}).eq("id",x.id); }catch(e){} }
-    setCommesse(c.data||[]); setOperatori(o.data||[]); setSegmenti(s.data||[]);
+    // ogni fase deve avere una chiave SUA (le timbrature si legano alla chiave): le doppie si separano
+    const visti=new Set();
+    for(const cm of (c.data||[])){ for(const fa of (cm.commesse_fasi||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0)||String(a.id).localeCompare(String(b.id)))){
+      if(!fa.chiave) continue;
+      if(visti.has(fa.chiave)){ const nk=uid(); const {error}=await sb.from("commesse_fasi").update({chiave:nk}).eq("id",fa.id); if(!error) fa.chiave=nk; }
+      else visti.add(fa.chiave); } }
+    // timbrature SOLO delle commesse in lavorazione (prima si leggeva tutta la tabella: oltre 1000 righe se ne perdevano)
+    const ids=(c.data||[]).map(x=>x.id);
+    let segs=[];
+    if(ids.length){ const r=await sb.from("segmenti_lavoro").select("*").in("commessa_id",ids).order("inizio",{ascending:true}).limit(5000); segs=r.data||[]; }
+    setCommesse(c.data||[]); setOperatori(o.data||[]); setSegmenti(segs);
   },[]);
   useEffect(()=>{ carica(); },[carica]);
   useEffect(()=>{ const t=setInterval(()=>setNow(Date.now()),1000); return ()=>clearInterval(t); },[]);
@@ -1376,9 +1380,16 @@ function PostazioneOperatore({profilo,perm}){
   const MOTIVI={interruzione:"Interruzione", cambio:"Cambio lavoro", guasto:"Guasto", altro:"Altro"};
 
   async function assicuraChiave(fa){
-    if(fa.chiave) return fa.chiave;
-    const ch=uid(); await sb.from("commesse_fasi").update({chiave:ch}).eq("id",fa.id); fa.chiave=ch; return ch;
+    if(fa.chiave){
+      try{ const {data}=await sb.from("commesse_fasi").select("id").eq("chiave",fa.chiave);
+        if(!(data||[]).some(x=>x.id!==fa.id)) return fa.chiave; }catch(e){ return fa.chiave; }
+      // chiave condivisa con un'altra lavorazione → ne do una nuova a questa, così il cronometro resta separato
+    }
+    const ch=uid(); const {error}=await sb.from("commesse_fasi").update({chiave:ch}).eq("id",fa.id); if(error) throw error; fa.chiave=ch; return ch;
   }
+  // una timbratura appartiene a QUESTA lavorazione? (chiave + nome, così anche una chiave doppia non mescola i lavori)
+  const chiaveCondivisa=fa=> !!fa.chiave && (commesse||[]).some(cm=>(cm.commesse_fasi||[]).some(x=>x.id!==fa.id && x.chiave===fa.chiave));
+  const segDellaFase=(s,fa)=> s.fase_chiave===fa.chiave && (!chiaveCondivisa(fa) || !s.fase_descr || s.fase_descr===(fa.descrizione||fa.reparto||""));
   // lavorazione assegnata a un ALTRO operatore e non ancora presa da me → serve la motivazione
   const serveMotivo=fa=> !!(fa.assegnato_id && fa.assegnato_id!==me && !(Array.isArray(fa.sostituzioni)?fa.sostituzioni:[]).some(s=>s.a_id===me));
   async function prendi(fa,c,motivo){
@@ -1405,18 +1416,18 @@ function PostazioneOperatore({profilo,perm}){
     setBusy(false);
   }
   async function mettiPausa(fa,motivo){
-    const seg=mioAperto(fa.chiave); setPausaFor(null); setAltroFor(null); setAltroTxt(""); if(!seg) return;
+    const seg=segmenti.find(s=>!s.fine && s.operatore_id===me && segDellaFase(s,fa)); setPausaFor(null); setAltroFor(null); setAltroTxt(""); if(!seg) return;
     setBusy(true);
     try{ await sb.from("segmenti_lavoro").update({fine:new Date().toISOString(), motivo}).eq("id",seg.id); await carica(); }
     catch(ex){ setErr(ex.message); }
     setBusy(false);
   }
   async function chiudi(fa,c){
-    if(!window.confirm("Chiudere la lavorazione «"+(fa.descrizione||fa.reparto||"")+"»? Ferma tutti i cronometri attivi.")) return;
+    if(!window.confirm("Chiudere la lavorazione «"+(fa.descrizione||fa.reparto||"")+"»? Si fermano i cronometri SOLO di questa lavorazione (le altre che stai facendo continuano).")) return;
     setBusy(true);
     try{
       const ch=fa.chiave||await assicuraChiave(fa);
-      for(const s of aperti(ch)){ await sb.from("segmenti_lavoro").update({fine:new Date().toISOString(), motivo:"fine"}).eq("id",s.id); }
+      for(const s of segmenti.filter(x=>!x.fine && segDellaFase(x,fa))){ await sb.from("segmenti_lavoro").update({fine:new Date().toISOString(), motivo:"fine"}).eq("id",s.id).is("fine",null); }
       await sb.from("commesse_fasi").update({stato:"fatto", chiusa_da_id:me||null, chiusa_da_nome:meNome||"", chiusa_il:new Date().toISOString()}).eq("id",fa.id);
       // se TUTTE le fasi sono completate: commessa -> "pronta" E articoli -> "pronto" (spedibili)
       try{ await sb.rpc("commessa_segna_pronta",{p_commessa_id:c.id}); }catch(e){}
@@ -12509,6 +12520,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     .map(x=>({...x, operatori:Array.isArray(x.operatori)?x.operatori:[]})) );
   const [righe,setRighe]=useState(()=> (commessa?.commesse_righe||[]).slice().sort((a,b)=>(a.ordine||0)-(b.ordine||0))
     .map(x=>({...x})) );
+  // stato delle fasi com'era all'APERTURA della scheda: serve a non sovrascrivere l'avanzamento fatto nel frattempo in Postazione
+  const statoFasiIniz=React.useRef(Object.fromEntries((commessa?.commesse_fasi||[]).filter(x=>x.chiave).map(x=>[x.chiave,x.stato||""])));
   const [consumi,setConsumi]=useState(()=> Array.isArray(commessa?.consumi)?commessa.consumi.map(x=>({...x})):[] );
   const [aiuti,setAiuti]=useState(()=> Array.isArray(commessa?.aiuti)?commessa.aiuti.map(x=>({...x})):[] );
   const [straordinari,setStraordinari]=useState(()=> Array.isArray(commessa?.straordinari)?commessa.straordinari.map(x=>({...x})):[] );
@@ -12960,11 +12973,15 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         Object.assign(rec,{imballo_da_id:null, imballo_da_nome:null, imballo_il:null, spedibile_da_id:null, spedibile_da_nome:null, spedibile_il:null}); }
       let id=commessa?.id;
       let sostDb={};   // sostituzioni registrate dalla Postazione (non vanno perse riscrivendo le fasi)
+      let statoDb={};  // stato attuale nel DB (la Postazione può aver avviato/chiuso fasi mentre la scheda era aperta)
+      // se la fase è cambiata in Postazione e qui NON l'hai toccata, vince il DB (non si "riapre" una fase chiusa)
+      const daDb=fa=>{ const d=fa.chiave&&statoDb[fa.chiave]; const iniz=fa.chiave?statoFasiIniz.current[fa.chiave]:undefined;
+        return (d && iniz!==undefined && (d.stato||"")!==iniz && (fa.stato||"")===iniz) ? d : null; };
       if(nuova){ rec.creato_da=profilo.id;
         const {data,error}=await sb.from("commesse").insert(rec).select("id").single(); if(error) throw error; id=data.id;
       }else{ const {error}=await sb.from("commesse").update(rec).eq("id",id); if(error) throw error;
-        try{ const {data:fv}=await sb.from("commesse_fasi").select("chiave,sostituzioni").eq("commessa_id",id);
-          (fv||[]).forEach(x=>{ if(x.chiave) sostDb[x.chiave]=Array.isArray(x.sostituzioni)?x.sostituzioni:[]; }); }catch(e){}
+        try{ const {data:fv}=await sb.from("commesse_fasi").select("chiave,sostituzioni,stato,chiusa_da_id,chiusa_da_nome,chiusa_il").eq("commessa_id",id);
+          (fv||[]).forEach(x=>{ if(x.chiave){ sostDb[x.chiave]=Array.isArray(x.sostituzioni)?x.sostituzioni:[]; statoDb[x.chiave]=x; } }); }catch(e){}
         // Scollega eventuali DDT dalle righe PRIMA di cancellarle: il vincolo ddt_righe.commessa_riga_id
         // altrimenti impedisce la cancellazione (silenziosa) e le righe si RADDOPPIANO a ogni salvataggio.
         try{ const {data:vecchie}=await sb.from("commesse_righe").select("id").eq("commessa_id",id);
@@ -12976,7 +12993,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       const chiaviViste=new Set();
       const chiaveUnica=fa=>{ let k=fa.chiave||uid(); if(chiaviViste.has(k)) k=uid(); chiaviViste.add(k); return k; };
       const rows=fasi.map((fa,idx)=>({commessa_id:id, ordine:idx, chiave:chiaveUnica(fa), reparto:fa.reparto||"",
-        descrizione:fa.descrizione||"", stato:fa.stato||(fa.esterna?"da_inviare":"da_fare"),
+        descrizione:fa.descrizione||"", stato:(daDb(fa)&&daDb(fa).stato)||fa.stato||(fa.esterna?"da_inviare":"da_fare"),
         ore_previste:Number(fa.ore_previste)||0,
         quantita_prevista:Number(fa.quantita_prevista)||0,
         quantita_lavorata:Number(fa.quantita_lavorata)||0, unita_lavorata:fa.unita_lavorata||"",
@@ -12985,7 +13002,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
         costo_previsto:Number(fa.costo_previsto)||0, costo_reale:Number(fa.costo_reale)||0,
         data_invio:fa.data_invio||null, data_rientro_prevista:fa.data_rientro_prevista||null, data_rientro:fa.data_rientro||null,
         aggiunta:!!fa.aggiunta,
-        chiusa_da_id:fa.chiusa_da_id||null, chiusa_da_nome:fa.chiusa_da_nome||"", chiusa_il:fa.chiusa_il||null,
+        chiusa_da_id:(daDb(fa)?daDb(fa).chiusa_da_id:fa.chiusa_da_id)||null, chiusa_da_nome:(daDb(fa)?daDb(fa).chiusa_da_nome:fa.chiusa_da_nome)||"", chiusa_il:(daDb(fa)?daDb(fa).chiusa_il:fa.chiusa_il)||null,
         assegnato_id:fa.assegnato_id||null, assegnato_nome:fa.assegnato_nome||"",
         assegnato_prev_id:fa.assegnato_prev_id||null, assegnato_prev_nome:fa.assegnato_prev_nome||"",
         costo_orario_prev:fa.costo_orario_prev??null,

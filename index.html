@@ -12567,7 +12567,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   },[commessa?.creato_da]);
   useEffect(()=>{
     if(!commessa?.id){ setSegmenti([]); return; }
-    sb.from("segmenti_lavoro").select("operatore_id,operatore_nome,reparto,inizio,fine,fase_chiave")
+    sb.from("segmenti_lavoro").select("id,operatore_id,operatore_nome,reparto,inizio,fine,fase_chiave,fase_descr")
       .eq("commessa_id",commessa.id).order("inizio")
       .then(({data})=>setSegmenti(data||[]));
   },[commessa?.id]);
@@ -12641,6 +12641,10 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   },[segmenti,fasi,aiuti]);
 
   const ultimoLavoro=segmenti.length? segmenti[segmenti.length-1] : null;
+  // tutte le lavorazioni APERTE adesso (una persona può averne più di una: es. stampa + taglio)
+  const inCorsoOra=segmenti.filter(s=>!s.fine).slice().sort((a,b)=>new Date(a.inizio)-new Date(b.inizio));
+  const nomeFaseSeg=s=>{ const fa=(fasi||[]).find(x=>x.chiave && x.chiave===s.fase_chiave); return (fa&&(fa.descrizione||fa.reparto))||s.fase_descr||s.reparto||"lavorazione"; };
+  const daQuanto=s=>{ const m=Math.max(0,Math.round((Date.now()-new Date(s.inizio).getTime())/60000)); return m<60? m+" min" : Math.floor(m/60)+"h "+String(m%60).padStart(2,"0")+"m"; };
 
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const artMap=React.useMemo(()=>{ const m={}; (articoli||[]).forEach(a=>m[a.id]=a); return m; },[articoli]);
@@ -13189,7 +13193,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
             <div className="muted" style={{fontSize:12.5,marginBottom:10,display:"flex",gap:16,flexWrap:"wrap"}}>
               {apertaDa && <span>🧾 Aperta da <b>{apertaDa}</b>
                 {commessa?.creato_il? " il "+new Date(commessa.creato_il).toLocaleDateString("it-IT"):""}</span>}
-              {ultimoLavoro && <span style={ultimoLavoro.fine?null:{color:"#1f9c68",fontWeight:600}}>
+              {inCorsoOra.length>0 && <span style={{color:"#1f9c68",fontWeight:600}}>
+                ▶ In lavorazione adesso ({inCorsoOra.length}): {inCorsoOra.map((s,i)=><span key={s.id||i}>{i>0?" · ":""}<b>{s.operatore_nome||"—"}</b> — {nomeFaseSeg(s)} <span style={{fontWeight:400}}>(da {new Date(s.inizio).toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})}, {daQuanto(s)})</span></span>)}</span>}
+              {ultimoLavoro && inCorsoOra.length===0 && <span>
                 🔧 Ultimo a lavorarci: <b>{ultimoLavoro.operatore_nome||"—"}</b>
                 {ultimoLavoro.reparto? " ("+ultimoLavoro.reparto+")":""}
                 {ultimoLavoro.fine
@@ -13661,6 +13667,12 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
           {!nuova && perm.economici && partecipanti.length>0 &&
             <div className="section">
               <h3>Chi ci ha lavorato</h3>
+              {inCorsoOra.length>0 && <div style={{margin:"0 0 10px",padding:"8px 12px",borderRadius:8,background:"#f1faf4",border:"1px solid #bfe6cd"}}>
+                <div style={{fontWeight:700,fontSize:13,color:"#127a3e",marginBottom:4}}>▶ In corso adesso ({inCorsoOra.length})</div>
+                {inCorsoOra.map((s,i)=><div key={s.id||i} style={{fontSize:13,padding:"2px 0"}}>
+                  <b>{s.operatore_nome||"—"}</b> — {nomeFaseSeg(s)} <span className="muted">· avviata alle {new Date(s.inizio).toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})} · da {daQuanto(s)}</span></div>)}
+                <div className="muted" style={{fontSize:11.5,marginTop:3}}>Le ore cronometrate in tabella si sommano quando la sessione viene messa in pausa o chiusa.</div>
+              </div>}
               <div className="muted" style={{fontSize:12,marginBottom:8}}>
                 Ore <b>cronometrate</b> = sessioni avvio/stop dalla Postazione. Ore <b>a mano</b> = scritte nelle fasi o negli aiuti,
                 senza orario. Chi lavora in un reparto che non usa la Postazione compare qui solo con le ore a mano.
@@ -13673,7 +13685,8 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                   <tbody>
                     {partecipanti.map(p=>
                       <tr key={p.nome}>
-                        <td className="rs">{p.nome}{p.inCorso && <span className="tag" style={{background:"#e6f4ee",color:"#1f9c68",marginLeft:6}}>al lavoro ora</span>}</td>
+                        <td className="rs">{p.nome}{p.inCorso && (()=>{ const k=inCorsoOra.filter(s=>(s.operatore_nome||"—").trim()===p.nome).length;
+                          return <span className="tag" style={{background:"#e6f4ee",color:"#1f9c68",marginLeft:6}}>al lavoro ora{k>1?" su "+k+" lavorazioni":""}</span>; })()}</td>
                         <td className="muted" style={{fontSize:12}}>{p.reparti.join(", ")||"—"}</td>
                         <td style={{textAlign:"right"}}>{p.sessioni||"—"}</td>
                         <td style={{textAlign:"right"}} title={p.oreCrono?p.oreCrono.toFixed(3)+" h":""}>{durataOre(p.oreCrono)}</td>

@@ -7980,10 +7980,35 @@ function pesoRiga(r, articoli){
   const mis=(r.config&&r.config.mis)||{};
   const L=Number(mis.L)||0, H=Number(mis.H)||0;
   let q;
-  if(a.peso_um==="mq"){ if(!(L>0&&H>0)) return null; q=(L/100)*(H/100)*N; }
-  else if(a.peso_um==="mtl"){ if(!(L>0)) return null; q=(L/100)*N; }
+  if(a.peso_um==="mq"){ if(!(L>0&&H>0)) return null; q=(L/100)*(H/100)*pezziRiga(r); }
+  else if(a.peso_um==="mtl"){ if(!(L>0)) return null; q=(L/100)*pezziRiga(r); }
   else { q=N; }
   return q*(Number(a.peso_kg)||0)*ecc;
+}
+// Dati della spedizione dalle righe con consegna "Corriere": peso, mq, colli (1 per pannello / 1 per riga),
+// lato più lungo e peso del collo più pesante (per escludere i corrieri che non accettano il pacco).
+function datiSpedizione(righe, articoli){
+  const rows=(righe||[]).filter(r=>(r.tipo==="materiale"||r.tipo==="altro") && (r.modalita_consegna||"corriere")==="corriere");
+  let peso=0, mq=0, colli=0, maxLato=0, maxPesoCollo=0, senzaPeso=0;
+  rows.forEach(r=>{ const pz=pezziRiga(r); const p=pesoRiga(r,articoli);
+    if(p==null){ if(r.articolo_id||(r.config&&r.config.articolo_id)) senzaPeso++; } else peso+=p;
+    const m=(r.config&&r.config.mis)||{}; const L=Number(m.L)||0, H=Number(m.H)||0;
+    if(L>0&&H>0){ mq+=(L/100)*(H/100)*pz; colli+=Math.max(1,Math.round(pz)); maxLato=Math.max(maxLato,L,H); if(p!=null&&pz>0) maxPesoCollo=Math.max(maxPesoCollo,p/pz); }
+    else { colli+=1; if(p!=null) maxPesoCollo=Math.max(maxPesoCollo,p); }
+  });
+  return {n:rows.length, peso:Math.round(peso*100)/100, mq:Math.round(mq*100)/100, colli, maxLato, maxPesoCollo:Math.round(maxPesoCollo*100)/100, senzaPeso};
+}
+// Listino da usare: il più ECONOMICO tra i corrieri attivi che accettano il pacco (lato max / peso per collo),
+// oppure quello scelto a mano (forzatoId).
+function stimaTrasporto(righe, articoli, corrieri, forzatoId){
+  const d=datiSpedizione(righe,articoli);
+  if(!d.n) return {d, opz:[], compat:[], scelto:null};
+  const accetta=c=>(!(Number(c.max_lato_cm)>0) || d.maxLato<=Number(c.max_lato_cm)) && (!(Number(c.max_peso_collo_kg)>0) || d.maxPesoCollo<=Number(c.max_peso_collo_kg));
+  const opz=(corrieri||[]).filter(c=>c.attivo!==false).map(c=>({c, ok:accetta(c), res:calcolaTrasporto(c,{peso:d.peso,volume:0,colli:d.colli,mq:d.mq})}))
+    .sort((a,b)=>a.res.costo-b.res.costo);
+  const compat=opz.filter(o=>o.ok);
+  const scelto=(forzatoId && opz.find(o=>o.c.id===forzatoId)) || compat[0] || null;
+  return {d, opz, compat, scelto};
 }
 // costo trasporto dato il corriere (con scaglioni) e i totali {peso,volume,colli,mq}
 function calcolaTrasporto(corr, tot){
@@ -8747,6 +8772,8 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     stato:preventivo?.stato||"bozza",
     imballaggio:preventivo?.imballaggio ?? 0,
     trasporto:preventivo?.trasporto ?? 0,
+    trasporto_auto: preventivo?.id ? !!preventivo.trasporto_auto : true,   // nuovi preventivi: trasporto calcolato in automatico
+    trasporto_corriere_id: preventivo?.trasporto_corriere_id || "",
     abbondanza_pct:preventivo?.abbondanza_pct ?? imp.abbondanza_pct ?? 2,
     spese_generali_pct:preventivo?.spese_generali_pct ?? imp.spese_generali_pct ?? 0,
     iva_pct:preventivo?.iva_pct ?? imp.iva_pct ?? 22,
@@ -9070,6 +9097,11 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const pluriballDaSalvare=r=> imballiSel(r).includes("__pluriball__") ? pluriballRiga(r) : null;
   const righeCalc=righe.map(r=>({...r, imballo_costo:Math.round(costoImballoRiga(r)*100)/100}));
   const tot=calcolaPreventivo(righeCalc,f);
+  const stimaTr=React.useMemo(()=>stimaTrasporto(righe,articoli,corrieri,f.trasporto_corriere_id),[righe,articoli,corrieri,f.trasporto_corriere_id]);
+  useEffect(()=>{ if(!f.trasporto_auto || f.scaglioni) return;
+    const v=stimaTr.scelto? Math.round(stimaTr.scelto.res.costo*100)/100 : 0;
+    if(Math.abs((Number(f.trasporto)||0)-v)>0.004) set("trasporto",v);
+  },[stimaTr,f.trasporto_auto,f.scaglioni]);
   // SCAGLIONI: ogni PRODOTTO (gruppo) è un'alternativa di quantità; il suo prezzo è l'imponibile
   // del solo gruppo (spese generali incluse), senza i costi fissi di spedizione/imballaggio dell'ordine.
   const optPrice=g=>calcolaPreventivo((righeCalc||[]).filter(r=>(r.gruppo||gruppoCorr)===g),{...f,imballaggio:0,trasporto:0}).imponibile;
@@ -9194,6 +9226,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     const isMarg=f.tipo_provvigione==="margine";
     const rec={...f, cliente_nome:cli?cli.ragione_sociale:(preventivo?.cliente_nome||""),
       validita_giorni:Number(f.validita_giorni)||0, imballaggio:Number(f.imballaggio)||0, trasporto:Number(f.trasporto)||0,
+      trasporto_auto:!!f.trasporto_auto, trasporto_corriere_id:f.trasporto_corriere_id||null,
       spese_generali_pct:Number(f.spese_generali_pct)||0, iva_pct:Number(f.iva_pct)||0, margine_minimo_pct:Number(f.margine_minimo_pct)||0,
       abbondanza_pct:Number(f.abbondanza_pct)||0,
       tipo_provvigione:f.tipo_provvigione||"percentuale",
@@ -9668,11 +9701,26 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                   <input type="number" step="0.01" value={f.imballaggio} onChange={e=>set("imballaggio",e.target.value)} style={{flex:1}}/>
                   <button type="button" className="btn small" title="Calcola da un imballo di spedizione" onClick={()=>setImbOrdineOpen(true)}>🎁</button>
                 </div></div>
-              <div className="field" style={{maxWidth:230}}><label>Trasporto €</label>
+              <div className="field" style={{maxWidth:360}}><label>Trasporto €</label>
                 <div style={{display:"flex",gap:6}}>
-                  <input type="number" step="0.01" value={f.trasporto} onChange={e=>set("trasporto",e.target.value)} style={{flex:1}}/>
-                  <button type="button" className="btn small" title="Calcola dal listino corriere" onClick={()=>setTrasportoOpen(true)}>🚚</button>
-                </div></div>
+                  <input type="number" step="0.01" value={f.trasporto} onChange={e=>{ set("trasporto",e.target.value); set("trasporto_auto",false); }} style={{flex:1}} title="Scrivendo un importo a mano il calcolo automatico si spegne"/>
+                  <button type="button" className="btn small" title="Calcolo dettagliato dal listino corriere" onClick={()=>setTrasportoOpen(true)}>🚚</button>
+                </div>
+                {!f.scaglioni && <label style={{display:"flex",alignItems:"center",gap:5,fontSize:11.5,marginTop:4,textTransform:"none",letterSpacing:0}}>
+                  <input type="checkbox" checked={!!f.trasporto_auto} onChange={e=>set("trasporto_auto",e.target.checked)} style={{width:"auto"}}/> calcolo automatico dal corriere</label>}
+                {f.trasporto_auto && !f.scaglioni && (()=>{ const st=stimaTr, d=st.d;
+                  if(!d.n) return <div className="muted" style={{fontSize:11.5,marginTop:2}}>Nessun articolo con consegna «Corriere»: trasporto 0.</div>;
+                  return <div style={{fontSize:11.5,marginTop:2}}>
+                    <div className="muted">📦 {d.colli} coll{d.colli===1?"o":"i"} · {d.peso} kg{d.maxLato?" · lato max "+d.maxLato+" cm":""}{d.mq?" · "+d.mq+" m²":""}</div>
+                    {d.senzaPeso>0 && <div style={{color:"#8a6d00"}}>⚠ {d.senzaPeso} articolo/i senza peso in Catalogo: il peso è parziale.</div>}
+                    {st.compat.length===0 && <div style={{color:"#c0392b",fontWeight:600}}>⚠ Nessun listino accetta questo pacco{d.maxLato?" ("+d.maxLato+" cm":""}{d.maxLato?", "+d.maxPesoCollo+" kg/collo)":""}: scegli il corriere qui sotto o scrivi l'importo a mano.</div>}
+                    <select value={f.trasporto_corriere_id||""} onChange={e=>set("trasporto_corriere_id",e.target.value)} style={{marginTop:3,padding:"4px 6px",fontSize:12}}>
+                      <option value="">{st.compat.length? "Automatico: il più economico che accetta il pacco" : "— scegli il corriere —"}</option>
+                      {st.opz.map(o=><option key={o.c.id} value={o.c.id}>{o.ok?"":"✗ "}{o.c.nome}{o.c.zona?" · "+o.c.zona:""} — {eur(o.res.costo)}{o.ok?"":" (non accetta il pacco)"}</option>)}
+                    </select>
+                    {st.scelto && <div style={{color:"#127a3e",marginTop:2}}>🚚 {st.scelto.c.nome}{st.scelto.c.zona?" · "+st.scelto.c.zona:""}: <b>{eur(st.scelto.res.costo)}</b>{!f.trasporto_corriere_id?" (il più economico)":""}{!st.scelto.ok?<span style={{color:"#c0392b"}}> — attenzione: non accetta il pacco</span>:null}</div>}
+                  </div>; })()}
+              </div>
               <div className="field" style={{maxWidth:110}}><label>IVA %</label>
                 <input type="number" step="0.1" value={f.iva_pct} onChange={e=>set("iva_pct",e.target.value)}/></div>
             </div>
@@ -14342,13 +14390,14 @@ function ModuloTrasporti({profilo,perm}){
           : corrieri.length===0 ? <div className="card empty">Nessun listino. Creane uno con “+ Nuovo listino corriere”.</div>
           : <div className="card" style={{overflow:"auto"}}>
               <table>
-                <thead><tr><th>Corriere</th><th>Zona</th><th>Base di calcolo</th><th>Scaglioni</th><th>Attivo</th></tr></thead>
+                <thead><tr><th>Corriere</th><th>Zona</th><th>Base di calcolo</th><th>Limiti</th><th>Scaglioni</th><th>Attivo</th></tr></thead>
                 <tbody>
                   {corrieri.map(c=>
                     <tr key={c.id} onClick={()=>setEditor(c)}>
                       <td className="rs">{c.nome||"—"}</td>
                       <td>{c.zona||"—"}</td>
                       <td className="muted">{baseL(c.base)}</td>
+                      <td className="muted" style={{fontSize:12}}>{[Number(c.max_lato_cm)>0?"lato ≤ "+c.max_lato_cm+" cm":"", Number(c.max_peso_collo_kg)>0?"≤ "+c.max_peso_collo_kg+" kg/collo":""].filter(Boolean).join(" · ")||"nessuno"}</td>
                       <td className="muted">{(c.corrieri_scaglioni||[]).length}</td>
                       <td>{c.attivo===false?<span className="tag" style={{background:"#fdf0e3",color:"#c47a1e"}}>No</span>:<span className="tag" style={{background:"#e6f4ee",color:"#1f9c68"}}>Sì</span>}</td>
                     </tr>)}
@@ -14368,6 +14417,7 @@ function CorriereEditor({corriere,profilo,perm,onClose,onSalvato}){
     nome:corriere?.nome||"", zona:corriere?.zona||"", base:corriere?.base||"peso",
     coeff_volumetrico:corriere?.coeff_volumetrico ?? 200, supplemento_collo:corriere?.supplemento_collo ?? 0,
     minimo:corriere?.minimo ?? 0, attivo:corriere?.attivo!==false, note:corriere?.note||"",
+    max_lato_cm:corriere?.max_lato_cm ?? "", max_peso_collo_kg:corriere?.max_peso_collo_kg ?? "",
   }));
   const [scaglioni,setScaglioni]=useState(()=> (corriere?.corrieri_scaglioni||[]).slice().sort((a,b)=>(Number(a.da_valore)||0)-(Number(b.da_valore)||0)).map(s=>({...s})) );
   const [busy,setBusy]=useState(false);
@@ -14384,7 +14434,8 @@ function CorriereEditor({corriere,profilo,perm,onClose,onSalvato}){
     setBusy(true); setErr("");
     try{
       const rec={nome:f.nome, zona:f.zona||"", base:f.base, coeff_volumetrico:Number(f.coeff_volumetrico)||0,
-        supplemento_collo:Number(f.supplemento_collo)||0, minimo:Number(f.minimo)||0, attivo:f.attivo, note:f.note||""};
+        supplemento_collo:Number(f.supplemento_collo)||0, minimo:Number(f.minimo)||0, attivo:f.attivo, note:f.note||"",
+        max_lato_cm:Number(f.max_lato_cm)>0?Number(f.max_lato_cm):null, max_peso_collo_kg:Number(f.max_peso_collo_kg)>0?Number(f.max_peso_collo_kg):null};
       let id=corriere?.id;
       if(nuovo){ const {data,error}=await sb.from("corrieri").insert(rec).select("id").single(); if(error) throw error; id=data.id; }
       else{ const {error}=await sb.from("corrieri").update(rec).eq("id",id); if(error) throw error;
@@ -14434,6 +14485,13 @@ function CorriereEditor({corriere,profilo,perm,onClose,onSalvato}){
               <label style={{display:"flex",alignItems:"center",gap:8,alignSelf:"flex-end",paddingBottom:8}}>
                 <input type="checkbox" checked={f.attivo} onChange={e=>set("attivo",e.target.checked)} style={{width:"auto"}}/> Attivo
               </label>
+            </div>
+            <div className="row">
+              <div className="field" style={{maxWidth:200}}><label>Lato massimo accettato (cm)</label>
+                <input type="number" step="1" value={f.max_lato_cm} onChange={e=>set("max_lato_cm",e.target.value)} placeholder="nessun limite"/></div>
+              <div className="field" style={{maxWidth:200}}><label>Peso massimo per collo (kg)</label>
+                <input type="number" step="0.1" value={f.max_peso_collo_kg} onChange={e=>set("max_peso_collo_kg",e.target.value)} placeholder="nessun limite"/></div>
+              <div className="muted" style={{fontSize:12,alignSelf:"center",flex:1}}>Il preventivo calcola il trasporto con il corriere <b>più economico tra quelli che accettano il pacco</b>: se un corriere non prende i pacchi voluminosi, metti qui il limite.</div>
             </div>
           </div>
           <div className="section">
@@ -14553,7 +14611,7 @@ function CalcolatoreTrasporto({corrieri,articoli,righe,onClose,onApply}){
   const hasMix=cnt.ritiro_cliente>0 || cnt.mezzo_nostro>0;
   const autoPeso=Math.round(corriereRows.map(r=>pesoRiga(r,articoli)).reduce((s,p)=>s+(p||0),0)*1000)/1000;
   const mancanti=corriereRows.filter(r=>{ const art=(r.config&&r.config.articolo_id)||r.articolo_id; return art && pesoRiga(r,articoli)==null; }).length;
-  const autoMq=Math.round(corriereRows.filter(r=>r.tipo!=="manodopera"&&r.tipo!=="impianto").reduce((s,r)=>{ const m=(r.config&&r.config.mis)||{}; const L=Number(m.L)||0,H=Number(m.H)||0,N=Number(r.quantita)||0; return s+(L>0&&H>0?(L/100)*(H/100)*N:0); },0)*100)/100;
+  const autoMq=Math.round(corriereRows.filter(r=>r.tipo!=="manodopera"&&r.tipo!=="impianto").reduce((s,r)=>{ const m=(r.config&&r.config.mis)||{}; const L=Number(m.L)||0,H=Number(m.H)||0,N=pezziRiga(r); return s+(L>0&&H>0?(L/100)*(H/100)*N:0); },0)*100)/100;
   const [peso,setPeso]=useState(String(autoPeso||""));
   const [volume,setVolume]=useState("");
   const [colli,setColli]=useState("1");

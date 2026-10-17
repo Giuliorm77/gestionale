@@ -9708,11 +9708,15 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
           <div className="section">
             <h3>Extra a carico cliente</h3>
             <div className="row">
-              <div className="field" style={{maxWidth:230}}><label>Imballaggio €</label>
+              <div className="field" style={{maxWidth:260}}><label title="Imballo AGGIUNTIVO per tutta la spedizione (scatola esterna, bancale…). L'imballo dei singoli articoli (pluriball, angolari) si mette sulle righe ed è già nel totale.">Imballo spedizione extra €</label>
                 <div style={{display:"flex",gap:6}}>
                   <input type="number" step="0.01" value={f.imballaggio} onChange={e=>set("imballaggio",e.target.value)} style={{flex:1}}/>
-                  <button type="button" className="btn small" title="Calcola da un imballo di spedizione" onClick={()=>setImbOrdineOpen(true)}>🎁</button>
-                </div></div>
+                  <button type="button" className="btn small" title="Calcola da un imballo di spedizione (scatola, bancale…)" onClick={()=>setImbOrdineOpen(true)}>🎁</button>
+                </div>
+                {tot.imbRighe>0
+                  ? <div style={{fontSize:11.5,marginTop:4,color:"#127a3e"}}>✓ Imballo articoli dalle righe: <b>{eur(tot.imbRighe)}</b> (già nel totale). Qui solo scatola/bancale in più.</div>
+                  : <div className="muted" style={{fontSize:11.5,marginTop:4}}>Solo scatola/bancale in più: l'imballo dei singoli articoli si aggiunge sulle righe.</div>}
+              </div>
               <div className="field" style={{maxWidth:360}}><label>Trasporto €</label>
                 <div style={{display:"flex",gap:6}}>
                   <input type="number" step="0.01" value={f.trasporto} onChange={e=>{ set("trasporto",e.target.value); set("trasporto_auto",false); }} style={{flex:1}} title="Scrivendo un importo a mano il calcolo automatico si spegne"/>

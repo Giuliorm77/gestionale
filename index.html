@@ -7668,6 +7668,8 @@ function pezziRiga(r, abbCm){
   if(["mc","m3","m³"].includes(u)){ const sp=Number(m.sp)||0; if(L>0&&H>0&&sp>0) return migliore((L/100)*(H/100)*(sp/1000), ((L+abb)/100)*((H+abb)/100)*(sp/1000)); return 1; }
   return q;
 }
+// durata leggibile tra due istanti (minuti → "25 min" / "1h 05m")
+function durataTraTxt(a,b){ const m=Math.max(0,Math.round(((b?new Date(b).getTime():Date.now())-new Date(a).getTime())/60000)); return m<60? m+" min" : Math.floor(m/60)+"h "+String(m%60).padStart(2,"0")+"m"; }
 // scelte d'imballo "speciali" decise nel preventivo (salvate in imballo_ids): nessun imballo / istruzioni scritte
 function etichettaImballoSpeciale(id, r){
   if(id==="__nessuno__") return "✓ Nessun imballo necessario";
@@ -12441,7 +12443,10 @@ function ModuloCommesse({profilo,perm}){
                             const min=Math.max(0,Math.round((Date.now()-new Date(x.inizio).getTime())/60000));
                             return <div key={"io"+k} style={{marginTop:2,color:"#1f9c68",fontWeight:600}} title={"Avviata alle "+new Date(x.inizio).toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})}>
                               ▶ {x.operatore_nome||"—"} · {(fa&&(fa.descrizione||fa.reparto))||x.fase_descr||x.reparto||"lavorazione"} <span style={{fontWeight:400}}>({min<60?min+" min":Math.floor(min/60)+"h "+String(min%60).padStart(2,"0")})</span></div>; })}
-                          {(()=>{ const u=ultimoLav[c.id]; if(!u || (inCorso[c.id]||[]).length) return null;
+                          {c.stato==="pronta" && c.imballo_il && !c.spedibile_il && <div style={{marginTop:2,color:"#1f9c68",fontWeight:600}} title={"Imballo preso in carico alle "+new Date(c.imballo_il).toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})}>
+                            ▶ {c.imballo_da_nome||"—"} · 📦 Imballo <span style={{fontWeight:400}}>({durataTraTxt(c.imballo_il)})</span></div>}
+                          {c.stato==="pronta" && c.spedibile_il && <div style={{marginTop:2,color:"#0b5cad",fontWeight:600}}>🚚 imballata da {c.spedibile_da_nome||c.imballo_da_nome||"—"}</div>}
+                          {(()=>{ const u=ultimoLav[c.id]; if(!u || (inCorso[c.id]||[]).length || (c.stato==="pronta" && c.imballo_il)) return null;
                             return <div style={{marginTop:2,color:u.in_corso?"#1f9c68":"#697386",fontWeight:u.in_corso?600:400}}
                               title={"Ultimo a lavorarci"+(u.reparto?" · "+u.reparto:"")}>
                               🔧 {u.operatore_nome||"—"}{u.in_corso
@@ -13266,7 +13271,9 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                 {commessa?.creato_il? " il "+new Date(commessa.creato_il).toLocaleDateString("it-IT"):""}</span>}
               {inCorsoOra.length>0 && <span style={{color:"#1f9c68",fontWeight:600}}>
                 ▶ In lavorazione adesso ({inCorsoOra.length}): {inCorsoOra.map((s,i)=><span key={s.id||i}>{i>0?" · ":""}<b>{s.operatore_nome||"—"}</b> — {nomeFaseSeg(s)} <span style={{fontWeight:400}}>(da {new Date(s.inizio).toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})}, {daQuanto(s)})</span></span>)}</span>}
-              {ultimoLavoro && inCorsoOra.length===0 && <span>
+              {imb.imballo_il && !imb.spedibile_il && commessa?.stato==="pronta" && <span style={{color:"#1f9c68",fontWeight:600}}>
+                📦 Imballo in corso: <b>{imb.imballo_da_nome||"—"}</b> <span style={{fontWeight:400}}>(da {new Date(imb.imballo_il).toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})}, {durataTraTxt(imb.imballo_il)})</span></span>}
+              {ultimoLavoro && inCorsoOra.length===0 && !(imb.imballo_il && !imb.spedibile_il && commessa?.stato==="pronta") && <span>
                 🔧 Ultimo a lavorarci: <b>{ultimoLavoro.operatore_nome||"—"}</b>
                 {ultimoLavoro.reparto? " ("+ultimoLavoro.reparto+")":""}
                 {ultimoLavoro.fine
@@ -13730,6 +13737,23 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                 </div>
               );
             })}
+            {!nuova && (()=>{ const st=commessa?.stato||f.stato;
+              const hh=d=>new Date(d).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+              let col="#697386", bg="#f5f7fa", badge="In attesa", testo=<>Parte quando <b>tutte le lavorazioni</b> sono terminate: il magazzino la trova in <b>📦 Da imballare</b>.</>;
+              if(imb.spedibile_il){ col="#0b5cad"; bg="#e3f0ff"; badge="✓ Fatto";
+                testo=<>Imballata da <b>{imb.spedibile_da_nome||imb.imballo_da_nome||"—"}</b> · pronta per la spedizione il {hh(imb.spedibile_il)}{imb.imballo_il?<> · durata imballo <b>{durataTraTxt(imb.imballo_il,imb.spedibile_il)}</b></>:null}</>; }
+              else if(imb.imballo_il){ col="#1f9c68"; bg="#e6f4ee"; badge="▶ In corso";
+                testo=<>Presa in carico da <b>{imb.imballo_da_nome||"—"}</b> alle {hh(imb.imballo_il)} · da <b>{durataTraTxt(imb.imballo_il)}</b></>; }
+              else if(st==="pronta"){ col="#b26a00"; bg="#fff4e5"; badge="Da fare";
+                testo=<>Lavorazioni terminate: <b>in attesa del magazzino</b> (lista 📦 Da imballare).</>; }
+              else if(st==="consegnata"||st==="chiusa"){ badge="—"; testo=<>Commessa {st} senza imballo registrato.</>; }
+              return <div style={{border:"1px solid var(--line)",borderLeft:"4px solid "+col,borderRadius:10,padding:"10px 12px",margin:"4px 0 12px",background:bg}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  <b>📦 Imballo e spedizione</b><span className="muted" style={{fontSize:12}}>· Magazzino · ultimo passaggio</span>
+                  <span className="tag" style={{marginLeft:"auto",background:"#fff",color:col,fontWeight:700,border:"1px solid "+col}}>{badge}</span>
+                </div>
+                <div style={{fontSize:13,marginTop:4}}>{testo}</div>
+              </div>; })()}
             <button type="button" className="btn small primary" onClick={addFase}>+ Aggiungi fase</button>
           </div>
 

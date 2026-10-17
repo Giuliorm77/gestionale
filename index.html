@@ -1690,7 +1690,7 @@ function DettaglioLavorazioneOp({commessa,onClose}){
                 (c.commesse_righe||[]).forEach(r=>{ const parts=[];
                   const p=r.imballo_pluriball; if(p&&p.articolo_id&&Number(p.mtl_tot)>0) parts.push((p.nome||"Pluriball")+": "+mtlPluriball(r)+" mtl");
                   const ids=Array.isArray(r.imballo_ids)?r.imballo_ids:(r.imballo_id?[r.imballo_id]:[]);
-                  ids.forEach(id=>{ const imbo=(imballi||[]).find(x=>x.id===id); if(imbo) vociImballoQty(imbo,(r.config&&r.config.mis)||{},pezziRiga(r),r.imballo_input).forEach(q=>parts.push(q.descrizione+": "+q.qty+(q.um?" "+q.um:""))); });
+                  ids.forEach(id=>{ const sp=etichettaImballoSpeciale(id,r); if(sp){ parts.push(sp); return; } const imbo=(imballi||[]).find(x=>x.id===id); if(imbo) vociImballoQty(imbo,(r.config&&r.config.mis)||{},pezziRiga(r),r.imballo_input).forEach(q=>parts.push(q.descrizione+": "+q.qty+(q.um?" "+q.um:""))); });
                   if(parts.length) rows.push({descr:r.descrizione||"—", qta:r.quantita, parts});
                 });
                 if(!rows.length) return null;
@@ -4258,7 +4258,7 @@ function DaImballare({profilo,perm}){
   const imballoRiga=r=>{ const parts=[];
     const p=r.imballo_pluriball; if(p&&p.articolo_id&&Number(p.mtl_tot)>0) parts.push((p.nome||"Pluriball")+": "+mtlPluriball(r)+" mtl");
     const ids=Array.isArray(r.imballo_ids)&&r.imballo_ids.length?r.imballo_ids:(r.imballo_id?[r.imballo_id]:[]);
-    ids.forEach(id=>{ const imbo=(imballi||[]).find(x=>x.id===id); if(imbo){ try{ vociImballoQty(imbo,(r.config&&r.config.mis)||{},pezziRiga(r),r.imballo_input).forEach(q=>parts.push(q.descrizione+": "+q.qty+(q.um?" "+q.um:""))); }catch(e){ parts.push(imbo.nome||"imballo"); } } });
+    ids.forEach(id=>{ const sp=etichettaImballoSpeciale(id,r); if(sp){ parts.push(sp); return; } const imbo=(imballi||[]).find(x=>x.id===id); if(imbo){ try{ vociImballoQty(imbo,(r.config&&r.config.mis)||{},pezziRiga(r),r.imballo_input).forEach(q=>parts.push(q.descrizione+": "+q.qty+(q.um?" "+q.um:""))); }catch(e){ parts.push(imbo.nome||"imballo"); } } });
     return parts; };
   if(lista===null) return <div className="empty">Caricamento…</div>;
   const daFare=lista.filter(c=>!c.spedibile_il), fatte=lista.filter(c=>c.spedibile_il);
@@ -7668,6 +7668,12 @@ function pezziRiga(r, abbCm){
   if(["mc","m3","m³"].includes(u)){ const sp=Number(m.sp)||0; if(L>0&&H>0&&sp>0) return migliore((L/100)*(H/100)*(sp/1000), ((L+abb)/100)*((H+abb)/100)*(sp/1000)); return 1; }
   return q;
 }
+// scelte d'imballo "speciali" decise nel preventivo (salvate in imballo_ids): nessun imballo / istruzioni scritte
+function etichettaImballoSpeciale(id, r){
+  if(id==="__nessuno__") return "✓ Nessun imballo necessario";
+  if(id==="__nota__") return "✍ "+(((r&&r.imballo_input)||{}).nota_imballo||"istruzioni a mano");
+  return null;
+}
 // metri di pluriball della riga: metri per pezzo × pezzi (ricalcolato anche sulle righe salvate prima della correzione)
 function mtlPluriball(r){ const p=r&&r.imballo_pluriball; if(!p) return 0;
   if(Number(p.mtl)>0) return Math.round(Number(p.mtl)*pezziRiga(r)*100)/100;
@@ -9121,18 +9127,25 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
     return calcolaImballo(imb,(r.config&&r.config.mis)||{},pezziRiga(r,cgAbb),r.imballo_input||{}); };
   const costoImballoRiga=r=> imballiSel(r).reduce((s,id)=>s+costoUnImballo(r,id),0);
   const addImballo=(i,id)=>{ if(!id) return;
+    if(id==="__nessuno__"){ setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:["__nessuno__"]}:x)); return; }
+    if(id==="__nota__"){ const t=window.prompt("✍ Come va imballato? (istruzioni per il magazzino)", ((righe[i]&&righe[i].imballo_input)||{}).nota_imballo||"");
+      if(t===null || !t.trim()) return;
+      setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:[...imballiSel(x).filter(v=>v!=="__nessuno__"&&v!=="__nota__"),"__nota__"],imballo_input:{...(x.imballo_input||{}),nota_imballo:t.trim()}}:x)); return; }
     const imb=(imballiProdPrev||[]).find(x=>x.id===id);
     const manuali=imb?(imb.imballi_voci||[]).filter(v=>imbVoceRichiedeInput(v,imb.unita_calcolo)):[];
     let extra=null;
     if(manuali.length){ extra={}; for(const v of manuali){ const risp=window.prompt("📦 "+(imb.nome||"Imballo")+" — quanti pezzi di «"+(v.descrizione||"voce")+"»?",""); if(risp===null) return; extra["q_"+v.id]=Number((risp+"").replace(",","."))||0; } }
-    setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:[...imballiSel(x).filter(v=>v!==id),id],imballo_input:extra?{...(x.imballo_input||{}),...extra}:x.imballo_input}:x)); };
+    setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:[...imballiSel(x).filter(v=>v!==id&&v!=="__nessuno__"),id],imballo_input:extra?{...(x.imballo_input||{}),...extra}:x.imballo_input}:x)); };
   const removeImballo=(i,id)=>setRighe(p=>p.map((x,j)=>j===i?{...x,imballo_ids:imballiSel(x).filter(v=>v!==id)}:x));
   const nomeImballo=(r,id)=> id==="__pluriball__"
     ? ("Pluriball"+(pluriballRiga(r)?" "+pluriballRiga(r).mtl_tot+" mtl":""))
-    : ((imballiProdPrev.find(x=>x.id===id)||{}).nome||"imballo");
+    : (etichettaImballoSpeciale(id,r) || (imballiProdPrev.find(x=>x.id===id)||{}).nome || "imballo");
   // per salvataggio: se la riga include il pluriball, i dati bobina/metri da memorizzare
   const pluriballDaSalvare=r=> imballiSel(r).includes("__pluriball__") ? pluriballRiga(r) : null;
   const righeCalc=righe.map(r=>({...r, imballo_costo:Math.round(costoImballoRiga(r)*100)/100}));
+  // OBBLIGO: ogni prodotto con materiali deve dire COME si imballa (imballo, istruzioni o "nessuno") — serve al magazzino
+  const gruppiSenzaImballo=(()=>{ const g={}; righe.forEach(r=>{ if(!(r.tipo==="materiale"||r.tipo==="altro") || !String(r.descrizione||"").trim()) return;
+    const k=r.gruppo||gruppoCorr; if(!(k in g)) g[k]=false; if(imballiSel(r).length) g[k]=true; }); return Object.keys(g).filter(k=>!g[k]); })();
   const tot=calcolaPreventivo(righeCalc,f);
   const stimaTr=React.useMemo(()=>stimaTrasporto(righe,articoli,corrieri,f.trasporto_corriere_id),[righe,articoli,corrieri,f.trasporto_corriere_id]);
   useEffect(()=>{ if(!f.trasporto_auto || f.scaglioni) return;
@@ -9311,6 +9324,7 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   async function creaCommessa(){
     if(!preventivo?.id){ setErr("Salva prima il preventivo, poi crea la commessa."); return; }
     setErr(""); setCommMsg("");
+    if(gruppiSenzaImballo.length){ setErr("⛔ Prima di creare la commessa indica COME IMBALLARE ogni prodotto (il magazzino lo legge da qui): manca per «"+gruppiSenzaImballo.join("», «")+"». Sulla riga del materiale usa il menu imballo: un imballo, «✍ Istruzioni a mano…» oppure «✓ Nessun imballo necessario»."); window.scrollTo&&window.scrollTo(0,0); return; }
     if(f.scaglioni && ordineProdotti.length>1){
       if(!window.confirm("Questo preventivo è a SCAGLIONI (quantità alternative). La commessa prenderebbe TUTTI i prodotti sommati, che di norma non è corretto: meglio lasciare nel preventivo solo la quantità scelta dal cliente e poi creare la commessa. Procedere comunque?")) return;
     }
@@ -9556,8 +9570,11 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
                                     style={{width:60,padding:"3px 5px",border:"1px solid var(--line)",borderRadius:6,fontSize:11}}/>
                                 </div>); })}
                               <select value="" onChange={e=>{addImballo(i,e.target.value); e.target.value="";}}
-                                style={{padding:"5px",borderRadius:7,border:"1px solid var(--line)",fontSize:12}}>
-                                <option value="">＋ aggiungi imballo…</option>
+                                title={gruppiSenzaImballo.includes(r.gruppo||gruppoCorr)?"Obbligatorio: indica come imballare questo prodotto (serve per creare la commessa)":""}
+                                style={{padding:"5px",borderRadius:7,fontSize:12,border:gruppiSenzaImballo.includes(r.gruppo||gruppoCorr)?"2px solid #c0392b":"1px solid var(--line)",background:gruppiSenzaImballo.includes(r.gruppo||gruppoCorr)?"#fdecea":undefined}}>
+                                <option value="">{gruppiSenzaImballo.includes(r.gruppo||gruppoCorr)?"⚠ come si imballa? (obbligatorio)":"＋ aggiungi imballo…"}</option>
+                                {!imballiSel(r).includes("__nota__") && <option value="__nota__">✍ Istruzioni a mano…</option>}
+                                {!imballiSel(r).includes("__nessuno__") && <option value="__nessuno__">✓ Nessun imballo necessario</option>}
                                 {pluriballRiga(r) && !imballiSel(r).includes("__pluriball__") && <option value="__pluriball__">📦 Pluriball (automatico)</option>}
                                 {imballiProdPrev.filter(im=>!imballiSel(r).includes(im.id)).map(im=><option key={im.id} value={im.id}>📦 {im.nome}</option>)}
                               </select>
@@ -13402,7 +13419,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                             {r.imballo_pluriball && <span className="tag" style={{fontSize:11}}>📦 {r.imballo_pluriball.nome||"Pluriball"} {mtlPluriball(r)} mtl</span>}
                             {sel.map(id=>{ const im=(imballi||[]).find(x=>x.id===id);
                               return <span key={id} className="tag" style={{fontSize:11,display:"inline-flex",alignItems:"center",gap:4}}>
-                                📦 {(im&&im.nome)||"imballo"} <span className="muted">{eur(costoUnImballoC(r,id))}</span>
+                                📦 {(im&&im.nome)||etichettaImballoSpeciale(id,r)||"imballo"} {im && <span className="muted">{eur(costoUnImballoC(r,id))}</span>}
                                 <button type="button" onClick={()=>removeImballoC(i,id)} style={{border:"none",background:"none",cursor:"pointer",color:"#c0392b",fontWeight:700,padding:0,lineHeight:1}}>×</button>
                               </span>; })}
                           </div>}

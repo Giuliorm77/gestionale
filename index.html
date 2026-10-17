@@ -12282,18 +12282,21 @@ function ModuloCommesse({profilo,perm}){
   const [editor,setEditor]=useState(null);
   const [nomiUtenti,setNomiUtenti]=useState({});   // v61: id utente -> nome (chi ha aperto)
   const [ultimoLav,setUltimoLav]=useState({});     // v61: commessa_id -> ultimo segmento di lavoro
+  const [inCorso,setInCorso]=useState({});         // commessa_id -> sessioni APERTE adesso (tutte le lavorazioni in corso)
 
   const carica=useCallback(async()=>{
     setErr("");
-    const [c,cl,op,pn,ul]=await Promise.all([
+    const [c,cl,op,pn,ul,aperti]=await Promise.all([
       sb.from("commesse").select("*, commesse_fasi(*), commesse_righe(*)").order("creato_il",{ascending:false}),
       sb.from("clienti").select("id,ragione_sociale,agente_id,provvigione_pct").order("ragione_sociale"),
       sb.from("operatori").select("id,nome,reparto,reparti,costo_orario").order("nome"),
       /* v61: nomi utenti (chi ha aperto) e ultimo lavoro registrato per commessa */
       sb.from("profili_nomi").select("id,nome"),
       sb.from("commesse_ultimo_lavoro").select("*"),
+      sb.from("segmenti_lavoro").select("commessa_id,fase_chiave,fase_descr,reparto,operatore_nome,inizio").is("fine",null).order("inizio"),
     ]);
     if(c.error){ setErr(c.error.message); return; }
+    setInCorso(((aperti&&aperti.data)||[]).reduce((m,x)=>{ (m[x.commessa_id]=m[x.commessa_id]||[]).push(x); return m; },{}));
     if(op.error) setErr("Operatori non caricati: "+op.error.message);
     setCommesse(c.data||[]); setClienti(cl.data||[]); setOperatori(op.data||[]);
     setNomiUtenti((pn.data||[]).reduce((m,p)=>{ m[p.id]=p.nome; return m; },{}));
@@ -12392,7 +12395,11 @@ function ModuloCommesse({profilo,perm}){
                         <td style={{fontSize:12,minWidth:150}}>
                           <div className="muted" title="Chi ha aperto la commessa">
                             🧾 {nomiUtenti[c.creato_da]||"—"}</div>
-                          {(()=>{ const u=ultimoLav[c.id]; if(!u) return null;
+                          {(inCorso[c.id]||[]).map((x,k)=>{ const fa=fasi.find(y=>y.chiave&&y.chiave===x.fase_chiave);
+                            const min=Math.max(0,Math.round((Date.now()-new Date(x.inizio).getTime())/60000));
+                            return <div key={"io"+k} style={{marginTop:2,color:"#1f9c68",fontWeight:600}} title={"Avviata alle "+new Date(x.inizio).toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})}>
+                              ▶ {x.operatore_nome||"—"} · {(fa&&(fa.descrizione||fa.reparto))||x.fase_descr||x.reparto||"lavorazione"} <span style={{fontWeight:400}}>({min<60?min+" min":Math.floor(min/60)+"h "+String(min%60).padStart(2,"0")})</span></div>; })}
+                          {(()=>{ const u=ultimoLav[c.id]; if(!u || (inCorso[c.id]||[]).length) return null;
                             return <div style={{marginTop:2,color:u.in_corso?"#1f9c68":"#697386",fontWeight:u.in_corso?600:400}}
                               title={"Ultimo a lavorarci"+(u.reparto?" · "+u.reparto:"")}>
                               🔧 {u.operatore_nome||"—"}{u.in_corso

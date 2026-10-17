@@ -12569,6 +12569,12 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const [magMsg,setMagMsg]=useState("");
   const [ofMsg,setOfMsg]=useState("");       // esito "Genera ordine fornitore"
   const [consMsg,setConsMsg]=useState("");   // esito "Genera consuntivo"
+  // consuntivo già generato da questa commessa (uno solo per commessa, v177)
+  const [consGen,setConsGen]=useState({id:commessa?.consuntivo_preventivo_id||null, numero:commessa?.consuntivo_preventivo_numero||""});
+  // se il preventivo-consuntivo è stato cancellato, il pulsante torna disponibile
+  useEffect(()=>{ let vivo=true; const id=commessa?.consuntivo_preventivo_id; if(!id || !perm.economici) return;
+    sb.from("preventivi").select("id").eq("id",id).maybeSingle().then(({data,error})=>{ if(vivo && !error && !data) setConsGen({id:null,numero:""}); });
+    return ()=>{vivo=false;}; },[commessa?.consuntivo_preventivo_id, perm.economici]);
   const [trasportoOpen,setTrasportoOpen]=useState(false);
   const [filtroConsegna,setFiltroConsegna]=useState("");
   const [interventi,setInterventi]=useState([]);
@@ -13111,13 +13117,6 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
     const {error}=await sb.from("commesse_consuntivi").upsert(recConsuntivo(id),{onConflict:"commessa_id"});
     if(error) throw error;
   }
-  async function salvaConsuntivoManuale(){
-    if(nuova||!commessa?.id){ setErr("Salva prima la commessa."); return; }
-    setBusy(true); setConsMsg("");
-    try{ await salvaConsuntivo(commessa.id); setConsMsg("📋 Consuntivo salvato nell'archivio (modulo Consuntivi)."); }
-    catch(ex){ setErr(ex.message); }
-    setBusy(false);
-  }
 
   async function elimina(){
     if(!commessa?.id) return;
@@ -13141,6 +13140,11 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   async function generaConsuntivo(){
     if(nuova || !commessa?.id){ setErr("Salva prima la commessa."); return; }
     setBusy(true); setErr(""); setConsMsg("");
+    // UN SOLO consuntivo per commessa: se quello generato esiste ancora, non se ne crea un altro
+    if(consGen.id){
+      const {data:gia}=await sb.from("preventivi").select("id,numero").eq("id",consGen.id).maybeSingle();
+      if(gia){ setErr("⛔ Il consuntivo di questa commessa è già stato generato: preventivo N. "+(gia.numero||consGen.numero)+" (in 🧾 Preventivi). Modifica quello invece di crearne un altro."); setBusy(false); return; }
+    }
     try{
       // materiali realmente presenti nei consumi (di norma già scaricati)
       const mat=(consumi||[]).filter(c=>c.articolo_id && (Number(c.quantita)||0)>0);
@@ -13181,7 +13185,11 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
       if(error) throw error;
       const rows=tutte.map((r,idx)=>({preventivo_id:np.id, ordine:idx, ...r}));
       const {error:er}=await sb.from("preventivi_righe").insert(rows); if(er) throw er;
-      setConsMsg("Consuntivo creato: preventivo "+numero+" (in bozza) con "+righeMdo.length+" lavorazione/i e "+righeMat.length+" materiale/i. Aprilo in 🧾 Preventivi per rivederlo, ritoccare i prezzi e inviarlo.");
+      // la commessa ricorda il suo consuntivo + snapshot nell'archivio Consuntivi (prima era il pulsante "Salva consuntivo")
+      const {error:el}=await sb.from("commesse").update({consuntivo_preventivo_id:np.id, consuntivo_preventivo_numero:numero}).eq("id",commessa.id); if(el) throw el;
+      setConsGen({id:np.id, numero});
+      let snapOk=true; try{ await salvaConsuntivo(commessa.id); }catch(e){ snapOk=false; }
+      setConsMsg("Consuntivo creato: preventivo "+numero+" (in bozza) con "+righeMdo.length+" lavorazione/i e "+righeMat.length+" materiale/i"+(snapOk?" — salvato anche nell'archivio 📋 Consuntivi":" (⚠ snapshot nell'archivio non riuscito)")+". Aprilo in 🧾 Preventivi per rivederlo, ritoccare i prezzi e inviarlo.");
       setBusy(false);
     }catch(ex){ setErr(ex.message); setBusy(false); }
   }
@@ -13988,12 +13996,11 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
           {!nuova && perm.magazzino &&
             <button type="button" className="btn" onClick={()=>{ if(commessa?.stato==="pronta" && !imb.spedibile_il && !window.confirm("⚠ La commessa non risulta ancora IMBALLATA e pronta per la spedizione. Generare comunque il DDT?")) return; setDdtOpen(true); }}
               title="Genera un documento di trasporto con gli articoli pronti di questa commessa">📄 Genera DDT</button>}
-          {!nuova && perm.economici &&
-            <button type="button" className="btn" onClick={generaConsuntivo} disabled={busy}
-              title="Crea un preventivo (bozza) con i materiali scaricati e le ore reali per reparto, da rivedere e inviare">📄 Genera consuntivo</button>}
-          {!nuova && perm.economici &&
-            <button type="button" className="btn" onClick={salvaConsuntivoManuale} disabled={busy}
-              title="Fotografa il consuntivo reale (ricavi/costi/margine) nell'archivio Consuntivi">💾 Salva consuntivo</button>}
+          {!nuova && perm.economici && (consGen.id
+            ? <span className="tag" style={{alignSelf:"center",background:"#e6f4ee",color:"#127a3e",border:"1px solid #9fd8bd",fontWeight:700,padding:"6px 10px"}}
+                title="Il consuntivo di questa commessa è già stato generato (uno solo per commessa). Lo trovi in 🧾 Preventivi; lo snapshot è nell'archivio 📋 Consuntivi.">✓ Consuntivo N. {consGen.numero||"—"}</span>
+            : <button type="button" className="btn" onClick={generaConsuntivo} disabled={busy}
+                title="Crea il consuntivo (preventivo in bozza con materiali scaricati e ore reali) e lo salva nell'archivio Consuntivi. Uno solo per commessa.">📄 Genera consuntivo</button>)}
           {!nuova && profilo.ruolo==="amministratore" && !readonly &&
             <button type="button" className="btn danger" onClick={elimina} disabled={busy}>Elimina</button>}
           <button type="button" className="btn" style={{marginLeft:"auto"}} onClick={onClose}>{readonly?"Chiudi":"Annulla"}</button>
@@ -15506,7 +15513,7 @@ function ModuloConsuntivi({profilo,perm}){
       <div className="topbar"><h1>Consuntivi</h1></div>
       <div className="content">
         {err && <div className="banner err">{err}</div>}
-        <div className="muted" style={{fontSize:12,marginBottom:10}}>Archivio dei consuntivi <b>congelati alla chiusura</b> della commessa (ricavi/costi/margine reali in quel momento). Si crea in automatico quando chiudi una commessa, o col pulsante <b>💾 Salva consuntivo</b> nella scheda. Per il margine <b>live</b> aggiornato usa 📊 Report.</div>
+        <div className="muted" style={{fontSize:12,marginBottom:10}}>Archivio dei consuntivi <b>congelati alla chiusura</b> della commessa (ricavi/costi/margine reali in quel momento). Si crea in automatico quando chiudi una commessa, o con <b>📄 Genera consuntivo</b> nella scheda commessa (uno solo per commessa). Per il margine <b>live</b> aggiornato usa 📊 Report.</div>
 
         {cons && cons.length>0 && <div className="card" style={{display:"flex",gap:22,flexWrap:"wrap",alignItems:"center",padding:"12px 18px",marginBottom:12,background:"#f6faf8",border:"1px solid #cfe8dd"}}>
           <div><div className="muted" style={{fontSize:11,textTransform:"uppercase"}}>Margine totale ({filtrati.length} commesse)</div>
@@ -15528,7 +15535,7 @@ function ModuloConsuntivi({profilo,perm}){
         </div>
 
         {cons===null ? <div className="empty">Caricamento…</div>
-          : filtrati.length===0 ? <div className="card empty">Nessun consuntivo salvato. Si creano chiudendo una commessa (o con 💾 Salva consuntivo nella scheda commessa).</div>
+          : filtrati.length===0 ? <div className="card empty">Nessun consuntivo salvato. Si creano chiudendo una commessa o con 📄 Genera consuntivo nella scheda commessa.</div>
           : <div className="card" style={{overflow:"auto"}}>
               <table>
                 <thead><tr><th>Commessa</th><th>Cliente</th><th>Chiusa</th><th style={{textAlign:"right"}}>Ricavi</th><th style={{textAlign:"right"}}>Costi</th><th style={{textAlign:"right"}}>Margine</th><th style={{textAlign:"right"}}>%</th></tr></thead>

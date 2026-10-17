@@ -1677,9 +1677,9 @@ function DettaglioLavorazioneOp({commessa,onClose}){
 
               {(()=>{ const rows=[];
                 (c.commesse_righe||[]).forEach(r=>{ const parts=[];
-                  const p=r.imballo_pluriball; if(p&&p.articolo_id&&Number(p.mtl_tot)>0) parts.push((p.nome||"Pluriball")+": "+(Math.round(Number(p.mtl_tot)*100)/100)+" mtl");
+                  const p=r.imballo_pluriball; if(p&&p.articolo_id&&Number(p.mtl_tot)>0) parts.push((p.nome||"Pluriball")+": "+mtlPluriball(r)+" mtl");
                   const ids=Array.isArray(r.imballo_ids)?r.imballo_ids:(r.imballo_id?[r.imballo_id]:[]);
-                  ids.forEach(id=>{ const imbo=(imballi||[]).find(x=>x.id===id); if(imbo) vociImballoQty(imbo,(r.config&&r.config.mis)||{},r.quantita,r.imballo_input).forEach(q=>parts.push(q.descrizione+": "+q.qty+(q.um?" "+q.um:""))); });
+                  ids.forEach(id=>{ const imbo=(imballi||[]).find(x=>x.id===id); if(imbo) vociImballoQty(imbo,(r.config&&r.config.mis)||{},pezziRiga(r),r.imballo_input).forEach(q=>parts.push(q.descrizione+": "+q.qty+(q.um?" "+q.um:""))); });
                   if(parts.length) rows.push({descr:r.descrizione||"—", qta:r.quantita, parts});
                 });
                 if(!rows.length) return null;
@@ -4237,9 +4237,9 @@ function DaImballare({profilo,perm}){
   const fmt=d=>d?new Date(d).toLocaleDateString("it-IT"):"—";
   const fdt=d=>d?new Date(d).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
     const imballoRiga=r=>{ const parts=[];
-    const p=r.imballo_pluriball; if(p&&p.articolo_id&&Number(p.mtl_tot)>0) parts.push((p.nome||"Pluriball")+": "+(Math.round(Number(p.mtl_tot)*100)/100)+" mtl");
+    const p=r.imballo_pluriball; if(p&&p.articolo_id&&Number(p.mtl_tot)>0) parts.push((p.nome||"Pluriball")+": "+mtlPluriball(r)+" mtl");
     const ids=Array.isArray(r.imballo_ids)&&r.imballo_ids.length?r.imballo_ids:(r.imballo_id?[r.imballo_id]:[]);
-    ids.forEach(id=>{ const imbo=(imballi||[]).find(x=>x.id===id); if(imbo){ try{ vociImballoQty(imbo,(r.config&&r.config.mis)||{},r.quantita,r.imballo_input).forEach(q=>parts.push(q.descrizione+": "+q.qty+(q.um?" "+q.um:""))); }catch(e){ parts.push(imbo.nome||"imballo"); } } });
+    ids.forEach(id=>{ const imbo=(imballi||[]).find(x=>x.id===id); if(imbo){ try{ vociImballoQty(imbo,(r.config&&r.config.mis)||{},pezziRiga(r),r.imballo_input).forEach(q=>parts.push(q.descrizione+": "+q.qty+(q.um?" "+q.um:""))); }catch(e){ parts.push(imbo.nome||"imballo"); } } });
     return parts; };
   if(lista===null) return <div className="empty">Caricamento…</div>;
   const daFare=lista.filter(c=>!c.spedibile_il), fatte=lista.filter(c=>c.spedibile_il);
@@ -7626,6 +7626,27 @@ function suggerisciConsumi(righe, prodotti){
 }
 // Scheda di lavorazione stampabile (documento interno di reparto, senza prezzi)
 // quantità per voce di un imballo (per le istruzioni al magazzino): [{descrizione, qty, um}]
+// N° di PEZZI di una riga, per calcolare l'imballo. Su una riga venduta a mq / mtl / mc la quantità
+// è la SUPERFICIE (es. Forex 200×200 = 4,121 mq con abbondanza) e non il numero di pannelli:
+// i pezzi si ricavano dalla misura del singolo pezzo (con o senza abbondanza, quella che torna intera).
+function pezziRiga(r, abbCm){
+  const q=Number(r&&r.quantita)||0;
+  const cfg=(r&&r.config)||{};
+  if(Number(cfg.pezzi)>0) return Number(cfg.pezzi);
+  const u=String((r&&r.unita)||"").trim().toLowerCase();
+  const m=cfg.mis||{}; const L=Number(m.L)||0, H=Number(m.H)||0;
+  const abb=abbCm==null?3:(Number(abbCm)||0);
+  const migliore=(per0,per1)=>{ const c=[per0,per1].filter(x=>x>0).map(p=>q/p);
+    if(!c.length) return q; c.sort((a,b)=>Math.abs(a-Math.round(a))-Math.abs(b-Math.round(b))); return Math.max(1,Math.round(c[0])); };
+  if(["mq","m2","m²"].includes(u)){ if(L>0&&H>0) return migliore((L/100)*(H/100), ((L+abb)/100)*((H+abb)/100)); return 1; }
+  if(["mtl","ml","m","mt"].includes(u)){ const lu=L||H; if(lu>0) return migliore(lu/100,(lu+abb)/100); return 1; }
+  if(["mc","m3","m³"].includes(u)){ const sp=Number(m.sp)||0; if(L>0&&H>0&&sp>0) return migliore((L/100)*(H/100)*(sp/1000), ((L+abb)/100)*((H+abb)/100)*(sp/1000)); return 1; }
+  return q;
+}
+// metri di pluriball della riga: metri per pezzo × pezzi (ricalcolato anche sulle righe salvate prima della correzione)
+function mtlPluriball(r){ const p=r&&r.imballo_pluriball; if(!p) return 0;
+  if(Number(p.mtl)>0) return Math.round(Number(p.mtl)*pezziRiga(r)*100)/100;
+  return Math.round((Number(p.mtl_tot)||0)*100)/100; }
 function vociImballoQty(imb, mis, N, vInput){
   if(!imb) return [];
   const u=imb.unita_calcolo;
@@ -7694,9 +7715,9 @@ function htmlSchedaCommessa(c, fasi, righe, az, imballi){
   (righe||[]).forEach(r=>{
     const parts=[];
     const p=r.imballo_pluriball;
-    if(p&&p.articolo_id&&Number(p.mtl_tot)>0) parts.push({descrizione:(p.nome||"Pluriball"), qty:Math.round(Number(p.mtl_tot)*100)/100, um:"mtl"});
+    if(p&&p.articolo_id&&Number(p.mtl_tot)>0) parts.push({descrizione:(p.nome||"Pluriball"), qty:mtlPluriball(r), um:"mtl"});
     const ids=Array.isArray(r.imballo_ids)?r.imballo_ids:(r.imballo_id?[r.imballo_id]:[]);
-    ids.forEach(id=>{ const imbo=(imballi||[]).find(x=>x.id===id); if(imbo) vociImballoQty(imbo,(r.config&&r.config.mis)||{},r.quantita,r.imballo_input).forEach(q=>parts.push(q)); });
+    ids.forEach(id=>{ const imbo=(imballi||[]).find(x=>x.id===id); if(imbo) vociImballoQty(imbo,(r.config&&r.config.mis)||{},pezziRiga(r),r.imballo_input).forEach(q=>parts.push(q)); });
     if(parts.length) imbRows.push({descr:r.descrizione||"—", qta:Number(r.quantita)||0, parts});
   });
   const imbHtml=imbRows.map(x=>`<tr><td><b>${escHtml(x.descr)}</b> <span class="mut">×${x.qta}</span></td><td>${x.parts.map(pp=>escHtml(pp.descrizione)+": <b>"+pp.qty+(pp.um?" "+escHtml(pp.um):"")+"</b>").join(" &nbsp;·&nbsp; ")}</td><td class="c">&#9744;</td></tr>`).join("");
@@ -9026,14 +9047,14 @@ function PreventivoEditor({preventivo,profilo,perm,clienti,articoli,imp,tariffe,
   const tracciaAvanzo=r=> !!(r && r.articolo_id && artMap[r.articolo_id] && artMap[r.articolo_id].traccia_avanzo);
   // pluriball di una riga: calcolato dalle misure della riga (serve un prodotto configurato con misure)
   const pluriballRiga=r=>{ const mis=(r.config&&r.config.mis)||{}; const pa=calcolaPluriball(mis,bobinePrev,r.pluriball_bobina_id); if(!pa) return null;
-    const N=Number(r.quantita)||0; const bob=pa.bobina;
+    const N=pezziRiga(r,cgAbb); const bob=pa.bobina;   // pezzi, non mq
     const prezzoUnit=Number(bob.prezzo_pubblico)>0? Number(bob.prezzo_pubblico) : (Number(bob.costo)||0);
     return {articolo_id:bob.id, nome:bob.nome_articolo, mtl:pa.metri, mtl_tot:Math.round(pa.metri*N*100)/100, prezzo_unit:prezzoUnit, coperto:pa.coperto}; };
   const imballiSel=r=> Array.isArray(r.imballo_ids)? r.imballo_ids : [];
   const costoUnImballo=(r,id)=>{
     if(id==="__pluriball__"){ const p=pluriballRiga(r); return p? p.mtl_tot*p.prezzo_unit : 0; }
     const imb=imballiProdPrev.find(x=>x.id===id); if(!imb) return 0;
-    return calcolaImballo(imb,(r.config&&r.config.mis)||{},Number(r.quantita)||0,r.imballo_input||{}); };
+    return calcolaImballo(imb,(r.config&&r.config.mis)||{},pezziRiga(r,cgAbb),r.imballo_input||{}); };
   const costoImballoRiga=r=> imballiSel(r).reduce((s,id)=>s+costoUnImballo(r,id),0);
   const addImballo=(i,id)=>{ if(!id) return;
     const imb=(imballiProdPrev||[]).find(x=>x.id===id);
@@ -12719,12 +12740,12 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
   const contConsegna=righe.reduce((m,r)=>{ const k=r.modalita_consegna||"corriere"; m[k]=(m[k]||0)+1; return m; },{});
   const costoImballoRiga=r=>{
     let tot=0;
-    if(r.imballo_pluriball){ const p=r.imballo_pluriball; tot+=(Number(p.mtl_tot)||0)*(Number(p.prezzo_unit)||0); }
+    if(r.imballo_pluriball){ const p=r.imballo_pluriball; tot+=mtlPluriball(r)*(Number(p.prezzo_unit)||0); }
     const ids=Array.isArray(r.imballo_ids)&&r.imballo_ids.length? r.imballo_ids : (r.imballo_id?[r.imballo_id]:[]);
-    ids.forEach(id=>{ const imb=(imballi||[]).find(x=>x.id===id); if(imb) tot+=calcolaImballo(imb,(r.config&&r.config.mis)||{},Number(r.quantita)||0,r.imballo_input||{}); });
+    ids.forEach(id=>{ const imb=(imballi||[]).find(x=>x.id===id); if(imb) tot+=calcolaImballo(imb,(r.config&&r.config.mis)||{},pezziRiga(r),r.imballo_input||{}); });
     return tot; };
   const imballiSelC=r=> Array.isArray(r.imballo_ids)&&r.imballo_ids.length? r.imballo_ids : (r.imballo_id?[r.imballo_id]:[]);
-  const costoUnImballoC=(r,id)=>{ const imb=(imballi||[]).find(x=>x.id===id); if(!imb) return 0; return calcolaImballo(imb,(r.config&&r.config.mis)||{},Number(r.quantita)||0,r.imballo_input||{}); };
+  const costoUnImballoC=(r,id)=>{ const imb=(imballi||[]).find(x=>x.id===id); if(!imb) return 0; return calcolaImballo(imb,(r.config&&r.config.mis)||{},pezziRiga(r),r.imballo_input||{}); };
   const addImballoC=(i,id)=>{ if(!id) return;
     const imb=(imballi||[]).find(x=>x.id===id);
     const manuali=imb?(imb.imballi_voci||[]).filter(v=>imbVoceRichiedeInput(v,imb.unita_calcolo)):[];
@@ -13257,7 +13278,7 @@ function CommessaEditor({commessa,profilo,perm,clienti,operatori,articoli,prodot
                         const sel=imballiSelC(r);
                         return <td>
                           {(r.imballo_pluriball || sel.length>0) && <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:3}}>
-                            {r.imballo_pluriball && <span className="tag" style={{fontSize:11}}>📦 {r.imballo_pluriball.nome||"Pluriball"} {r.imballo_pluriball.mtl_tot} mtl</span>}
+                            {r.imballo_pluriball && <span className="tag" style={{fontSize:11}}>📦 {r.imballo_pluriball.nome||"Pluriball"} {mtlPluriball(r)} mtl</span>}
                             {sel.map(id=>{ const im=(imballi||[]).find(x=>x.id===id);
                               return <span key={id} className="tag" style={{fontSize:11,display:"inline-flex",alignItems:"center",gap:4}}>
                                 📦 {(im&&im.nome)||"imballo"} <span className="muted">{eur(costoUnImballoC(r,id))}</span>

@@ -906,6 +906,32 @@ function App(){
     return ()=>{ document.removeEventListener('input',setDirty,true); document.removeEventListener('change',setDirty,true); document.removeEventListener('click',markClick,true); document.removeEventListener('click',onCloseClick,true); document.removeEventListener('submit',onSubmit,true); };
   },[]);
 
+  // MAIUSCOLO: tutto ciò che si scrive nei campi diventa maiuscolo mentre si digita (e quindi si SALVA maiuscolo).
+  // Esclusi: email/PEC, password/PIN, siti/link, numeri e date, o qualsiasi campo dentro [data-noupper].
+  useEffect(()=>{
+    const ok=el=>{
+      if(!el || !(el.tagName==="INPUT"||el.tagName==="TEXTAREA")) return false;
+      if(el.readOnly || (el.closest && el.closest("[data-noupper]"))) return false;
+      if(el.tagName==="INPUT" && !["text","search"].includes(String(el.type||"text").toLowerCase())) return false;
+      if(["numeric","decimal","email","url","tel"].includes(String(el.inputMode||"").toLowerCase())) return false;
+      const fld=el.closest && el.closest(".field"); const lab=fld && fld.querySelector("label");
+      const hint=[el.name,el.placeholder,el.getAttribute("aria-label"),el.title,el.autocomplete,lab?lab.textContent:""].join(" ");
+      return !/e-?mail|\bpec\b|@|password|\bpin\b|https?:|www\.|\bsito\b|\bweb\b|\blink\b|\burl\b/i.test(hint);
+    };
+    const applica=el=>{ const v=el.value, up=v.toLocaleUpperCase("it-IT"); if(up===v) return false;
+      let a=null,b=null; try{ a=el.selectionStart; b=el.selectionEnd; }catch(e){}
+      // setter del prototipo: React "vede" la modifica e la passa all'onChange
+      const d=Object.getOwnPropertyDescriptor(el.tagName==="TEXTAREA"?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,"value");
+      d.set.call(el,up);
+      if(a!=null){ const k=up.length-v.length; try{ el.setSelectionRange(a+k,b+k); }catch(e){} }
+      return true; };
+    const onInput=e=>{ if(e.isComposing) return; if(ok(e.target)) applica(e.target); };
+    // tastiere del telefono (parola in composizione): converto a fine parola e avviso React
+    const onComp=e=>{ const el=e.target; if(ok(el) && applica(el)) el.dispatchEvent(new Event("input",{bubbles:true})); };
+    document.addEventListener("input",onInput,true); document.addEventListener("compositionend",onComp,true);
+    return ()=>{ document.removeEventListener("input",onInput,true); document.removeEventListener("compositionend",onComp,true); };
+  },[]);
+
   useEffect(()=>{
     if(!sb) return;
     sb.auth.getSession().then(({data})=> setSessione(data.session||null));
